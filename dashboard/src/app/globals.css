@@ -1,0 +1,230 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --rd-red: #ff1a1a;
+    --rd-black: #0a0a0a;
+  }
+
+  body {
+    @apply bg-rd-black text-rd-text font-mono;
+    overflow-x: hidden;
+  }
+
+  * { box-sizing: border-box; }
+
+  ::selection {
+    @apply bg-rd-red text-rd-black;
+  }
+}
+
+@layer components {
+  /* === BACKGROUND EFFECTS === */
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(255, 26, 26, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 26, 26, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .scanline {
+    @apply fixed w-full h-px pointer-events-none z-50;
+    background: linear-gradient(90deg, transparent, rgba(255, 26, 26, 0.08), transparent);
+    animation: scan 8s linear infinite;
+  }
+
+  .vhs-overlay {
+    @apply fixed inset-0 pointer-events-none z-40;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 26, 26, 0.015) 2px,
+      rgba(255, 26, 26, 0.015) 4px
+    );
+  }
+
+  /* === CENSOR BAR === */
+  .censor-bar {
+    background: linear-gradient(90deg, var(--rd-red), #ff4444, var(--rd-red));
+    box-shadow: 0 0 20px rgba(255, 26, 26, 0.4), inset 0 0 10px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .censor-bar::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+    animation: scan 2s linear infinite;
+  }
+
+  /* === CARDS === */
+  .rd-card {
+    @apply relative p-6 border border-rd-border bg-rd-card/80 backdrop-blur-sm;
+    @apply hover:border-rd-red/30 transition-colors duration-300;
+  }
+
+  .rd-card::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-px;
+    background: linear-gradient(90deg, transparent, var(--rd-red), transparent);
+    opacity: 0.5;
+  }
+
+  .rd-card-red {
+    @apply border-rd-red/30 bg-rd-red/5;
+  }
+
+  .rd-card-red::before {
+    opacity: 1;
+    background: linear-gradient(90deg, transparent, var(--rd-red), transparent);
+  }
+
+  /* === BUTTONS === */
+  .btn-redacted {
+    @apply relative px-8 py-3 font-mono text-sm uppercase tracking-widest;
+    @apply bg-transparent border border-rd-red text-rd-red;
+    @apply hover:bg-rd-red hover:text-rd-black;
+    @apply active:scale-95;
+    @apply transition-all duration-200;
+    @apply disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-rd-red;
+  }
+
+  .btn-redacted::before {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(90deg, transparent, rgba(255, 26, 26, 0.05), transparent);
+    animation: scan 3s linear infinite;
+  }
+
+  .btn-ghost {
+    @apply px-6 py-2 font-mono text-xs uppercase tracking-widest;
+    @apply text-rd-muted border border-rd-border;
+    @apply hover:text-rd-text hover:border-rd-muted/50;
+    @apply transition-all duration-200;
+  }
+
+  /* === INPUTS === */
+  .input-rd {
+    @apply w-full px-4 py-3 bg-rd-black border border-rd-border;
+    @apply text-rd-text font-mono text-sm;
+    @apply focus:border-rd-red focus:outline-none focus:ring-1 focus:ring-rd-red/20;
+    @apply placeholder:text-rd-muted/40;
+    @apply transition-colors duration-200;
+  }
+
+  /* === TEXT EFFECTS === */
+  .text-glitch {
+    @apply relative;
+    animation: glitch 0.3s infinite;
+  }
+
+  .text-flicker {
+    animation: flicker 4s linear infinite;
+  }
+
+  .text-redacted {
+    @apply inline-block px-2 py-0.5 bg-rd-red text-rd-red text-xs tracking-widest;
+    user-select: none;
+  }
+
+  /* === STATUS BADGES === */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono uppercase tracking-wider;
+  }
+
+  .badge-active {
+    @apply bg-rd-red/10 text-rd-red border border-rd-red/20;
+  }
+
+  .badge-active::before {
+    content: '';
+    @apply w-1.5 h-1.5 rounded-full bg-rd-red;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .badge-pending {
+    @apply bg-yellow-500/10 text-yellow-500 border border-yellow-500/20;
+  }
+
+  /* === FLOATING DOCUMENTS === */
+  .floating-doc {
+    @apply absolute opacity-[0.04] pointer-events-none select-none;
+  }
+
+  .floating-doc .doc-lines {
+    @apply space-y-1.5;
+  }
+
+  .floating-doc .line {
+    @apply h-0.5 bg-rd-text/50;
+  }
+
+  /* === DRIPS === */
+  .drip {
+    @apply absolute w-px bg-gradient-to-b from-rd-red to-transparent;
+    animation: drip 2s ease-in-out infinite;
+  }
+
+  /* === GLITCH CONTAINER === */
+  .glitch-container {
+    @apply relative;
+  }
+
+  .glitch-container::before,
+  .glitch-container::after {
+    content: attr(data-text);
+    @apply absolute inset-0;
+  }
+
+  .glitch-container::before {
+    @apply text-rd-red/50;
+    animation: glitch 0.3s infinite;
+    clip-path: inset(0 0 60% 0);
+  }
+
+  .glitch-container::after {
+    @apply text-rd-purple/30;
+    animation: glitch 0.3s infinite reverse;
+    clip-path: inset(60% 0 0 0);
+  }
+
+  /* === DIVIDER === */
+  .rd-divider {
+    @apply flex items-center gap-4 my-8;
+  }
+
+  .rd-divider::before,
+  .rd-divider::after {
+    content: '';
+    @apply flex-1 h-px;
+  }
+
+  .rd-divider::before {
+    @apply bg-gradient-to-r from-transparent to-rd-red/30;
+  }
+
+  .rd-divider::after {
+    @apply bg-gradient-to-l from-transparent to-rd-red/30;
+  }
+
+  /* === SCROLLBAR === */
+  ::-webkit-scrollbar {
+    @apply w-1;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-rd-black;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-rd-red/30;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-rd-red/50;
+  }
+}
