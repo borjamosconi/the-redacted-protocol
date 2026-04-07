@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --rd-red: #ff1a1a;
+    --rd-black: #0a0a0a;
+  }
+
+  body {
+    @apply bg-rd-black text-rd-text font-mono;
+    overflow-x: hidden;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .glitch-text {
+    @apply relative inline-block;
+    animation: glitch 0.3s infinite;
+  }
+
+  .censor-bar {
+    background: linear-gradient(90deg, var(--rd-red) 0%, #ff4444 50%, var(--rd-red) 100%);
+    box-shadow: 0 0 20px rgba(255, 26, 26, 0.5);
+  }
+
+  .grid-bg {
+    background-image: 
+      linear-gradient(rgba(255, 26, 26, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 26, 26, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .scanline {
+    @apply absolute w-full h-1 pointer-events-none;
+    background: linear-gradient(90deg, transparent, rgba(255, 26, 26, 0.1), transparent);
+    animation: scan 8s linear infinite;
+  }
+
+  .vhs-glitch {
+    position: relative;
+  }
+
+  .vhs-glitch::before,
+  .vhs-glitch::after {
+    content: '';
+    @apply absolute inset-0 pointer-events-none;
+  }
+
+  .vhs-glitch::before {
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 26, 26, 0.03) 2px,
+      rgba(255, 26, 26, 0.03) 4px
+    );
+    animation: glitch 0.3s infinite;
+  }
+
+  .vhs-glitch::after {
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(255, 26, 26, 0.02) 50%,
+      transparent 100%
+    );
+    animation: scan 8s linear infinite;
+  }
+
+  .btn-redacted {
+    @apply relative px-8 py-4 font-mono text-sm uppercase tracking-widest;
+    @apply bg-transparent border border-rd-red text-rd-red;
+    @apply hover:bg-rd-red hover:text-rd-black;
+    @apply transition-all duration-300;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-redacted::before {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(90deg, transparent, rgba(255, 26, 26, 0.1), transparent);
+    animation: scan 3s linear infinite;
+  }
+
+  .input-redacted {
+    @apply w-full px-4 py-3 bg-rd-black border border-rd-muted/30;
+    @apply text-rd-text font-mono text-sm;
+    @apply focus:border-rd-red focus:outline-none;
+    @apply placeholder:text-rd-muted/50;
+  }
+
+  .card-redacted {
+    @apply relative p-6 border border-rd-muted/20;
+    @apply bg-rd-black/80 backdrop-blur;
+  }
+
+  .card-redacted::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-px;
+    background: linear-gradient(90deg, transparent, var(--rd-red), transparent);
+  }
+}

@@ -446,6 +446,54 @@ Files are loaded in priority order (later overrides earlier):
 
 ---
 
+## Tokenomics ($RDX)
+
+| Allocation | Percentage | Amount | Vesting |
+|-----------|-----------|--------|---------|
+| Community Airdrop | 40% | 400M RDX | Immediate |
+| Liquidity Pool | 20% | 200M RDX | Immediate + LP Burn |
+| Staking Rewards | 15% | 150M RDX | Linear 24 months |
+| Team | 15% | 150M RDX | 6mo cliff, 18mo vest |
+| Treasury/DAO | 10% | 100M RDX | As voted |
+
+### Airdrop Details
+- **1,000 RDX** guaranteed for every Telegram bot user
+- **+100 RDX** per document submitted
+- **+50 RDX** per fragment verified
+- **+50 RDX** per referral
+- Register at: **https://redacted-protocol.vercel.app** (or self-host)
+
+### Utility
+- Pay for document processing (0.1 RDX per document)
+- Stake to earn 70% of protocol fees
+- Vote on governance proposals
+- Mint rare fragments as Archivo 0 NFTs
+- Access premium search API
+
+---
+
+## Airdrop Registration Site
+
+A dedicated registration site with full Redacted Protocol aesthetic:
+
+```bash
+cd airdrop-site
+npm install
+npm run dev
+# Open http://localhost:3001
+```
+
+Features:
+- Dark dystopian UI with glitch animations
+- Floating redacted documents
+- Red censor bars and VHS effects
+- Wallet registration with Telegram ID verification
+- Real-time registration counter
+- Eligibility checker
+- Fully static — deploy to Vercel, Netlify, or any static host
+
+---
+
 ## Deployment
 
 ### Local Development

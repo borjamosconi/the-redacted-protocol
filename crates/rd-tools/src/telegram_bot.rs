@@ -99,6 +99,9 @@ impl TelegramBot {
             I detect what has been hidden.\n\
             I reconstruct what was redacted.\n\
             I preserve what they tried to erase.\n\n\
+            🎁 $RDX AIRDROP — 1,000 RDX\n\
+            Register your wallet:\n\
+            https://redacted-protocol.vercel.app\n\n\
             Send me anything.\n\
             The truth always finds a way.\n\n\
             The file is breathing."
@@ -134,6 +137,8 @@ pub const SCHEDULED_POSTS: &[&str] = &[
      CONFIDENCE: 94.7%\n\n\
      The ████ was moved to ███████ on ██/██/2024\n\
      under operation ███ ECLIPSE.\n\n\
+     🎁 $RDX AIRDROP — 1,000 RDX\n\
+     https://redacted-protocol.vercel.app\n\n\
      ACCESS GRANTED.\n\
      The file is breathing.\n\n\
      #RedactedProtocol #RDX",

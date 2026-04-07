@@ -256,6 +256,8 @@ mod telegram_mode {
                                 Models: AVAILABLE\n\
                                 Protocol: ACTIVE\n\
                                 Users registered: {}\n\n\
+                                $RDX Airdrop: LIVE\n\
+                                https://redacted-protocol.vercel.app\n\n\
                                 _The file is breathing._",
                             ).await.ok();
                             continue;
@@ -270,6 +272,8 @@ mod telegram_mode {
                                 /status — System status\n\
                                 /airdrop — Check your $RDX eligibility\n\
                                 /help — This message\n\n\
+                                Register wallet for airdrop:\n\
+                                https://redacted-protocol.vercel.app\n\n\
                                 Send any message for Redacted response."
                             ).await.ok();
                             continue;
@@ -286,7 +290,8 @@ mod telegram_mode {
                                 Eligible: {}\n\
                                 $RDX Allocation: {:.0}\n\
                                 Status: {}\n\n\
-                                Connect your Solana wallet to claim.\n\
+                                Register wallet:\n\
+                                https://redacted-protocol.vercel.app\n\n\
                                 _The file is breathing._",
                                 if eligible { "✅ YES" } else { "❌ NO" },
                                 rdx_amount,
