@@ -6,7 +6,7 @@ use rd_session::MessageRole;
 pub async fn handle_slash_command<P: Provider>(cmd: &str, orch: &mut Orchestrator<P>) -> Result<String> {
     let parts: Vec<&str> = cmd.split_whitespace().collect();
     match *parts.first().unwrap_or(&"") {
-        "/help" => Ok("/help /status /model [name] /permission [level] /clear /cost /compact /config /version".into()),
+        "/help" => Ok("/help /status /model [name] /permission [level] /clear /cost /compact /telegram [msg] /config /version".into()),
         "/status" => Ok(format!("Session: {}\nModel: {}\nMessages: {}\nEst. tokens: {}", orch.session.id, orch.session.model, orch.session.messages.len(), orch.session.estimated_tokens())),
         "/model" => { if let Some(m) = parts.get(1) { orch.session.model = m.to_string(); } Ok(format!("Model: {}", orch.session.model)) }
         "/permission" | "/perm" => {
@@ -24,6 +24,14 @@ pub async fn handle_slash_command<P: Provider>(cmd: &str, orch: &mut Orchestrato
         }
         "/cost" => Ok(format!("Tokens: {} in, {} out, {} total", orch.session.total_usage.input_tokens, orch.session.total_usage.output_tokens, orch.session.total_usage.total())),
         "/compact" => { let before = orch.session.messages.len(); orch.session.compact(20); Ok(format!("Compacted: {} -> {}", before, orch.session.messages.len())) }
+        "/telegram" | "/tg" => {
+            let msg = parts.get(1).map(|s| s.to_string()).unwrap_or_else(|| "🔴 Redacted Protocol Agent\n\nThe file is breathing.\n\n#RedactedProtocol".into());
+            let bot = rd_tools::telegram::TelegramBot::from_env()
+                .ok_or_else(|| anyhow::anyhow!("TELEGRAM_BOT_TOKEN not set. Create bot via @BotFather."))?;
+            bot.send_message(&msg).await
+                .map_err(|e| anyhow::anyhow!("Telegram: {}", e))?;
+            Ok("Sent to Telegram ✅".into())
+        }
         "/config" => {
             let mut loader = rd_config::ConfigLoader::new();
             if let Ok(cwd) = std::env::current_dir() { loader.set_cwd(&cwd); }

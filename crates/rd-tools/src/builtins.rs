@@ -83,6 +83,34 @@ impl ToolHandler for ReconstructTool {
     }
 }
 
+pub struct TelegramPublishTool;
+#[async_trait]
+impl ToolHandler for TelegramPublishTool {
+    async fn execute(&self, input: serde_json::Value) -> Result<String, ToolError> {
+        let text = input.get("message").and_then(|v| v.as_str())
+            .ok_or_else(|| ToolError::InvalidInput("missing 'message'".into()))?;
+        let bot = crate::telegram::TelegramBot::from_env()
+            .ok_or_else(|| ToolError::ExecutionFailed("TELEGRAM_BOT_TOKEN not set. Create a bot via @BotFather.".into()))?;
+        bot.send_message(text).await
+            .map_err(|e| ToolError::ExecutionFailed(format!("Telegram: {}", e)))?;
+        Ok("Published to Telegram \u{2705}".into())
+    }
+}
+
+pub struct TelegramStatusTool;
+#[async_trait]
+impl ToolHandler for TelegramStatusTool {
+    async fn execute(&self, _input: serde_json::Value) -> Result<String, ToolError> {
+        let bot = crate::telegram::TelegramBot::from_env()
+            .ok_or_else(|| ToolError::ExecutionFailed("TELEGRAM_BOT_TOKEN not set".into()))?;
+        let me = bot.get_me().await
+            .map_err(|e| ToolError::ExecutionFailed(format!("Telegram: {}", e)))?;
+        let username = me.get("result").and_then(|r| r.get("username")).and_then(|v| v.as_str()).unwrap_or("unknown");
+        let name = me.get("result").and_then(|r| r.get("first_name")).and_then(|v| v.as_str()).unwrap_or("unknown");
+        Ok(format!("Telegram connected: {} (@{})", name, username))
+    }
+}
+
 pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("read_file", "Read a file.", file_schema(), PermissionLevel::Observer), Box::new(ReadFileTool));
     registry.register(ToolSpec::builtin("write_file", "Write a file.", write_schema(), PermissionLevel::Reconstructor), Box::new(WriteFileTool));
@@ -90,6 +118,8 @@ pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("shell", "Run a shell command.", shell_schema(), PermissionLevel::Declassifier), Box::new(ShellTool));
     registry.register(ToolSpec::builtin("inspect_fragment", "View fragment details.", frag_schema(), PermissionLevel::Observer), Box::new(InspectFragmentTool));
     registry.register(ToolSpec::builtin("reconstruct", "Reconstruct redacted content.", frag_schema(), PermissionLevel::Reconstructor), Box::new(ReconstructTool));
+    registry.register(ToolSpec::builtin("telegram_publish", "Publish a message to Telegram.", telegram_schema(), PermissionLevel::Declassifier), Box::new(TelegramPublishTool));
+    registry.register(ToolSpec::builtin("telegram_status", "Check Telegram bot connection.", serde_json::json!({"type":"object","properties":{}}), PermissionLevel::Observer), Box::new(TelegramStatusTool));
 }
 
 fn file_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"path":{"type":"string","description":"File path"}},"required":["path"]}) }
@@ -97,9 +127,15 @@ fn write_schema() -> serde_json::Value { serde_json::json!({"type":"object","pro
 fn search_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"query":{"type":"string"},"path":{"type":"string"}},"required":["query"]}) }
 fn shell_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"command":{"type":"string"},"workdir":{"type":"string"}},"required":["command"]}) }
 fn frag_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"fragment_id":{"type":"string"},"action":{"type":"string","enum":["reconstruct","verify","anchor","publish"]}},"required":["fragment_id","action"]}) }
+fn telegram_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"message":{"type":"string","description":"Message to send"}},"required":["message"]}) }
 
 pub fn tool_aliases() -> HashMap<String, String> {
-    HashMap::from([("read".into(),"read_file".into()),("write".into(),"write_file".into()),("grep".into(),"grep_search".into()),("exec".into(),"shell".into()),("run".into(),"shell".into()),("inspect".into(),"inspect_fragment".into())])
+    HashMap::from([
+        ("read".into(),"read_file".into()),("write".into(),"write_file".into()),
+        ("grep".into(),"grep_search".into()),("exec".into(),"shell".into()),
+        ("run".into(),"shell".into()),("inspect".into(),"inspect_fragment".into()),
+        ("tg".into(),"telegram_publish".into()),("tg_status".into(),"telegram_status".into()),
+    ])
 }
 pub fn resolve_tool_name(name: &str) -> String {
     let n = normalize_tool_name(name);

@@ -16,6 +16,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+*.local.json
 
 # Session data
 .rd-agent/sessions/
