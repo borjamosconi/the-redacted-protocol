@@ -149,6 +149,7 @@ mod oneshot {
 mod telegram_mode {
     use crate::oneshot;
     use rd_tools::telegram_bot::{TelegramBot, UserRegistry, SCHEDULED_POSTS};
+    use rd_tools::airdrop::AirdropRegistry;
     use rd_core::Orchestrator;
     use rd_tools::ToolRegistry;
     use rd_tools::builtins::register_builtins;
@@ -194,6 +195,7 @@ mod telegram_mode {
         println!("Connected as: @{}\n", name);
 
         let mut users = UserRegistry::new();
+        let mut airdrop = AirdropRegistry::new();
         let mut welcomed = HashSet::new();
         let mut last_post_minute: u32 = 99;
         let mut post_index = 0;
@@ -226,6 +228,7 @@ mod telegram_mode {
                         // Track user
                         let is_new = users.is_new(msg.user_id);
                         users.add(msg.user_id);
+                        airdrop.register_telegram_user(msg.user_id, &msg.username);
 
                         // Welcome new users
                         if is_new && !welcomed.contains(&msg.user_id) {
@@ -265,9 +268,30 @@ mod telegram_mode {
                                 "🔴 COMMANDS\n\n\
                                 /start — Initialize connection\n\
                                 /status — System status\n\
+                                /airdrop — Check your $RDX eligibility\n\
                                 /help — This message\n\n\
                                 Send any message for Redacted response."
                             ).await.ok();
+                            continue;
+                        }
+
+                        // Handle /airdrop
+                        if msg.text == "/airdrop" || msg.text == "/airdrop@theredacted_bot" {
+                            let amount = airdrop.get_amount(msg.user_id);
+                            let rdx_amount = amount as f64 / 1_000_000_000.0;
+                            let eligible = airdrop.is_eligible(msg.user_id);
+                            bot.show_typing(msg.chat_id).await.ok();
+                            bot.send_safe(msg.chat_id, &format!(
+                                "🔴 AIRDROP STATUS\n\n\
+                                Eligible: {}\n\
+                                $RDX Allocation: {:.0}\n\
+                                Status: {}\n\n\
+                                Connect your Solana wallet to claim.\n\
+                                _The file is breathing._",
+                                if eligible { "✅ YES" } else { "❌ NO" },
+                                rdx_amount,
+                                if eligible { "PENDING LAUNCH" } else { "NOT REGISTERED" }
+                            )).await.ok();
                             continue;
                         }
 

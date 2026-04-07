@@ -3,6 +3,8 @@ pub mod registry;
 pub mod builtins;
 pub mod telegram;
 pub mod telegram_bot;
+pub mod airdrop;
+pub mod token_config;
 pub use spec::*;
 pub use registry::*;
 pub use builtins::*;
