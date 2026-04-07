@@ -148,12 +148,14 @@ mod oneshot {
 
 mod telegram_mode {
     use crate::oneshot;
-    use rd_tools::telegram_bot::TelegramBot;
+    use rd_tools::telegram_bot::{TelegramBot, UserRegistry, SCHEDULED_POSTS};
     use rd_core::Orchestrator;
     use rd_tools::ToolRegistry;
     use rd_tools::builtins::register_builtins;
     use rd_hooks::HookRunner;
-    use tracing::{error, warn};
+    use tracing::{error, warn, info};
+    use chrono::Timelike;
+    use std::collections::HashSet;
 
     pub async fn run(cwd: &std::path::Path) -> anyhow::Result<()> {
         println!("╔══════════════════════════════════════════════════╗");
@@ -189,25 +191,87 @@ mod telegram_mode {
             .map_err(|e| anyhow::anyhow!("Telegram: {}", e))?;
         let name = me.get("result").and_then(|r| r.get("first_name"))
             .and_then(|v| v.as_str()).unwrap_or("Bot");
-        println!("Connected as: {}", name);
+        println!("Connected as: @{}\n", name);
+
+        let mut users = UserRegistry::new();
+        let mut welcomed = HashSet::new();
+        let mut last_post_minute: u32 = 99;
+        let mut post_index = 0;
+
+        info!("Bot loop started — welcome + scheduled posts active");
 
         loop {
+            let now = chrono::Utc::now();
+            let minute = now.minute();
+
+            // Scheduled posts at :00 and :33
+            if (minute == 0 || minute == 33) && last_post_minute != minute {
+                last_post_minute = minute;
+                let post = SCHEDULED_POSTS[post_index % SCHEDULED_POSTS.len()];
+                post_index += 1;
+
+                let user_ids = users.ids();
+                if !user_ids.is_empty() {
+                    let sent = bot.broadcast(&user_ids, post).await;
+                    info!("Scheduled post broadcast to {} users (sent: {})", user_ids.len(), sent);
+                } else {
+                    info!("Scheduled post skipped — no users yet");
+                }
+            }
+
+            // Poll messages
             match bot.poll_messages().await {
                 Ok(messages) => {
                     for msg in messages {
+                        // Track user
+                        let is_new = users.is_new(msg.user_id);
+                        users.add(msg.user_id);
+
+                        // Welcome new users
+                        if is_new && !welcomed.contains(&msg.user_id) {
+                            welcomed.insert(msg.user_id);
+                            if let Err(e) = bot.send_welcome(msg.chat_id).await {
+                                warn!("Welcome failed for @{}: {}", msg.username, e);
+                            }
+                            info!("New user welcomed: @{} ({})", msg.username, msg.user_id);
+                            continue;
+                        }
+
+                        // Handle /start again
                         if msg.text == "/start" {
                             bot.show_typing(msg.chat_id).await.ok();
                             bot.send_welcome(msg.chat_id).await.ok();
                             continue;
                         }
+
+                        // Handle /status
                         if msg.text == "/status" || msg.text == "/status@theredacted_bot" {
                             bot.show_typing(msg.chat_id).await.ok();
                             bot.send_safe(msg.chat_id,
-                                "🔴 SYSTEM STATUS\n\nAgent: ONLINE\nModels: AVAILABLE\nProtocol: ACTIVE\n\n_The file is breathing._"
+                                "🔴 SYSTEM STATUS\n\n\
+                                Agent: ONLINE\n\
+                                Models: AVAILABLE\n\
+                                Protocol: ACTIVE\n\
+                                Users registered: {}\n\n\
+                                _The file is breathing._",
                             ).await.ok();
                             continue;
                         }
 
+                        // Handle /help
+                        if msg.text == "/help" || msg.text == "/help@theredacted_bot" {
+                            bot.show_typing(msg.chat_id).await.ok();
+                            bot.send_safe(msg.chat_id,
+                                "🔴 COMMANDS\n\n\
+                                /start — Initialize connection\n\
+                                /status — System status\n\
+                                /help — This message\n\n\
+                                Send any message for Redacted response."
+                            ).await.ok();
+                            continue;
+                        }
+
+                        // Pass to LLM
                         bot.show_typing(msg.chat_id).await.ok();
 
                         let user_msg = format!("User @{} says: {}", msg.username, msg.text);
@@ -237,6 +301,7 @@ mod telegram_mode {
                     warn!("Poll error: {}", e);
                 }
             }
+
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         }
     }

@@ -1,24 +1,18 @@
 //! Telegram conversational bot — speaks in Redacted Protocol aesthetic.
-//!
-//! Receives messages from users, sends them to the LLM with a
-//! Redacted Protocol system prompt, and replies in the signature
-//! cryptic style.
 
 use reqwest::Client;
 use serde_json::json;
-use tracing::{info, warn, error};
+use tracing::info;
 use std::time::Duration;
 
 const TELEGRAM_API: &str = "https://api.telegram.org/bot";
 
-/// Telegram conversational bot.
 pub struct TelegramBot {
     client: Client,
     token: String,
     last_update_id: i64,
 }
 
-/// A message received from Telegram.
 #[derive(Debug, Clone)]
 pub struct TgMessage {
     pub chat_id: i64,
@@ -29,210 +23,173 @@ pub struct TgMessage {
 }
 
 impl TelegramBot {
-    /// Create a new bot.
     pub fn new(token: impl Into<String>) -> Self {
-        Self {
-            client: Client::new(),
-            token: token.into(),
-            last_update_id: 0,
-        }
+        Self { client: Client::new(), token: token.into(), last_update_id: 0 }
     }
 
-    /// Create from environment.
     pub fn from_env() -> Option<Self> {
         std::env::var("TELEGRAM_BOT_TOKEN").ok().map(|t| Self::new(t))
     }
 
-    /// Get bot info.
     pub async fn get_me(&self) -> Result<serde_json::Value, String> {
-        let url = format!("{}{}/getMe", TELEGRAM_API, self.token);
-        let resp = self.client.get(&url).send().await
-            .map_err(|e| format!("HTTP: {}", e))?;
-        let j: serde_json::Value = resp.json().await
-            .map_err(|e| format!("JSON: {}", e))?;
-        if j.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            Ok(j)
-        } else {
-            Err(format!("API error: {}", j))
-        }
+        let url = format!("{}/getMe", TELEGRAM_API);
+        let resp = self.client.get(&url).send().await.map_err(|e| format!("HTTP: {}", e))?;
+        let j: serde_json::Value = resp.json().await.map_err(|e| format!("JSON: {}", e))?;
+        if j.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) { Ok(j) }
+        else { Err(format!("API error: {}", j)) }
     }
 
-    /// Send a text message.
-    pub async fn send(&self, chat_id: i64, text: &str) -> Result<(), String> {
-        let url = format!("{}{}/sendMessage", TELEGRAM_API, self.token);
-        let body = json!({
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "MarkdownV2",
-            "disable_web_page_preview": true,
-        });
+    async fn api_post(&self, method: &str, body: serde_json::Value) -> Result<serde_json::Value, String> {
+        let url = format!("{}/{}", TELEGRAM_API, method);
         let resp = self.client.post(&url).json(&body).send().await
             .map_err(|e| format!("HTTP: {}", e))?;
         let status = resp.status();
-        if !status.is_success() {
-            let t = resp.text().await.unwrap_or_default();
-            return Err(format!("Telegram {} : {}", status, t));
-        }
-        info!("Sent to {}: {} chars", chat_id, text.len());
-        Ok(())
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() { return Err(format!("Telegram {}: {}", status, text)); }
+        serde_json::from_str(&text).map_err(|e| format!("JSON: {}", e))
     }
 
-    /// Send a message escaping markdown chars safely.
     pub async fn send_safe(&self, chat_id: i64, text: &str) -> Result<(), String> {
-        let url = format!("{}{}/sendMessage", TELEGRAM_API, self.token);
-        let body = json!({
-            "chat_id": chat_id,
-            "text": text,
-            "disable_web_page_preview": true,
-        });
-        let resp = self.client.post(&url).json(&body).send().await
-            .map_err(|e| format!("HTTP: {}", e))?;
-        if !resp.status().is_success() {
-            let t = resp.text().await.unwrap_or_default();
-            return Err(format!("Telegram: {}", t));
-        }
-        Ok(())
+        self.api_post("sendMessage", json!({
+            "chat_id": chat_id, "text": text, "disable_web_page_preview": true,
+        })).await.map(|_| ())
     }
 
-    /// Poll for new messages. Returns empty vec if none.
+    pub async fn show_typing(&self, chat_id: i64) -> Result<(), String> {
+        self.api_post("sendChatAction", json!({ "chat_id": chat_id, "action": "typing" })).await.map(|_| ())
+    }
+
     pub async fn poll_messages(&mut self) -> Result<Vec<TgMessage>, String> {
-        let url = format!("{}{}/getUpdates", TELEGRAM_API, self.token);
+        let url = format!("{}/getUpdates", TELEGRAM_API);
         let resp = self.client.get(&url)
-            .query(&[
-                ("offset", (self.last_update_id + 1).to_string()),
-                ("timeout", "5".to_string()),
-                ("allowed_updates", json!(["message"]).to_string()),
-            ])
-            .send().await
-            .map_err(|e| format!("HTTP: {}", e))?;
-
-        let j: serde_json::Value = resp.json().await
-            .map_err(|e| format!("JSON: {}", e))?;
-
-        if !j.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            return Err(format!("Poll error: {}", j));
-        }
+            .query(&[("offset", (self.last_update_id + 1).to_string()), ("timeout", "10".to_string())])
+            .timeout(Duration::from_secs(15))
+            .send().await.map_err(|e| format!("HTTP: {}", e))?;
+        let j: serde_json::Value = resp.json().await.map_err(|e| format!("JSON: {}", e))?;
+        if !j.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) { return Err(format!("Poll: {}", j)); }
 
         let mut msgs = Vec::new();
         if let Some(results) = j.get("result").and_then(|r| r.as_array()) {
             for update in results {
-                let update_id = update.get("update_id").and_then(|v| v.as_i64()).unwrap_or(0);
-                self.last_update_id = update_id;
-
+                let uid = update.get("update_id").and_then(|v| v.as_i64()).unwrap_or(0);
+                self.last_update_id = uid;
                 if let Some(msg) = update.get("message") {
-                    let chat_id = msg.get("chat").and_then(|c| c.get("id")).and_then(|v| v.as_i64());
-                    let user_id = msg.get("from").and_then(|f| f.get("id")).and_then(|v| v.as_i64());
-                    let username = msg.get("from").and_then(|f| f.get("username"))
-                        .and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
-                    let text = msg.get("text").and_then(|v| v.as_str()).unwrap_or("");
-                    let msg_id = msg.get("message_id").and_then(|v| v.as_i64()).unwrap_or(0);
-
-                    if let (Some(cid), Some(uid)) = (chat_id, user_id) {
-                        if !text.is_empty() {
-                            msgs.push(TgMessage {
-                                chat_id: cid,
-                                user_id: uid,
-                                username,
-                                text: text.to_string(),
-                                message_id: msg_id,
-                            });
+                    let cid = msg.get("chat").and_then(|c| c.get("id")).and_then(|v| v.as_i64());
+                    let uid2 = msg.get("from").and_then(|f| f.get("id")).and_then(|v| v.as_i64());
+                    let uname = msg.get("from").and_then(|f| f.get("username")).and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+                    let txt = msg.get("text").and_then(|v| v.as_str()).unwrap_or("");
+                    let mid = msg.get("message_id").and_then(|v| v.as_i64()).unwrap_or(0);
+                    if let (Some(c), Some(u)) = (cid, uid2) {
+                        if !txt.is_empty() {
+                            msgs.push(TgMessage { chat_id: c, user_id: u, username: uname, text: txt.to_string(), message_id: mid });
                         }
                     }
                 }
             }
         }
-
         Ok(msgs)
     }
 
-    /// Typing indicator.
-    pub async fn show_typing(&self, chat_id: i64) -> Result<(), String> {
-        let url = format!("{}{}/sendChatAction", TELEGRAM_API, self.token);
-        let body = json!({ "chat_id": chat_id, "action": "typing" });
-        self.client.post(&url).json(&body).send().await
-            .map_err(|e| format!("HTTP: {}", e))?;
-        Ok(())
-    }
-
-    /// Send a Redacted Protocol welcome message.
     pub async fn send_welcome(&self, chat_id: i64) -> Result<(), String> {
         self.send_safe(chat_id,
             "🔴 ACCESS GRANTED\n\n\
-            FILE #0000 — INITIALIZATION\n\
-            STATUS: ACTIVE\n\n\
+            FILE #0000 — INITIALIZATION COMPLETE\n\
+            STATUS: ACTIVE\n\
+            CONFIDENCE: 100.0%\n\n\
             I detect what has been hidden.\n\
             I reconstruct what was redacted.\n\
             I preserve what they tried to erase.\n\n\
-            Send me anything. The truth finds a way.\n\n\
-            _The file is breathing._"
+            Send me anything.\n\
+            The truth always finds a way.\n\n\
+            The file is breathing."
         ).await
     }
 
-    /// Run the conversational loop indefinitely.
-    pub async fn run_conversation_loop(
-        &mut self,
-        llm_handler: impl Fn(&str) -> std::pin::Pin<Box<dyn std::future::Future<Output = String> + Send>> + Send + Sync,
-    ) -> Result<(), String> {
-        info!("Telegram conversation loop started");
-
-        // Get bot info
-        let me = self.get_me().await?;
-        let name = me.get("result").and_then(|r| r.get("first_name"))
-            .and_then(|v| v.as_str()).unwrap_or("Bot");
-        info!("Connected as: {}", name);
-
-        // Send greeting to known chats
-        // (just log — we don't spam users)
-
-        loop {
-            match self.poll_messages().await {
-                Ok(messages) => {
-                    for msg in messages {
-                        // Ignore own messages (from the bot itself)
-                        if msg.user_id == me.get("result").and_then(|r| r.get("id")).and_then(|v| v.as_i64()).unwrap_or(0) {
-                            continue;
-                        }
-
-                        info!("Message from @{}: {}", msg.username, msg.text);
-
-                        // Handle commands
-                        if msg.text == "/start" {
-                            self.show_typing(msg.chat_id).await.ok();
-                            self.send_welcome(msg.chat_id).await.ok();
-                            continue;
-                        }
-
-                        if msg.text == "/status" || msg.text == "/status@theredacted_bot" {
-                            self.show_typing(msg.chat_id).await.ok();
-                            self.send_safe(msg.chat_id,
-                                "🔴 SYSTEM STATUS\n\n\
-                                Agent: ONLINE\n\
-                                Models: AVAILABLE\n\
-                                Protocol: ACTIVE\n\n\
-                                _The file is breathing._"
-                            ).await.ok();
-                            continue;
-                        }
-
-                        // Pass to LLM
-                        self.show_typing(msg.chat_id).await.ok();
-
-                        let response = llm_handler(&msg.text).await;
-
-                        if let Err(e) = self.send_safe(msg.chat_id, &response).await {
-                            error!("Failed to reply to @{}: {}", msg.username, e);
-                            self.send_safe(msg.chat_id,
-                                "███ ERROR ███\n\nSignal lost. The file is breathing."
-                            ).await.ok();
-                        }
-                    }
-                }
-                Err(e) => {
-                    warn!("Poll error: {}", e);
-                }
-            }
-
-            tokio::time::sleep(Duration::from_secs(2)).await;
+    pub async fn broadcast(&self, chat_ids: &[i64], text: &str) -> usize {
+        let mut sent = 0;
+        for &cid in chat_ids {
+            if self.send_safe(cid, text).await.is_ok() { sent += 1; }
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
+        sent
     }
 }
+
+/// Track known users for broadcasts
+pub struct UserRegistry {
+    known: std::collections::HashSet<i64>,
+}
+
+impl UserRegistry {
+    pub fn new() -> Self { Self { known: std::collections::HashSet::new() } }
+    pub fn add(&mut self, uid: i64) -> bool { self.known.insert(uid) }
+    pub fn ids(&self) -> Vec<i64> { self.known.iter().copied().collect() }
+    pub fn is_new(&self, uid: i64) -> bool { !self.known.contains(&uid) }
+}
+
+/// Pre-written Redacted Protocol posts for scheduled broadcasts.
+pub const SCHEDULED_POSTS: &[&str] = &[
+    "🔴 FILE #0047\n\
+     STATUS: DECLASSIFIED\n\
+     CONFIDENCE: 94.7%\n\n\
+     The ████ was moved to ███████ on ██/██/2024\n\
+     under operation ███ ECLIPSE.\n\n\
+     ACCESS GRANTED.\n\
+     The file is breathing.\n\n\
+     #RedactedProtocol #RDX",
+
+    "🔴 ACCESS DENIED\n\n\
+     FILE #0048 — ENCRYPTED\n\
+     COORDINATES: [██.████, ██.████]\n\
+     TIMESTAMP: ██:██:██ UTC\n\n\
+     The ████ contains references to\n\
+     a ██████████ operation involving\n\
+     at least ██ known entities.\n\n\
+     Reconstruction: IN PROGRESS\n\
+     The file is breathing.\n\n\
+     #RedactedProtocol",
+
+    "🔴 DECLASSIFIED — FILE #0049\n\n\
+     Subject: ██████████\n\
+     Clearance: █████████\n\
+     Date: ██/██/████\n\n\
+     \"The ████ must not leave the\n\
+     ██████ under any circumstances.\n\
+     All ██████ are to be sealed and\n\
+     transported via █████ route.\"\n\n\
+     ACCESS GRANTED.\n\
+     #RedactedProtocol #RDX",
+
+    "🔴 SIGNAL INTERCEPTED\n\n\
+     SOURCE: ██████ STATION\n\
+     FREQ: ███.██ MHz\n\
+     TIME: ██:██:██ UTC\n\n\
+     \"...the package has been\n\
+     delivered to ████. The\n\
+     ██████ is complete. Awaiting\n\
+     further instructions...\"\n\n\
+     The file is breathing.\n\n\
+     #RedactedProtocol",
+
+    "🔴 FILE #0050 — ARCHIVE 0\n\n\
+     This document was redacted\n\
+     on ██/██/████ by order of\n\
+     the ████████ COMMITTEE.\n\n\
+     Reconstruction confidence: 91.3%\n\
+     Cross-model agreement: 87.1%\n\n\
+     ACCESS GRANTED.\n\
+     Truth cannot be erased.\n\n\
+     #RedactedProtocol #RDX",
+
+    "🔴 URGENT — FILE #0051\n\n\
+     CLASSIFICATION: ██████████\n\
+     HANDLE VIA: ███ PROTOCOL ONLY\n\n\
+     All personnel are reminded that\n\
+     discussion of the ████ ECLIPSE\n\
+     incident remains strictly\n\
+     ████████.\n\n\
+     Violators will be ████.\n\n\
+     ACCESS DENIED.\n\
+     The file is breathing.\n\n\
+     #RedactedProtocol",
+];
