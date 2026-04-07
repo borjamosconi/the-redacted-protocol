@@ -43,6 +43,9 @@ export function Header() {
           <a href="#airdrop" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
             AIRDROP
           </a>
+          <a href="#news" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
+            NEWS INTEL
+          </a>
           <a href="#fragments" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
             FRAGMENTS
           </a>

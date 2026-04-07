@@ -5,6 +5,7 @@ import { Hero } from '@/components/Hero'
 import { AirdropSection } from '@/components/AirdropSection'
 import { FragmentsSection } from '@/components/FragmentsSection'
 import { TokenomicsSection } from '@/components/TokenomicsSection'
+import { NewsSection } from '@/components/NewsSection'
 import { Footer } from '@/components/Footer'
 
 export default function Home() {
@@ -15,6 +16,7 @@ export default function Home() {
         <Hero />
         <AirdropSection />
         <FragmentsSection />
+        <NewsSection />
         <TokenomicsSection />
       </main>
       <Footer />

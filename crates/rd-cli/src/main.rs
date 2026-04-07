@@ -200,7 +200,12 @@ mod telegram_mode {
         let mut last_post_minute: u32 = 99;
         let mut post_index = 0;
 
-        info!("Bot loop started — welcome + scheduled posts active");
+        // News intelligence
+        let mut news_scanner = rd_types::news::NewsScanner::new();
+        let mut last_news_poll = std::time::Instant::now() - std::time::Duration::from_secs(1800);
+        let news_poll_interval = std::time::Duration::from_secs(1800); // 30 minutes
+
+        info!("Bot loop started — welcome + scheduled posts + news intelligence active");
 
         loop {
             let now = chrono::Utc::now();
@@ -218,6 +223,58 @@ mod telegram_mode {
                     info!("Scheduled post broadcast to {} users (sent: {})", user_ids.len(), sent);
                 } else {
                     info!("Scheduled post skipped — no users yet");
+                }
+            }
+
+            // Background news intelligence polling (every 30 min)
+            if last_news_poll.elapsed() >= news_poll_interval {
+                last_news_poll = std::time::Instant::now();
+                info!("Polling news sources for intelligence...");
+
+                // Sample URLs to scan (in production, parse RSS feeds)
+                let sample_urls = [
+                    "https://www.reuters.com/world/",
+                    "https://apnews.com/",
+                    "https://www.aljazeera.com/",
+                ];
+
+                let user_ids = users.ids();
+                for url in sample_urls {
+                    if !news_scanner.is_seen(url) {
+                        news_scanner.mark_seen(url);
+                        if let Ok((title, content)) = news_scanner.fetch_article(url).await {
+                            let flags = news_scanner.analyze(&title, &content).await;
+                            let threat = rd_types::news::NewsScanner::calculate_threat(&flags);
+
+                            if threat == rd_types::news::ThreatLevel::Flagged
+                                || threat == rd_types::news::ThreatLevel::Critical
+                            {
+                                let alert = format!(
+                                    "🚨 INTELLIGENCE ALERT\n\n\
+                                    Source: {}\n\
+                                    Threat: {:?}\n\
+                                    Flags: {}\n\n\
+                                    {}",
+                                    url,
+                                    threat,
+                                    flags.len(),
+                                    if flags.is_empty() {
+                                        "No indicators.".to_string()
+                                    } else {
+                                        flags.iter()
+                                            .map(|f| format!("• {} ({:.0}%)", f.description, f.confidence * 100.0))
+                                            .collect::<Vec<_>>()
+                                            .join("\n")
+                                    }
+                                );
+
+                                for &uid in &user_ids {
+                                    bot.send_safe(uid, &alert).await.ok();
+                                }
+                                info!("Intelligence alert sent to {} users", user_ids.len());
+                            }
+                        }
+                    }
                 }
             }
 
@@ -271,11 +328,68 @@ mod telegram_mode {
                                 /start — Initialize connection\n\
                                 /status — System status\n\
                                 /airdrop — Check your $RDX eligibility\n\
+                                /scan_news <url> — Scan article for conspiracy indicators\n\
                                 /help — This message\n\n\
                                 Register wallet for airdrop:\n\
                                 https://redacted-protocol.vercel.app\n\n\
                                 Send any message for Redacted response."
                             ).await.ok();
+                            continue;
+                        }
+
+                        // Handle /scan_news <url>
+                        if msg.text.starts_with("/scan_news") || msg.text.starts_with("/scan_news@theredacted_bot") {
+                            let url = msg.text.split_whitespace().nth(1);
+                            if url.is_none() {
+                                bot.show_typing(msg.chat_id).await.ok();
+                                bot.send_safe(msg.chat_id,
+                                    "Usage: /scan_news <url>\n\n\
+                                    Example: /scan_news https://example.com/article"
+                                ).await.ok();
+                                continue;
+                            }
+                            let url = url.unwrap();
+                            bot.show_typing(msg.chat_id).await.ok();
+
+                            let scanner = rd_types::news::NewsScanner::new();
+                            let (title, content) = match scanner.fetch_article(url).await {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    bot.send_safe(msg.chat_id, &format!("Fetch error: {}", e)).await.ok();
+                                    continue;
+                                }
+                            };
+
+                            let flags = scanner.analyze(&title, &content).await;
+                            let threat = rd_types::news::NewsScanner::calculate_threat(&flags);
+
+                            let response = format!(
+                                "🔍 NEWS ANALYSIS\n\n\
+                                Title: {}\n\
+                                Threat: {:?}\n\
+                                Flags: {}\n\n\
+                                {}",
+                                if title.is_empty() { "Unknown" } else { &title },
+                                threat,
+                                flags.len(),
+                                if flags.is_empty() {
+                                    "No significant indicators found.".to_string()
+                                } else {
+                                    flags.iter()
+                                        .map(|f| format!("• {} ({:.0}%)", f.description, f.confidence * 100.0))
+                                        .collect::<Vec<_>>()
+                                        .join("\n")
+                                }
+                            );
+
+                            // Truncate if too long for Telegram
+                            let response = if response.len() > 4000 {
+                                format!("{}...", &response[..3997])
+                            } else {
+                                response
+                            };
+
+                            bot.send_safe(msg.chat_id, &response).await.ok();
                             continue;
                         }
 

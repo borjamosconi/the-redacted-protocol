@@ -111,6 +111,65 @@ impl ToolHandler for TelegramStatusTool {
     }
 }
 
+/// Tool: scan a news URL for conspiracy/censorship indicators.
+pub struct ScanNewsTool {
+    pub scanner: std::sync::Arc<tokio::sync::Mutex<rd_types::news::NewsScanner>>,
+}
+
+#[async_trait]
+impl ToolHandler for ScanNewsTool {
+    async fn execute(&self, input: serde_json::Value) -> Result<String, ToolError> {
+        let url = input.get("url")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| ToolError::InvalidInput("missing 'url'".into()))?;
+
+        let scanner = self.scanner.lock().await;
+
+        if scanner.is_seen(url) {
+            return Ok(format!("Already scanned: {}. No new flags.", url));
+        }
+
+        let (title, content) = scanner.fetch_article(url).await
+            .map_err(|e| ToolError::ExecutionFailed(format!("Fetch error: {}", e)))?;
+
+        let flags = scanner.analyze(&title, &content).await;
+        let threat = rd_types::news::NewsScanner::calculate_threat(&flags);
+
+        let result = format!(
+            "🔍 NEWS ANALYSIS\n\nURL: {}\nTitle: {}\nThreat: {:?}\nFlags: {}\n\n{}",
+            url,
+            if title.is_empty() { "Unknown" } else { &title },
+            threat,
+            flags.len(),
+            if flags.is_empty() {
+                "No significant indicators found.".to_string()
+            } else {
+                flags.iter()
+                    .map(|f| format!("• [{}] {} ({:.0}%)\n  {}", 
+                        match f.flag_type {
+                            rd_types::news::FlagType::RedactionMarker => "███",
+                            rd_types::news::FlagType::ClassifiedLanguage => "CLASSIFIED",
+                            rd_types::news::FlagType::CoverUpPattern => "COVER-UP",
+                            rd_types::news::FlagType::Contradiction => "CONTRADICTION",
+                            rd_types::news::FlagType::PatternMatch => "PATTERN",
+                            rd_types::news::FlagType::SourceReliability => "SOURCE",
+                            rd_types::news::FlagType::TemporalCluster => "CLUSTER",
+                            rd_types::news::FlagType::UnusualFraming => "FRAMING",
+                            rd_types::news::FlagType::DocumentReference => "DOCUMENT",
+                        },
+                        f.description,
+                        f.confidence * 100.0,
+                        f.context
+                    ))
+                    .collect::<Vec<_>>()
+                    .join("\n\n")
+            }
+        );
+
+        Ok(result)
+    }
+}
+
 pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("read_file", "Read a file.", file_schema(), PermissionLevel::Observer), Box::new(ReadFileTool));
     registry.register(ToolSpec::builtin("write_file", "Write a file.", write_schema(), PermissionLevel::Reconstructor), Box::new(WriteFileTool));
@@ -120,6 +179,18 @@ pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("reconstruct", "Reconstruct redacted content.", frag_schema(), PermissionLevel::Reconstructor), Box::new(ReconstructTool));
     registry.register(ToolSpec::builtin("telegram_publish", "Publish a message to Telegram.", telegram_schema(), PermissionLevel::Declassifier), Box::new(TelegramPublishTool));
     registry.register(ToolSpec::builtin("telegram_status", "Check Telegram bot connection.", serde_json::json!({"type":"object","properties":{}}), PermissionLevel::Observer), Box::new(TelegramStatusTool));
+}
+
+/// Register news scanning tool (needs shared scanner).
+pub fn register_news_tool(registry: &mut ToolRegistry, scanner: std::sync::Arc<tokio::sync::Mutex<rd_types::news::NewsScanner>>) {
+    registry.register(
+        ToolSpec::builtin("scan_news", "Scan a news URL for conspiracy/censorship indicators.", news_schema(), PermissionLevel::Observer),
+        Box::new(ScanNewsTool { scanner }),
+    );
+}
+
+fn news_schema() -> serde_json::Value {
+    serde_json::json!({"type":"object","properties":{"url":{"type":"string","description":"URL of the news article to scan"}},"required":["url"]})
 }
 
 fn file_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"path":{"type":"string","description":"File path"}},"required":["path"]}) }
