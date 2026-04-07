@@ -41,19 +41,21 @@ pub fn from_env(default: ProviderKind) -> Result<ProviderRouter, String> {
     let mut router = ProviderRouter::new(default);
     if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") { router = router.with_anthropic(key); }
     if let Ok(key) = std::env::var("OPENAI_API_KEY") {
-        let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o".into());
+        let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".into());
         router = router.with_openai_compat(ProviderKind::OpenAi, key, model);
     }
     if let Ok(key) = std::env::var("XAI_API_KEY") {
-        let model = std::env::var("XAI_MODEL").unwrap_or_else(|_| "grok-3".into());
+        let model = std::env::var("XAI_MODEL").unwrap_or_else(|_| "grok-3-fast".into());
         router = router.with_openai_compat(ProviderKind::Xai, key, model);
     }
+    // OpenRouter — supports free models (no credit card needed)
     if let Ok(key) = std::env::var("OPENROUTER_API_KEY") {
-        let model = std::env::var("OPENROUTER_MODEL").unwrap_or_else(|_| "anthropic/claude-sonnet-4".into());
+        let model = std::env::var("OPENROUTER_MODEL")
+            .unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".into());
         router = router.with_openai_compat(ProviderKind::OpenRouter, key, model);
     }
     if router.registered_kinds().is_empty() {
-        return Err("No LLM API keys found. Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, XAI_API_KEY, OPENROUTER_API_KEY".into());
+        return Err("No LLM API keys found. For 100% free usage:\n  1. Sign up at https://openrouter.ai (free tier)\n  2. Get your API key\n  3. Set OPENROUTER_API_KEY=<your_key>\n  4. Optionally set OPENROUTER_MODEL=google/gemini-2.0-flash-exp:free".into());
     }
     Ok(router)
 }

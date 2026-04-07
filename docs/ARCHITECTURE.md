@@ -1,0 +1,196 @@
+# Architecture
+
+Detailed technical architecture of the Redacted Protocol Agent.
+
+---
+
+## System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLI LAYER                                │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐   │
+│  │  REPL    │  │ One-Shot │  │ Slash    │  │ Display      │   │
+│  │  Loop    │  │  Mode    │  │ Commands │  │ Formatter    │   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └──────┬───────┘   │
+└───────┼──────────────┼─────────────┼───────────────┼───────────┘
+        │              │             │               │
+        └──────────────┴─────────────┴───────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     ORCHESTRATOR (rd-core)                       │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  ReAct Loop                                                 │  │
+│  │                                                             │  │
+│  │  User Input → Build Request → Call Provider → Parse        │  │
+│  │                                                             │  │
+│  │  For each Tool Call:                                        │  │
+│  │    1. Permission Check (level + context)                    │  │
+│  │    2. PreToolUse Hook (exit 0/2/other)                      │  │
+│  │    3. Execute Tool (ToolHandler trait)                      │  │
+│  │    4. PostToolUse Hook                                      │  │
+│  │    5. Append result to session                              │  │
+│  │                                                             │  │
+│  │  No tool calls → Return summary → Save session             │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              ▼                ▼                ▼
+┌──────────────────┐ ┌────────────────┐ ┌──────────────────┐
+│   PROVIDERS      │ │     TOOLS      │ │     HOOKS        │
+│  (rd-providers)  │ │  (rd-tools)    │ │  (rd-hooks)      │
+│                  │ │                │ │                  │
+│ ┌──────────────┐ │ │ ┌────────────┐ │ │ ┌──────────────┐ │
+│ │ Anthropic    │ │ │ │read_file   │ │ │ │PreToolUse    │ │
+│ │ Claude       │ │ │ │write_file  │ │ │ │PostToolUse   │ │
+│ └──────────────┘ │ │ │grep_search │ │ │ │exit 0/2/oth  │ │
+│ ┌──────────────┐ │ │ │shell       │ │ │ └──────┬───────┘ │
+│ │ OpenAI       │ │ │ │inspect_frag│ │ │        │         │
+│ │ GPT-4        │ │ │ │reconstruct │ │ │  External Process │
+│ └──────────────┘ │ │ └────────────┘ │ └────────┼────────┘ │
+│ ┌──────────────┐ │ │                │          │          │
+│ │ xAI Grok     │ │ │ Registry +     │          │          │
+│ └──────────────┘ │ │ Permission     │          │          │
+│ ┌──────────────┐ │ │ Enforcement    │          │          │
+│ │ DashScope    │ │ └────────────────┘          │          │
+│ │ Qwen         │ │                             │          │
+│ └──────────────┘ │                             │          │
+│ ┌──────────────┐ │                             │          │
+│ │ OpenRouter   │ │                             │          │
+│ │ (FREE MODELS)│ │                             │          │
+│ └──────────────┘ │                             │          │
+└──────────────────┘ └───────────────────────────┼──────────┘
+                                                  │
+                              ┌───────────────────┼──────────────┐
+                              ▼                   ▼              ▼
+                    ┌──────────────┐    ┌──────────────┐ ┌────────────┐
+                    │   SESSION    │    │   CONFIG     │ │  SOLANA    │
+                    │  (rd-session)│    │ (rd-config)  │ │ Contracts  │
+                    │              │    │              │ │            │
+                    │ Versioned    │    │ Multi-layer  │ │ rd-fragment│
+                    │ JSON files   │    │ deep merge   │ │ rd-archive │
+                    │ Atomic write │    │ User→Project │ │ PDA accts  │
+                    │ Crash recovery│   │ →Local       │ │ ZK proofs  │
+                    └──────────────┘    └──────────────┘ └────────────┘
+```
+
+---
+
+## Data Flow: Fragment Processing
+
+```
+Source Document (redacted)
+        │
+        ▼
+┌───────────────────┐
+│ 1. DETECT         │  Identify redaction markers
+│                   │  - ███ patterns
+│  Vision/Text      │  - [REDACTED] tags
+│                   │  - Black bar descriptions
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│ 2. RECONSTRUCT    │  LLM infers hidden content
+│                   │  - Contextual analysis
+│  LLM Provider     │  - Multi-model consensus
+│                   │  - Confidence scoring
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│ 3. VERIFY         │  Validate reconstruction
+│                   │  - Model confidence ≥ 0.85
+│  Scoring Engine   │  - Cross-model agreement
+│                   │  - Contextual consistency
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│ 4. ANCHOR         │  On-chain registration
+│                   │  - Content hash on Solana
+│  Solana PDA       │  - ZK proof hash
+│                   │  - Timestamp + submitter
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│ 5. STORE          │  Permanent preservation
+│                   │  - Full document on Arweave
+│  Arweave          │  - IPFS backup
+│                   │  - Archivo 0 registry entry
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│ 6. PUBLISH        │  Redacted Protocol aesthetic
+│                   │  - FILE #XXXX format
+│  Social/Dashboard │  - ███ for unknowns
+│                   │  - "ACCESS GRANTED" closing
+└───────────────────┘
+```
+
+---
+
+## Type Relationships
+
+```
+Fragment
+├── content_hash: String (SHA-256)
+├── redacted_content: String
+├── source: SourceMetadata
+│   ├── url_hash: String
+│   ├── source_type: SourceType
+│   ├── redaction_zones: u32
+│   └── coordinates: Option<(f64, f64)>
+├── reconstruction: Option<DeclassifiedResult>
+│   ├── text: String
+│   ├── model: String
+│   ├── reconstruction_time_ms: u64
+│   └── reasoning_summary: String
+├── confidence: Option<ConfidenceScore>
+│   ├── overall: f64 (weighted: 0.4*model + 0.3*cross + 0.2*ctx + 0.1*src)
+│   ├── model_confidence: f64
+│   ├── cross_model_agreement: f64
+│   ├── contextual_consistency: f64
+│   └── source_reliability: f64
+├── status: FragmentStatus (Pending→Processing→Declassified→Anchored)
+└── on_chain_tx: Option<String>
+
+Session
+├── id: String
+├── messages: Vec<SessionMessage>
+│   └── SessionMessage
+│       ├── role: MessageRole (System/User/Assistant/Tool)
+│       ├── blocks: Vec<ContentBlock>
+│       │   ├── Text { text }
+│       │   ├── ToolUse { id, name, input }
+│       │   └── ToolResult { tool_use_id, tool_name, output, is_error }
+│       └── usage: Option<TokenUsage>
+└── total_usage: TokenUsage
+```
+
+---
+
+## Config Merge Strategy
+
+```
+~/.rd-agent/config.json          (lowest priority)
+         ↓ merge
+~/.rd-agent/settings.json
+         ↓ merge
+<cwd>/.rd-agent.json
+         ↓ merge
+<cwd>/settings.json
+         ↓ merge
+<cwd>/settings.local.json        (highest priority, gitignored)
+         ↓
+  RuntimeSettings (typed)
+```
+
+---
+
+**"The architecture cannot be redacted. The file is breathing."**
