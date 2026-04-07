@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Supported LLM provider kinds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum ProviderKind {
     /// Anthropic Claude (messages API).
     Anthropic,
@@ -69,6 +69,6 @@ pub fn known_models() -> Vec<ModelRef> {
 }
 
 /// Resolve a model alias to an actual model ID.
-pub fn resolve_model_alias(alias: &str) -> Option<&ModelRef> {
-    known_models().iter().find(|m| m.alias == alias.to_lowercase())
+pub fn resolve_model_alias(alias: &str) -> Option<ModelRef> {
+    known_models().into_iter().find(|m| m.alias == alias.to_lowercase())
 }
