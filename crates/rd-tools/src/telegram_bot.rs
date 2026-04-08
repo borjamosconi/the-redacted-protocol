@@ -13,9 +13,9 @@ use serde_json::json;
 use tracing::{info, warn};
 use std::time::Duration;
 
-const TELEGRAM_API: &str = "https://api.telegram.org/bot";
+const TELEGRAM_API: &str = "https://api.telegram.org";
 
-/// Redacted Protocol image style presets (matching images/ folder aesthetic).
+/// Telegram Bot API client.
 pub const REDACTED_IMAGE_PROMPTS: &[(&str, &str)] = &[
     (
         "censored_figure",
@@ -126,7 +126,7 @@ impl TelegramBot {
     }
 
     pub async fn get_me(&self) -> Result<serde_json::Value, String> {
-        let url = format!("{}/getMe", TELEGRAM_API);
+        let url = format!("{}/bot{}/getMe", TELEGRAM_API, self.token);
         let resp = self.client.get(&url).send().await.map_err(|e| format!("HTTP: {}", e))?;
         let j: serde_json::Value = resp.json().await.map_err(|e| format!("JSON: {}", e))?;
         if j.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) { Ok(j) }
@@ -134,7 +134,7 @@ impl TelegramBot {
     }
 
     async fn api_post(&self, method: &str, body: serde_json::Value) -> Result<serde_json::Value, String> {
-        let url = format!("{}/{}", TELEGRAM_API, method);
+        let url = format!("{}/bot{}/{}", TELEGRAM_API, self.token, method);
         let resp = self.client.post(&url).json(&body).send().await
             .map_err(|e| format!("HTTP: {}", e))?;
         let status = resp.status();
@@ -248,7 +248,7 @@ impl TelegramBot {
     }
 
     pub async fn poll_messages(&mut self) -> Result<Vec<TgMessage>, String> {
-        let url = format!("{}/getUpdates", TELEGRAM_API);
+        let url = format!("{}/{}/getUpdates", TELEGRAM_API, self.token);
         let resp = self.client.get(&url)
             .query(&[("offset", (self.last_update_id + 1).to_string()), ("timeout", "10".to_string())])
             .timeout(Duration::from_secs(15))
