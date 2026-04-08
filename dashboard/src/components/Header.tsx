@@ -39,7 +39,10 @@ export function Header() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden md:flex items-center gap-5">
+          <a href="#colosseum" className="text-xs text-rd-red hover:text-rd-red-glow tracking-widest transition-colors font-bold">
+            COLOSSEUM
+          </a>
           <a href="#airdrop" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
             AIRDROP
           </a>
@@ -55,10 +58,7 @@ export function Header() {
           <a href="#news" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
             NEWS
           </a>
-          <a href="#fragments" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
-            FRAGMENTS
-          </a>
-          <a href="#tokenomics" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
+          <a href="#token" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
             TOKEN
           </a>
           <a href="https://t.me/theredacted_bot" target="_blank" rel="noopener noreferrer" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">

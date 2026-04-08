@@ -2,6 +2,7 @@
 
 import { Header } from '@/components/Header'
 import { Hero } from '@/components/Hero'
+import { ColosseumSection } from '@/components/ColosseumSection'
 import { AirdropSection } from '@/components/AirdropSection'
 import { OcrSection } from '@/components/OcrSection'
 import { ImageGenSection } from '@/components/ImageGenSection'
@@ -17,6 +18,7 @@ export default function Home() {
       <Header />
       <main>
         <Hero />
+        <ColosseumSection />
         <AirdropSection />
         <OcrSection />
         <ImageGenSection />
