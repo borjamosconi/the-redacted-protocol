@@ -62,8 +62,9 @@
   }
 
   /* === CARDS === */
+  /* === RESPONSIVE CARD PADDING === */
   .rd-card {
-    @apply relative p-6 border border-rd-border bg-rd-card/80 backdrop-blur-sm;
+    @apply relative p-4 sm:p-6 border border-rd-border bg-rd-card/80 backdrop-blur-sm;
     @apply hover:border-rd-red/30 transition-colors duration-300;
   }
 

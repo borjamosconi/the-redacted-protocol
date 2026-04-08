@@ -1403,6 +1403,7 @@ dependencies = [
  "rd-config",
  "rd-providers",
  "rd-types",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

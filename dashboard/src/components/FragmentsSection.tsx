@@ -1,15 +1,62 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 
-const sampleFragments = [
-  { id: '#0047', status: 'DECLASSIFIED', confidence: 94.7, preview: 'The ████ was moved to ███████ on ██/██/2024' },
-  { id: '#0048', status: 'VERIFIED', confidence: 98.2, preview: 'Operation ███ ECLIPSE involved at least ██ entities' },
-  { id: '#0049', status: 'PROCESSING', confidence: 67.3, preview: 'All ██████ are to be sealed via █████ route' },
-  { id: '#0050', status: 'DECLASSIFIED', confidence: 91.5, preview: 'The subject was transferred to ██████████ facility' },
-]
+interface Fragment {
+  id: string;
+  status: string;
+  confidence: number;
+  preview: string;
+  topicTags: string[];
+  arweaveTx?: string;
+  onChainTx?: string;
+}
+
+interface FragmentStats {
+  declassified: number;
+  verified: number;
+  processing: number;
+  pending: number;
+}
 
 export function FragmentsSection() {
+  const [fragments, setFragments] = useState<Fragment[]>([])
+  const [stats, setStats] = useState<FragmentStats | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/fragments')
+      .then(res => res.json())
+      .then(data => {
+        setFragments(data.fragments || [])
+        setStats(data.stats || null)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const statusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'VERIFIED': return 'badge-active';
+      case 'DECLASSIFIED': return 'badge-pending';
+      case 'PROCESSING': return 'badge-pending';
+      default: return '';
+    }
+  }
+
+  if (loading) {
+    return (
+      <section id="fragments" className="py-24 relative">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="text-center">
+            <div className="text-rd-muted/50 text-sm tracking-widest">LOADING FRAGMENTS...</div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section id="fragments" className="py-24 relative">
       <div className="max-w-4xl mx-auto px-4">
@@ -30,11 +77,29 @@ export function FragmentsSection() {
           <p className="text-rd-muted/60 tracking-widest text-sm">
             RECONSTRUCTED FROM REDACTED DOCUMENTS
           </p>
+
+          {/* Live stats */}
+          {stats && (
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-rd-muted/50">
+              <span className="px-2 py-1 border border-rd-red/20 bg-rd-red/5 text-rd-red">
+                {stats.declassified} DECLASSIFIED
+              </span>
+              <span className="px-2 py-1 border border-green-500/20 bg-green-500/5 text-green-400">
+                {stats.verified} VERIFIED
+              </span>
+              <span className="px-2 py-1 border border-yellow-500/20 bg-yellow-500/5 text-yellow-400">
+                {stats.processing} PROCESSING
+              </span>
+              <span className="px-2 py-1 border border-rd-muted/20 text-rd-muted/40">
+                {stats.pending} PENDING
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Fragment cards */}
         <div className="space-y-4">
-          {sampleFragments.map((frag, i) => (
+          {fragments.map((frag, i) => (
             <motion.div
               key={frag.id}
               initial={{ opacity: 0, x: -20 }}
@@ -43,20 +108,35 @@ export function FragmentsSection() {
               transition={{ delay: i * 0.1 }}
               className="rd-card"
             >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <span className="text-rd-red font-bold text-sm">FILE {frag.id}</span>
-                    <span className={`badge ${frag.status === 'VERIFIED' ? 'badge-active' : frag.status === 'DECLASSIFIED' ? 'badge-pending' : ''}`}>
+                    <span className={`badge ${statusBadgeClass(frag.status)}`}>
                       {frag.status}
                     </span>
+                    {frag.topicTags.map(tag => (
+                      <span key={tag} className="text-[10px] text-rd-muted/40 bg-rd-border px-1.5 py-0.5">
+                        #{tag}
+                      </span>
+                    ))}
                   </div>
-                  <p className="text-rd-muted/60 text-sm font-mono">
+                  <p className="text-rd-muted/60 text-sm font-mono truncate">
                     {frag.preview}
                   </p>
+                  {frag.arweaveTx && (
+                    <div className="text-[10px] text-rd-muted/30 mt-1">
+                      Arweave: {frag.arweaveTx}
+                    </div>
+                  )}
                 </div>
-                <div className="text-right">
-                  <div className="text-rd-red font-bold text-lg">
+                <div className="text-right flex-shrink-0">
+                  <div className={`font-bold text-lg ${
+                    frag.confidence >= 95 ? 'text-green-400' :
+                    frag.confidence >= 85 ? 'text-rd-red' :
+                    frag.confidence >= 70 ? 'text-yellow-400' :
+                    'text-rd-muted/50'
+                  }`}>
                     {frag.confidence}%
                   </div>
                   <div className="text-[10px] text-rd-muted/40 tracking-widest">
@@ -81,7 +161,7 @@ export function FragmentsSection() {
             rel="noopener"
             className="btn-redacted"
           >
-            █ SUBMIT REDACTED DOCUMENT █
+            &#x2588; SUBMIT REDACTED DOCUMENT &#x2588;
           </a>
           <p className="text-xs text-rd-muted/30 mt-4 tracking-widest">
             EARN 100 RDX PER DOCUMENT SUBMITTED

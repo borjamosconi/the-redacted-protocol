@@ -25,12 +25,12 @@ pub async fn handle_slash_command<P: Provider>(cmd: &str, orch: &mut Orchestrato
         "/cost" => Ok(format!("Tokens: {} in, {} out, {} total", orch.session.total_usage.input_tokens, orch.session.total_usage.output_tokens, orch.session.total_usage.total())),
         "/compact" => { let before = orch.session.messages.len(); orch.session.compact(20); Ok(format!("Compacted: {} -> {}", before, orch.session.messages.len())) }
         "/telegram" | "/tg" => {
-            let msg = parts.get(1).map(|s| s.to_string()).unwrap_or_else(|| "🔴 Redacted Protocol Agent\n\nThe file is breathing.\n\n#RedactedProtocol".into());
+            let msg = parts.get(1).map(|s| s.to_string()).unwrap_or_else(|| "\u{1F534} Redacted Protocol Agent\n\nThe file is breathing.\n\n#RedactedProtocol".into());
             let bot = rd_tools::telegram::TelegramBot::from_env()
                 .ok_or_else(|| anyhow::anyhow!("TELEGRAM_BOT_TOKEN not set. Create bot via @BotFather."))?;
             bot.send_message(&msg).await
                 .map_err(|e| anyhow::anyhow!("Telegram: {}", e))?;
-            Ok("Sent to Telegram ✅".into())
+            Ok("Sent to Telegram \u{2705}".into())
         }
         "/config" => {
             let mut loader = rd_config::ConfigLoader::new();
@@ -47,8 +47,56 @@ pub async fn handle_slash_command<P: Provider>(cmd: &str, orch: &mut Orchestrato
     }
 }
 
+/// Handle a command string (e.g. "status", "commands", "init").
 pub async fn run_command(cmd: &str, _cwd: &std::path::Path) -> anyhow::Result<()> {
-    println!("Command: {}", cmd);
+    match cmd {
+        "commands" => {
+            println!("Available commands:");
+            println!("  /help          - Show help");
+            println!("  /status        - Session status");
+            println!("  /model [name]  - Set model");
+            println!("  /permission    - Set permission level");
+            println!("  /clear         - Clear session");
+            println!("  /cost          - Show token usage");
+            println!("  /compact       - Compact session");
+            println!("  /config        - Show config");
+            println!("  /version       - Show version");
+            println!("  /telegram [msg] - Send Telegram message");
+        }
+        "status" => {
+            println!("Status: Redacted Protocol Agent v{}", env!("CARGO_PKG_VERSION"));
+            println!("Use REPL for interactive mode or --prompt for one-shot queries");
+        }
+        "init" => {
+            println!("Creating .rd-agent.json config template...");
+            let config = r#"{
+  "model": "sonnet",
+  "permission_mode": "reconstructor",
+  "max_tokens_per_turn": 8192,
+  "max_iterations": 50,
+  "temperature": 0.3,
+  "confidence_threshold": 0.85
+}"#;
+            std::fs::write(".rd-agent.json", config)?;
+            println!("Config written to .rd-agent.json");
+        }
+        "system_prompt" => {
+            println!("System prompt builder active — configure via orchestrator");
+        }
+        export_cmd if export_cmd.starts_with("export:") => {
+            let session_id = &export_cmd[7..];
+            if session_id.is_empty() {
+                println!("Usage: rd export --resume-session <session_id>");
+            } else {
+                println!("Export session: {}", session_id);
+                println!("Session export delegated to session store");
+            }
+        }
+        other => {
+            println!("Unknown command: {}", other);
+            println!("Run 'rd --help' for usage information");
+        }
+    }
     Ok(())
 }
 

@@ -10,8 +10,13 @@ export function AirdropSection() {
   const [telegramId, setTelegramId] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [registeredData, setRegisteredData] = useState<{
+    amount: string;
+    wallet: string;
+  } | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
@@ -24,9 +29,39 @@ export function AirdropSection() {
       return
     }
 
-    // In production, send to API
-    console.log('Register:', { telegramId, wallet: publicKey.toString() })
-    setSubmitted(true)
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/airdrop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegramId: telegramId.trim(),
+          walletAddress: publicKey.toString(),
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        if (res.status === 400 && data.status === 'already_registered') {
+          setError(`Already registered — Wallet: ${data.walletAddress.slice(0, 8)}...${data.walletAddress.slice(-6)}, Amount: ${data.amountFormatted}`)
+          return
+        }
+        setError(data.error || 'REGISTRATION FAILED')
+        return
+      }
+
+      setRegisteredData({
+        amount: data.amountFormatted,
+        wallet: publicKey.toString(),
+      })
+      setSubmitted(true)
+    } catch {
+      setError('NETWORK ERROR — PLEASE TRY AGAIN')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -52,7 +87,7 @@ export function AirdropSection() {
         </div>
 
         {/* Stats grid */}
-        <div className="grid md:grid-cols-3 gap-4 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
           {[
             { label: 'TOTAL AIRDROP POOL', value: '400,000,000', sub: 'RDX TOKENS' },
             { label: 'PER USER', value: '1,000', sub: 'RDX GUARANTEED' },
@@ -80,19 +115,20 @@ export function AirdropSection() {
           viewport={{ once: true }}
           className="rd-card max-w-lg mx-auto"
         >
-          {submitted ? (
+          {submitted && registeredData ? (
             <div className="text-center py-8">
               <div className="text-4xl mb-4">████████</div>
               <div className="text-xl font-bold text-rd-red mb-2">ACCESS GRANTED</div>
               <p className="text-rd-muted/60 text-sm mb-4">
                 Your wallet has been registered for the $RDX airdrop.
               </p>
-              <div className="text-xs text-rd-muted/40">
+              <div className="text-xs text-rd-muted/40 space-y-1">
                 <p>Telegram: {telegramId}</p>
-                <p>Wallet: {publicKey?.toString().slice(0, 8)}...{publicKey?.toString().slice(-6)}</p>
+                <p>Wallet: {registeredData.wallet.slice(0, 8)}...{registeredData.wallet.slice(-6)}</p>
+                <p className="text-rd-red font-bold">Allocation: {registeredData.amount}</p>
               </div>
               <button
-                onClick={() => { setSubmitted(false); setTelegramId('') }}
+                onClick={() => { setSubmitted(false); setTelegramId(''); setRegisteredData(null) }}
                 className="btn-ghost mt-6"
               >
                 REGISTER ANOTHER
@@ -115,9 +151,9 @@ export function AirdropSection() {
                   SOLANA WALLET
                 </label>
                 {connected ? (
-                  <div className="p-3 border border-rd-red/20 bg-rd-red/5 font-mono text-sm text-rd-red">
+                  <div className="p-3 border border-rd-red/20 bg-rd-red/5 font-mono text-sm text-rd-red break-all">
                     {publicKey?.toString().slice(0, 8)}...{publicKey?.toString().slice(-6)}
-                    <span className="ml-2 text-green-500 text-xs">✓ CONNECTED</span>
+                    <span className="ml-2 text-green-500 text-xs">&#x2713; CONNECTED</span>
                   </div>
                 ) : (
                   <div className="flex justify-center">
@@ -147,27 +183,27 @@ export function AirdropSection() {
                   animate={{ opacity: 1 }}
                   className="mb-4 p-3 border border-rd-red/40 bg-rd-red/10 text-rd-red text-xs tracking-wider"
                 >
-                  ⚠ {error}
+                  &#x26A0; {error}
                 </motion.div>
               )}
 
               {/* Submit */}
               <button
                 onClick={handleSubmit}
-                disabled={!connected || !telegramId}
+                disabled={!connected || !telegramId || loading}
                 className="w-full btn-redacted disabled:opacity-40"
               >
-                █ REGISTER FOR AIRDROP █
+                {loading ? 'REGISTERING...' : '\u2588 REGISTER FOR AIRDROP \u2588'}
               </button>
 
               {/* Bonus info */}
               <div className="mt-6 pt-4 border-t border-rd-border">
                 <div className="text-[10px] text-rd-muted/40 tracking-widest mb-2">EARN MORE RDX</div>
                 <div className="grid grid-cols-2 gap-2 text-xs text-rd-muted/50">
-                  <div>📄 Submit document: <span className="text-rd-red">+100 RDX</span></div>
-                  <div>✅ Verify fragment: <span className="text-rd-red">+50 RDX</span></div>
-                  <div>📢 Publish: <span className="text-rd-red">+25 RDX</span></div>
-                  <div>👥 Referral: <span className="text-rd-red">+50 RDX</span></div>
+                  <div>&#x1F4C4; Submit document: <span className="text-rd-red">+100 RDX</span></div>
+                  <div>&#x2705; Verify fragment: <span className="text-rd-red">+50 RDX</span></div>
+                  <div>&#x1F4E2; Publish: <span className="text-rd-red">+25 RDX</span></div>
+                  <div>&#x1F465; Referral: <span className="text-rd-red">+50 RDX</span></div>
                 </div>
               </div>
             </>
@@ -182,7 +218,7 @@ export function AirdropSection() {
             rel="noopener"
             className="text-xs text-rd-muted/40 hover:text-rd-red/70 transition-colors tracking-widest"
           >
-            CHECK STATUS ON TELEGRAM →
+            CHECK STATUS ON TELEGRAM &#x2192;
           </a>
         </div>
       </div>

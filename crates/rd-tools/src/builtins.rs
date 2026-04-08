@@ -123,50 +123,26 @@ impl ToolHandler for ScanNewsTool {
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::InvalidInput("missing 'url'".into()))?;
 
-        let scanner = self.scanner.lock().await;
+        let mut scanner = self.scanner.lock().await;
 
         if scanner.is_seen(url) {
             return Ok(format!("Already scanned: {}. No new flags.", url));
         }
 
-        let (title, content) = scanner.fetch_article(url).await
-            .map_err(|e| ToolError::ExecutionFailed(format!("Fetch error: {}", e)))?;
+        scanner.mark_seen(url);
 
-        let flags = scanner.analyze(&title, &content).await;
-        let threat = rd_types::news::NewsScanner::calculate_threat(&flags);
-
-        let result = format!(
-            "🔍 NEWS ANALYSIS\n\nURL: {}\nTitle: {}\nThreat: {:?}\nFlags: {}\n\n{}",
-            url,
-            if title.is_empty() { "Unknown" } else { &title },
-            threat,
-            flags.len(),
-            if flags.is_empty() {
-                "No significant indicators found.".to_string()
-            } else {
-                flags.iter()
-                    .map(|f| format!("• [{}] {} ({:.0}%)\n  {}", 
-                        match f.flag_type {
-                            rd_types::news::FlagType::RedactionMarker => "███",
-                            rd_types::news::FlagType::ClassifiedLanguage => "CLASSIFIED",
-                            rd_types::news::FlagType::CoverUpPattern => "COVER-UP",
-                            rd_types::news::FlagType::Contradiction => "CONTRADICTION",
-                            rd_types::news::FlagType::PatternMatch => "PATTERN",
-                            rd_types::news::FlagType::SourceReliability => "SOURCE",
-                            rd_types::news::FlagType::TemporalCluster => "CLUSTER",
-                            rd_types::news::FlagType::UnusualFraming => "FRAMING",
-                            rd_types::news::FlagType::DocumentReference => "DOCUMENT",
-                        },
-                        f.description,
-                        f.confidence * 100.0,
-                        f.context
-                    ))
-                    .collect::<Vec<_>>()
-                    .join("\n\n")
+        match scanner.scan_url(url).await {
+            Ok(result) => {
+                let mut output = result.detailed_report();
+                // Drop back to scanner reference
+                drop(scanner);
+                Ok(output)
             }
-        );
-
-        Ok(result)
+            Err(e) => {
+                drop(scanner);
+                Err(ToolError::ExecutionFailed(format!("Scan error: {}", e)))
+            }
+        }
     }
 }
 

@@ -3,9 +3,10 @@
 import { Header } from '@/components/Header'
 import { Hero } from '@/components/Hero'
 import { AirdropSection } from '@/components/AirdropSection'
+import { OcrSection } from '@/components/OcrSection'
+import { NewsSection } from '@/components/NewsSection'
 import { FragmentsSection } from '@/components/FragmentsSection'
 import { TokenomicsSection } from '@/components/TokenomicsSection'
-import { NewsSection } from '@/components/NewsSection'
 import { Footer } from '@/components/Footer'
 
 export default function Home() {
@@ -15,8 +16,9 @@ export default function Home() {
       <main>
         <Hero />
         <AirdropSection />
-        <FragmentsSection />
+        <OcrSection />
         <NewsSection />
+        <FragmentsSection />
         <TokenomicsSection />
       </main>
       <Footer />

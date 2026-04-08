@@ -3,10 +3,10 @@
 import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 
-function FloatingDoc({ delay = 0, x = 0, rotation = 0, scale = 1 }) {
+function FloatingDoc({ delay = 0, x = 0, rotation = 0, scale = 1 }: { delay?: number; x?: number; rotation?: number; scale?: number }) {
   return (
     <motion.div
-      className="absolute pointer-events-none select-none"
+      className="absolute pointer-events-none select-none hidden md:block"
       style={{ left: `${x}%`, top: '15%', transform: `scale(${scale}) rotate(${rotation}deg)` }}
       initial={{ opacity: 0 }}
       animate={{
@@ -53,7 +53,7 @@ function GlitchText({ text, className = '' }: { text: string; className?: string
   const [display, setDisplay] = useState(text)
 
   useEffect(() => {
-    const chars = '█▓▒░╔╗╚╝║═╠╣╬╦╧╤╪'
+    const chars = '\u{2588}\u{2593}\u{2592}\u{2591}\u{2554}\u{2557}\u{255A}\u{255D}\u{2551}\u{2550}\u{2560}\u{2563}\u{256C}\u{2566}\u{2567}\u{2564}\u{256A}\u{256B}'
     let i = 0
     const interval = setInterval(() => {
       if (i >= text.length) {
@@ -77,7 +77,7 @@ function GlitchText({ text, className = '' }: { text: string; className?: string
 export function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
-      {/* Floating documents */}
+      {/* Floating documents (desktop only) */}
       <FloatingDoc delay={0} x={3} rotation={-12} scale={0.8} />
       <FloatingDoc delay={3} x={78} rotation={8} scale={1.1} />
       <FloatingDoc delay={6} x={12} rotation={5} scale={0.6} />
@@ -99,7 +99,7 @@ export function Hero() {
           className="inline-flex items-center gap-2 mb-8"
         >
           <div className="w-2 h-2 rounded-full bg-rd-red animate-pulse" />
-          <span className="text-xs tracking-[0.3em] text-rd-muted">
+          <span className="text-[10px] md:text-xs tracking-[0.3em] text-rd-muted">
             SYSTEM ACTIVE — FILE #0000
           </span>
         </motion.div>
@@ -113,19 +113,19 @@ export function Hero() {
         >
           <GlitchText
             text="$RDX"
-            className="text-7xl md:text-9xl font-bold text-rd-red block mb-2"
+            className="text-5xl sm:text-7xl md:text-9xl font-bold text-rd-red block mb-2"
           />
         </motion.h1>
 
         {/* Censor bar */}
         <div className="flex items-center justify-center gap-4 mb-8">
-          <div className="h-px w-20 md:w-32 bg-gradient-to-r from-transparent to-rd-red/40" />
+          <div className="h-px w-12 md:w-32 bg-gradient-to-r from-transparent to-rd-red/40" />
           <motion.div
-            className="w-32 md:w-48 h-3 censor-bar"
+            className="w-24 md:w-48 h-3 censor-bar"
             animate={{ x: [-2, 2, -1, 1, 0] }}
             transition={{ duration: 0.4, repeat: Infinity, repeatDelay: 4 }}
           />
-          <div className="h-px w-20 md:w-32 bg-gradient-to-l from-transparent to-rd-red/40" />
+          <div className="h-px w-12 md:w-32 bg-gradient-to-l from-transparent to-rd-red/40" />
         </div>
 
         {/* Subtitle */}
@@ -133,7 +133,7 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="text-lg md:text-xl text-rd-muted tracking-[0.2em] mb-3"
+          className="text-base md:text-xl text-rd-muted tracking-[0.2em] mb-3"
         >
           REDACTED PROTOCOL
         </motion.p>
@@ -142,7 +142,7 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="text-sm text-rd-muted/50 tracking-widest mb-12"
+          className="text-xs md:text-sm text-rd-muted/50 tracking-widest mb-12"
         >
           AUTONOMOUS ZERO-KNOWLEDGE DECLASSIFICATION AGENT
         </motion.p>
@@ -156,14 +156,14 @@ export function Hero() {
         >
           <a
             href="#airdrop"
-            className="btn-redacted animate-pulse-red min-w-[200px]"
+            className="btn-redacted animate-pulse-red min-w-[200px] text-center"
           >
-            █ CLAIM AIRDROP █
+            &#x2588; CLAIM AIRDROP &#x2588;
           </a>
           <a
             href="https://t.me/theredacted_bot"
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             className="btn-ghost min-w-[200px] text-center"
           >
             TELEGRAM BOT
@@ -175,7 +175,7 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.3 }}
-          className="mt-16 grid grid-cols-3 gap-8 max-w-md mx-auto"
+          className="mt-16 grid grid-cols-3 gap-4 md:gap-8 max-w-md mx-auto"
         >
           {[
             { label: 'SUPPLY', value: '1B' },

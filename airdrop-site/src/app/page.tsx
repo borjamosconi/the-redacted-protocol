@@ -3,37 +3,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// Airdrop data store (in production, this would be an API)
-interface WalletRegistration {
+interface AirdropStatus {
   telegramId: string
   walletAddress: string
   amount: number
   claimed: boolean
-  timestamp: number
+  registeredAt: string
 }
 
-const STORAGE_KEY = 'rdx_airdrop_registrations'
-
-function getRegistrations(): WalletRegistration[] {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY)
-    return data ? JSON.parse(data) : []
-  } catch {
-    return []
-  }
-}
-
-function saveRegistration(reg: WalletRegistration) {
-  const regs = getRegistrations()
-  regs.push(reg)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(regs))
-}
+const API_BASE = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://redacted-protocol.vercel.app'
 
 // Floating document component
-function FloatingDocument({ delay = 0, x = 0, rotation = 0 }) {
+function FloatingDocument({ delay = 0, x = 0, rotation = 0 }: { delay?: number; x?: number; rotation?: number }) {
   return (
     <motion.div
-      className="absolute opacity-10 pointer-events-none select-none"
+      className="absolute pointer-events-none select-none hidden md:block"
       style={{ left: `${x}%`, top: '10%' }}
       initial={{ opacity: 0 }}
       animate={{
@@ -70,7 +54,7 @@ function GlitchText({ text, className = '' }: { text: string; className?: string
   const [display, setDisplay] = useState(text)
 
   useEffect(() => {
-    const chars = '█▓▒░╔╗╚╝║═╠╣╬'
+    const chars = '\u{2588}\u{2593}\u{2592}\u{2591}\u{2554}\u{2557}\u{255A}\u{255D}\u{2551}\u{2550}\u{2560}\u{2563}\u{256C}'
     let i = 0
     const interval = setInterval(() => {
       if (i >= text.length) {
@@ -125,11 +109,14 @@ export default function AirdropPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [registeredCount, setRegisteredCount] = useState(0)
-  const [checkResult, setCheckResult] = useState<WalletRegistration | null>(null)
+  const [checkResult, setCheckResult] = useState<AirdropStatus | null>(null)
 
-  // Load count
+  // Load count from API
   useEffect(() => {
-    setRegisteredCount(getRegistrations().length)
+    fetch(`${API_BASE}/api/airdrop`)
+      .then(res => res.json())
+      .then(data => setRegisteredCount(data.stats?.totalRegistered || 0))
+      .catch(() => setRegisteredCount(0))
   }, [])
 
   const handleRegister = useCallback(async () => {
@@ -145,29 +132,33 @@ export default function AirdropPage() {
 
     setIsLoading(true)
 
-    // Simulate verification delay
-    await new Promise(r => setTimeout(r, 2000))
+    try {
+      const res = await fetch(`${API_BASE}/api/airdrop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegramId: telegramId.trim(), walletAddress }),
+      })
 
-    // Check if already registered
-    const existing = getRegistrations().find(r => r.telegramId === telegramId)
-    if (existing) {
-      setError('ALREADY REGISTERED')
+      const data = await res.json()
+
+      if (!res.ok) {
+        if (res.status === 400 && data.status === 'already_registered') {
+          setError(`Already registered — Wallet: ${data.walletAddress.slice(0, 8)}...${data.walletAddress.slice(-6)}`)
+          setIsLoading(false)
+          return
+        }
+        setError(data.error || 'REGISTRATION FAILED')
+        setIsLoading(false)
+        return
+      }
+
+      setRegisteredCount(prev => prev + 1)
       setIsLoading(false)
-      return
+      setStep('success')
+    } catch {
+      setError('NETWORK ERROR — PLEASE TRY AGAIN')
+      setIsLoading(false)
     }
-
-    const registration: WalletRegistration = {
-      telegramId,
-      walletAddress,
-      amount: 1000, // 1000 RDX
-      claimed: false,
-      timestamp: Date.now(),
-    }
-
-    saveRegistration(registration)
-    setRegisteredCount(prev => prev + 1)
-    setIsLoading(false)
-    setStep('success')
   }, [telegramId, walletAddress])
 
   const handleCheck = useCallback(async () => {
@@ -177,11 +168,20 @@ export default function AirdropPage() {
       return
     }
     setIsLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
-    const found = getRegistrations().find(r => r.telegramId === telegramId)
-    setCheckResult(found || null)
-    setIsLoading(false)
-    setStep('check')
+    try {
+      const res = await fetch(`${API_BASE}/api/airdrop?telegramId=${encodeURIComponent(telegramId)}`)
+      const data = await res.json()
+      if (data.status === 'not_found') {
+        setCheckResult(null)
+      } else {
+        setCheckResult(data)
+      }
+    } catch {
+      setError('NETWORK ERROR')
+    } finally {
+      setIsLoading(false)
+      setStep('check')
+    }
   }, [telegramId])
 
   return (
@@ -229,7 +229,7 @@ export default function AirdropPage() {
               {/* Logo / Title */}
               <div className="text-center mb-16">
                 <motion.div
-                  className="text-6xl md:text-8xl font-bold mb-4"
+                  className="text-5xl sm:text-6xl md:text-8xl font-bold mb-4"
                   animate={{ opacity: [1, 0.8, 1] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 >
@@ -237,21 +237,21 @@ export default function AirdropPage() {
                 </motion.div>
 
                 <div className="flex items-center justify-center gap-4 mb-8">
-                  <div className="h-px w-24 bg-gradient-to-r from-transparent to-rd-red/50" />
-                  <CensorBar width="w-32" />
-                  <div className="h-px w-24 bg-gradient-to-l from-transparent to-rd-red/50" />
+                  <div className="h-px w-12 md:w-24 bg-gradient-to-r from-transparent to-rd-red/50" />
+                  <CensorBar width="w-24 md:w-32" />
+                  <div className="h-px w-12 md:w-24 bg-gradient-to-l from-transparent to-rd-red/50" />
                 </div>
 
-                <p className="text-lg text-rd-muted tracking-widest mb-2">
+                <p className="text-base md:text-lg text-rd-muted tracking-widest mb-2">
                   <GlitchText text="AIRDROP REGISTRATION" />
                 </p>
-                <p className="text-sm text-rd-muted/50">
+                <p className="text-xs md:text-sm text-rd-muted/50">
                   FILE #0000 — CLASSIFICATION: PUBLIC
                 </p>
               </div>
 
               {/* Info cards */}
-              <div className="grid md:grid-cols-3 gap-6 mb-16">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-16">
                 {[
                   { label: 'TOTAL SUPPLY', value: '1,000,000,000', sub: 'RDX TOKENS' },
                   { label: 'AIRDROP POOL', value: '400,000,000', sub: '40% TO COMMUNITY' },
@@ -265,7 +265,7 @@ export default function AirdropPage() {
                     className="card-redacted text-center"
                   >
                     <div className="text-xs text-rd-muted tracking-widest mb-2">{item.label}</div>
-                    <div className="text-2xl font-bold text-rd-red">{item.value}</div>
+                    <div className="text-xl md:text-2xl font-bold text-rd-red">{item.value}</div>
                     <div className="text-xs text-rd-muted/50 mt-1">{item.sub}</div>
                   </motion.div>
                 ))}
@@ -279,7 +279,7 @@ export default function AirdropPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  █ REGISTER WALLET █
+                  &#x2588; REGISTER WALLET &#x2588;
                 </motion.button>
 
                 <div className="flex items-center justify-center gap-4 text-xs text-rd-muted/50">
@@ -377,7 +377,7 @@ export default function AirdropPage() {
                     animate={{ opacity: 1 }}
                     className="mb-4 p-3 border border-rd-red/50 bg-rd-red/10 text-rd-red text-sm"
                   >
-                    ⚠ {error}
+                    &#x26A0; {error}
                   </motion.div>
                 )}
 
@@ -387,14 +387,14 @@ export default function AirdropPage() {
                     onClick={() => setStep('landing')}
                     className="flex-1 py-3 border border-rd-muted/30 text-rd-muted text-sm hover:border-rd-muted/50 transition-colors"
                   >
-                    ← BACK
+                    &#x2190; BACK
                   </button>
                   <button
                     onClick={handleRegister}
                     disabled={isLoading}
                     className="flex-1 btn-redacted disabled:opacity-50"
                   >
-                    {isLoading ? 'VERIFYING...' : '█ SUBMIT █'}
+                    {isLoading ? 'VERIFYING...' : '&#x2588; SUBMIT &#x2588;'}
                   </button>
                 </div>
               </div>
@@ -415,7 +415,7 @@ export default function AirdropPage() {
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 0.5 }}
                 >
-                  <span className="text-rd-red">████████</span>
+                  <span className="text-rd-red">&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;</span>
                 </motion.div>
 
                 <div className="text-2xl font-bold text-rd-red mb-2">
@@ -492,7 +492,7 @@ export default function AirdropPage() {
 
                 {error && (
                   <div className="mb-4 p-3 border border-rd-red/50 bg-rd-red/10 text-rd-red text-sm">
-                    ⚠ {error}
+                    &#x26A0; {error}
                   </div>
                 )}
 
@@ -502,7 +502,7 @@ export default function AirdropPage() {
                   disabled={isLoading}
                   className="w-full btn-redacted disabled:opacity-50 mb-6"
                 >
-                  {isLoading ? 'SEARCHING...' : '█ CHECK STATUS █'}
+                  {isLoading ? 'SEARCHING...' : '&#x2588; CHECK STATUS &#x2588;'}
                 </button>
 
                 {/* Result */}
@@ -513,16 +513,16 @@ export default function AirdropPage() {
                     className="p-4 border border-rd-red/20 bg-rd-red/5"
                   >
                     <div className="text-xs text-rd-muted tracking-widest mb-2">
-                      STATUS: REGISTERED ✅
+                      STATUS: REGISTERED &#x2705;
                     </div>
                     <div className="text-xl font-bold text-rd-red">
-                      {checkResult.amount.toLocaleString()} RDX
+                      1,000 RDX
                     </div>
                     <div className="text-xs text-rd-muted/50 mt-2">
                       Wallet: {checkResult.walletAddress.slice(0, 8)}...
                     </div>
                     <div className="text-xs text-rd-muted/50">
-                      Registered: {new Date(checkResult.timestamp).toLocaleDateString()}
+                      Registered: {new Date(checkResult.registeredAt).toLocaleDateString()}
                     </div>
                   </motion.div>
                 )}
@@ -537,7 +537,7 @@ export default function AirdropPage() {
                   onClick={() => setStep('landing')}
                   className="w-full py-3 border border-rd-muted/30 text-rd-muted text-sm hover:border-rd-muted/50 transition-colors mt-4"
                 >
-                  ← BACK
+                  &#x2190; BACK
                 </button>
               </div>
             </motion.div>
@@ -550,7 +550,7 @@ export default function AirdropPage() {
             REDACTED PROTOCOL © 2026 — THE FILE IS BREATHING
           </p>
           <p className="text-xs text-rd-muted/20 mt-1">
-            ███ CANNOT BE REDACTED ███
+            &#x2588;&#x2588;&#x2588; CANNOT BE REDACTED &#x2588;&#x2588;&#x2588;
           </p>
         </div>
       </div>

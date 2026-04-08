@@ -82,7 +82,12 @@ impl<'a> Action<'a> {
         match self {
             Action::Repl => repl::run(cwd).await,
             Action::OneShot(text) => oneshot::run(&text, cwd).await,
-            Action::Resume(sid) => { println!("Resume: {:?}", sid); Ok(()) }
+            Action::Resume(sid) => {
+                println!("Resume session: {:?}", sid);
+                // Session resume delegated to session store
+                println!("Session resume feature — use /load command in REPL");
+                Ok(())
+            }
             Action::Cmd(cmd) => { commands::run_command(cmd, cwd).await }
             Action::Telegram => telegram_mode::run(cwd).await,
         }
@@ -148,8 +153,9 @@ mod oneshot {
 
 mod telegram_mode {
     use crate::oneshot;
-    use rd_tools::telegram_bot::{TelegramBot, UserRegistry, SCHEDULED_POSTS};
+    use rd_tools::telegram_bot::{TelegramBot, UserRegistry, SCHEDULED_POSTS, InlineKeyboard, InlineButton};
     use rd_tools::airdrop::AirdropRegistry;
+    use rd_tools::TgMessage;
     use rd_core::Orchestrator;
     use rd_tools::ToolRegistry;
     use rd_tools::builtins::register_builtins;
@@ -157,6 +163,8 @@ mod telegram_mode {
     use tracing::{error, warn, info};
     use chrono::Timelike;
     use std::collections::HashSet;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
 
     pub async fn run(cwd: &std::path::Path) -> anyhow::Result<()> {
         println!("╔══════════════════════════════════════════════════╗");
@@ -201,9 +209,12 @@ mod telegram_mode {
         let mut post_index = 0;
 
         // News intelligence
-        let mut news_scanner = rd_types::news::NewsScanner::new();
+        let news_scanner = Arc::new(Mutex::new(rd_types::news::NewsScanner::new()));
         let mut last_news_poll = std::time::Instant::now() - std::time::Duration::from_secs(1800);
         let news_poll_interval = std::time::Duration::from_secs(1800); // 30 minutes
+
+        // Track URLs already offered inline keyboards for
+        let mut offered_scans: HashSet<(i64, String)> = HashSet::new();
 
         info!("Bot loop started — welcome + scheduled posts + news intelligence active");
 
@@ -231,19 +242,23 @@ mod telegram_mode {
                 last_news_poll = std::time::Instant::now();
                 info!("Polling news sources for intelligence...");
 
-                // Sample URLs to scan (in production, parse RSS feeds)
-                let sample_urls = [
+                let scanner = news_scanner.lock().await;
+                let sample_urls_list = [
                     "https://www.reuters.com/world/",
                     "https://apnews.com/",
                     "https://www.aljazeera.com/",
                 ];
 
                 let user_ids = users.ids();
-                for url in sample_urls {
-                    if !news_scanner.is_seen(url) {
-                        news_scanner.mark_seen(url);
-                        if let Ok((title, content)) = news_scanner.fetch_article(url).await {
-                            let flags = news_scanner.analyze(&title, &content).await;
+                for url in sample_urls_list {
+                    if !scanner.is_seen(url) {
+                        let scanner_clone = Arc::clone(&news_scanner);
+                        drop(scanner);
+                        let mut s = scanner_clone.lock().await;
+                        s.mark_seen(url);
+
+                        if let Ok((title, content)) = s.fetch_article(url).await {
+                            let flags = s.analyze(&title, &content).await;
                             let threat = rd_types::news::NewsScanner::calculate_threat(&flags);
 
                             if threat == rd_types::news::ThreatLevel::Flagged
@@ -274,8 +289,11 @@ mod telegram_mode {
                                 info!("Intelligence alert sent to {} users", user_ids.len());
                             }
                         }
+
+                        scanner = s;
                     }
                 }
+                drop(scanner);
             }
 
             // Poll messages
@@ -297,7 +315,13 @@ mod telegram_mode {
                             continue;
                         }
 
-                        // Handle /start again
+                        // Handle callback queries from inline keyboards
+                        if msg.is_callback {
+                            handle_callback(&mut bot, &msg, &airdrop, &users, &news_scanner).await;
+                            continue;
+                        }
+
+                        // Handle /start
                         if msg.text == "/start" {
                             bot.show_typing(msg.chat_id).await.ok();
                             bot.send_welcome(msg.chat_id).await.ok();
@@ -305,112 +329,66 @@ mod telegram_mode {
                         }
 
                         // Handle /status
-                        if msg.text == "/status" || msg.text == "/status@theredacted_bot" {
+                        if msg.text == "/status" || msg.text.starts_with("/status@") {
                             bot.show_typing(msg.chat_id).await.ok();
-                            bot.send_safe(msg.chat_id,
-                                "🔴 SYSTEM STATUS\n\n\
-                                Agent: ONLINE\n\
-                                Models: AVAILABLE\n\
-                                Protocol: ACTIVE\n\
-                                Users registered: {}\n\n\
-                                $RDX Airdrop: LIVE\n\
-                                https://redacted-protocol.vercel.app\n\n\
-                                _The file is breathing._",
-                            ).await.ok();
+                            bot.send_system_status(msg.chat_id, users.count()).await.ok();
                             continue;
                         }
 
                         // Handle /help
-                        if msg.text == "/help" || msg.text == "/help@theredacted_bot" {
+                        if msg.text == "/help" || msg.text.starts_with("/help@") {
                             bot.show_typing(msg.chat_id).await.ok();
                             bot.send_safe(msg.chat_id,
-                                "🔴 COMMANDS\n\n\
+                                "🔴 *COMMANDS*\n\n\
                                 /start — Initialize connection\n\
                                 /status — System status\n\
                                 /airdrop — Check your $RDX eligibility\n\
-                                /scan_news <url> — Scan article for conspiracy indicators\n\
+                                /scan\\_news <url> — Scan article for conspiracy indicators\n\
                                 /help — This message\n\n\
+                                💡 *Tip:* Just paste any news URL and I'll auto-scan it!\n\n\
                                 Register wallet for airdrop:\n\
-                                https://redacted-protocol.vercel.app\n\n\
+                                [redacted-protocol.vercel.app](https://redacted-protocol.vercel.app)\n\n\
                                 Send any message for Redacted response."
                             ).await.ok();
                             continue;
                         }
 
                         // Handle /scan_news <url>
-                        if msg.text.starts_with("/scan_news") || msg.text.starts_with("/scan_news@theredacted_bot") {
+                        if msg.text.starts_with("/scan_news") || msg.text.starts_with("/scan_news@") {
                             let url = msg.text.split_whitespace().nth(1);
                             if url.is_none() {
                                 bot.show_typing(msg.chat_id).await.ok();
                                 bot.send_safe(msg.chat_id,
-                                    "Usage: /scan_news <url>\n\n\
-                                    Example: /scan_news https://example.com/article"
+                                    "Usage: /scan\\_news <url>\n\nExample: /scan\\_news https://example.com/article"
                                 ).await.ok();
                                 continue;
                             }
-                            let url = url.unwrap();
-                            bot.show_typing(msg.chat_id).await.ok();
-
-                            let scanner = rd_types::news::NewsScanner::new();
-                            let (title, content) = match scanner.fetch_article(url).await {
-                                Ok(r) => r,
-                                Err(e) => {
-                                    bot.send_safe(msg.chat_id, &format!("Fetch error: {}", e)).await.ok();
-                                    continue;
-                                }
-                            };
-
-                            let flags = scanner.analyze(&title, &content).await;
-                            let threat = rd_types::news::NewsScanner::calculate_threat(&flags);
-
-                            let response = format!(
-                                "🔍 NEWS ANALYSIS\n\n\
-                                Title: {}\n\
-                                Threat: {:?}\n\
-                                Flags: {}\n\n\
-                                {}",
-                                if title.is_empty() { "Unknown" } else { &title },
-                                threat,
-                                flags.len(),
-                                if flags.is_empty() {
-                                    "No significant indicators found.".to_string()
-                                } else {
-                                    flags.iter()
-                                        .map(|f| format!("• {} ({:.0}%)", f.description, f.confidence * 100.0))
-                                        .collect::<Vec<_>>()
-                                        .join("\n")
-                                }
-                            );
-
-                            // Truncate if too long for Telegram
-                            let response = if response.len() > 4000 {
-                                format!("{}...", &response[..3997])
-                            } else {
-                                response
-                            };
-
-                            bot.send_safe(msg.chat_id, &response).await.ok();
+                            handle_scan_url(&mut bot, msg.chat_id, url.unwrap(), &news_scanner).await;
                             continue;
                         }
 
                         // Handle /airdrop
-                        if msg.text == "/airdrop" || msg.text == "/airdrop@theredacted_bot" {
-                            let amount = airdrop.get_amount(msg.user_id);
-                            let rdx_amount = amount as f64 / 1_000_000_000.0;
-                            let eligible = airdrop.is_eligible(msg.user_id);
+                        if msg.text == "/airdrop" || msg.text.starts_with("/airdrop@") {
+                            handle_airdrop_query(&mut bot, msg.chat_id, msg.user_id, &airdrop).await;
+                            continue;
+                        }
+
+                        // Auto-detect URLs and offer scan
+                        if msg.has_urls() && !offered_scans.contains(&(msg.chat_id, msg.text.clone())) {
+                            for url in &msg.urls {
+                                offered_scans.insert((msg.chat_id, format!("{}{}", url, msg.text)));
+                            }
                             bot.show_typing(msg.chat_id).await.ok();
-                            bot.send_safe(msg.chat_id, &format!(
-                                "🔴 AIRDROP STATUS\n\n\
-                                Eligible: {}\n\
-                                $RDX Allocation: {:.0}\n\
-                                Status: {}\n\n\
-                                Register wallet:\n\
-                                https://redacted-protocol.vercel.app\n\n\
-                                _The file is breathing._",
-                                if eligible { "✅ YES" } else { "❌ NO" },
-                                rdx_amount,
-                                if eligible { "PENDING LAUNCH" } else { "NOT REGISTERED" }
-                            )).await.ok();
+
+                            let url_list: Vec<&str> = msg.urls.iter().map(|u| u.as_str()).collect();
+                            let mut reply = format!("🔍 Detected {} URL(s):\n", msg.urls.len());
+                            for url in &msg.urls {
+                                reply.push_str(&format!("• {}\n", url));
+                            }
+                            reply.push_str("\nTap a button below to scan, or send /scan\\_news for manual analysis.");
+
+                            let keyboard = TelegramBot::scan_keyboard(&msg.urls);
+                            bot.send_formatted(msg.chat_id, &reply, Some(&keyboard)).await.ok();
                             continue;
                         }
 
@@ -428,6 +406,10 @@ mod telegram_mode {
                                 }
                                 if reply.is_empty() {
                                     reply = "███ SIGNAL LOST ███\n\nThe file is breathing.".into();
+                                }
+                                // Truncate for Telegram
+                                if reply.len() > 4000 {
+                                    reply = format!("{}...", &reply[..3997]);
                                 }
                                 bot.send_safe(msg.chat_id, &reply).await.ok();
                             }
@@ -447,5 +429,83 @@ mod telegram_mode {
 
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         }
+    }
+
+    /// Handle inline keyboard callback queries.
+    async fn handle_callback(
+        bot: &mut TelegramBot,
+        msg: &TgMessage,
+        airdrop: &AirdropRegistry,
+        users: &UserRegistry,
+        news_scanner: &Arc<Mutex<rd_types::news::NewsScanner>>,
+    ) {
+        let data = msg.callback_data.as_deref().unwrap_or("");
+
+        if data.starts_with("scan:") {
+            let url = &data[5..];
+            handle_scan_url(bot, msg.chat_id, url, news_scanner).await;
+        } else if data == "cmd:airdrop" {
+            handle_airdrop_query(bot, msg.chat_id, msg.user_id, airdrop).await;
+        } else if data == "cmd:status" {
+            bot.send_system_status(msg.chat_id, users.count()).await.ok();
+        } else if data == "cmd:help" {
+            bot.send_safe(msg.chat_id,
+                "Commands: /start, /status, /airdrop, /scan\\_news <url>, /help\n\n\
+                Paste any news URL to auto-scan!"
+            ).await.ok();
+        } else if data == "cmd:scan_prompt" {
+            bot.send_safe(msg.chat_id,
+                "Paste a news article URL and I'll scan it for conspiracy indicators."
+            ).await.ok();
+        }
+    }
+
+    /// Handle news URL scanning.
+    async fn handle_scan_url(
+        bot: &mut TelegramBot,
+        chat_id: i64,
+        url: &str,
+        news_scanner: &Arc<Mutex<rd_types::news::NewsScanner>>,
+    ) {
+        bot.show_typing(chat_id).await.ok();
+
+        let scanner = news_scanner.lock().await;
+
+        if scanner.is_seen(url) {
+            bot.send_safe(chat_id, &format!("Already scanned this URL: {}\nNo new flags detected.", url)).await.ok();
+            return;
+        }
+
+        // Clone scanner Arc for the async operation
+        let scanner_clone = Arc::clone(news_scanner);
+        drop(scanner);
+
+        // Fetch and analyze
+        let mut s = scanner_clone.lock().await;
+        match s.scan_url(url).await {
+            Ok(result) => {
+                let r = result.clone();
+                drop(s);
+                bot.send_analysis_result(chat_id, url, &r).await.ok();
+            }
+            Err(e) => {
+                drop(s);
+                bot.send_safe(chat_id, &format!("Scan failed: {}", e)).await.ok();
+            }
+        }
+    }
+
+    /// Handle airdrop status query.
+    async fn handle_airdrop_query(
+        bot: &mut TelegramBot,
+        chat_id: i64,
+        user_id: i64,
+        airdrop: &AirdropRegistry,
+    ) {
+        bot.show_typing(chat_id).await.ok();
+        let amount = airdrop.get_amount(user_id);
+        let rdx_amount = amount as f64 / 1_000_000_000.0;
+        let eligible = airdrop.is_eligible(user_id);
+        bot.send_airdrop_status(chat_id, eligible, rdx_amount, None).await.ok();
     }
 }

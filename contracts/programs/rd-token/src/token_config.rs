@@ -38,6 +38,9 @@
 /// spl-token create-token --decimals 9
 pub const TOKEN_MINT: &str = "REPLACEME_TOKEN_MINT_ADDRESS";
 
+/// Token program ID for the rd_token Anchor program
+pub const TOKEN_PROGRAM_ID: &str = "RDtok1111111111111111111111111111111111111";
+
 /// Total supply: 1 billion RDX (with 9 decimals)
 pub const TOTAL_SUPPLY: u64 = 1_000_000_000_000_000_000; // 1B * 10^9
 
@@ -71,6 +74,13 @@ pub mod amounts {
     }
     pub fn treasury_dao() -> u64 {
         TOTAL_SUPPLY * TREASURY_DAO_BPS / 10000
+    }
+
+    /// Check if distribution amounts sum to total supply
+    pub fn verify_distribution() -> bool {
+        let total = community_airdrop() + liquidity_pool() + staking_rewards()
+            + team_vested() + treasury_dao();
+        total == TOTAL_SUPPLY
     }
 }
 
@@ -116,4 +126,28 @@ pub mod airdrop {
 
     /// Referral reward (50 RDX per referred user)
     pub const REFERRAL_REWARD: u64 = 50_000_000_000;
+}
+
+/// Vesting schedule configuration for team tokens
+pub mod vesting {
+    /// Team cliff period (6 months in seconds)
+    pub const TEAM_CLIFF_SECS: i64 = 6 * 30 * 24 * 3600; // ~6 months
+
+    /// Team vesting period (18 months in seconds)
+    pub const TEAM_VESTING_SECS: i64 = 18 * 30 * 24 * 3600; // ~18 months
+
+    /// Staking rewards release period (24 months linear)
+    pub const STAKING_RELEASE_SECS: i64 = 24 * 30 * 24 * 3600; // 24 months
+}
+
+/// Burn configuration
+pub mod burn {
+    /// Percentage of protocol fees that are burned
+    pub const FEE_BURN_PCT: u64 = 10; // 10%
+
+    /// Quarterly buyback and burn (enabled by DAO vote)
+    pub const QUARTERLY_BURN_ENABLED: bool = true;
+
+    /// Max burn per transaction (prevents excessive burns)
+    pub const MAX_BURN_PER_TX: u64 = 1_000_000_000_000; // 1000 RDX
 }

@@ -76,14 +76,14 @@ export function TokenomicsSection() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { icon: '📄', title: 'Document Processing', desc: 'Pay 0.1 RDX per document analysis' },
-              { icon: '🔒', title: 'Staking', desc: 'Earn 70% of protocol fees' },
-              { icon: '🗳️', title: 'Governance', desc: 'Vote on protocol parameters' },
-              { icon: '🖼️', title: 'Archivo 0 NFTs', desc: 'Mint rare declassified fragments' },
-              { icon: '🔍', title: 'Premium API', desc: 'Access advanced search' },
-              { icon: '🎁', title: 'Rewards', desc: 'Earn for submissions & verification' },
+              { icon: '\u{1F4C4}', title: 'Document Processing', desc: 'Pay 0.1 RDX per document analysis' },
+              { icon: '\u{1F512}', title: 'Staking', desc: 'Earn 70% of protocol fees' },
+              { icon: '\u{1F5F3}\u{FE0F}', title: 'Governance', desc: 'Vote on protocol parameters' },
+              { icon: '\u{1F5BC}\u{FE0F}', title: 'Archivo 0 NFTs', desc: 'Mint rare declassified fragments' },
+              { icon: '\u{1F50D}', title: 'Premium API', desc: 'Access advanced search' },
+              { icon: '\u{1F381}', title: 'Rewards', desc: 'Earn for submissions & verification' },
             ].map((item, i) => (
               <motion.div
                 key={i}
@@ -94,13 +94,42 @@ export function TokenomicsSection() {
                 className="p-4 border border-rd-border hover:border-rd-red/20 transition-colors"
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-xl">{item.icon}</span>
+                  <span className="text-xl flex-shrink-0">{item.icon}</span>
                   <div>
                     <div className="text-sm font-bold text-rd-text mb-1">{item.title}</div>
                     <div className="text-xs text-rd-muted/50">{item.desc}</div>
                   </div>
                 </div>
               </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Token contracts section */}
+        <div className="mt-8 rd-card">
+          <div className="text-center mb-6">
+            <div className="text-[10px] text-rd-muted/50 tracking-[0.2em] mb-2">
+              TOKEN CONTRACTS
+            </div>
+            <div className="text-lg font-bold text-rd-text">
+              PROGRAM ADDRESSES
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              { name: 'RDX Token', address: 'REPLACEME_TOKEN_MINT_ADDRESS' },
+              { name: 'Fragment Program', address: 'RDfrag11111111111111111111111111111111111111' },
+              { name: 'Staking Program', address: 'RDstk111111111111111111111111111111111111111' },
+              { name: 'Rewards Program', address: 'RDrew111111111111111111111111111111111111111' },
+              { name: 'Treasury Program', address: 'RDtr11111111111111111111111111111111111111' },
+            ].map((prog, i) => (
+              <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border border-rd-border gap-2">
+                <span className="text-sm text-rd-text font-bold">{prog.name}</span>
+                <code className="text-xs text-rd-red/70 bg-rd-red/5 px-2 py-1 break-all text-center sm:text-right">
+                  {prog.address}
+                </code>
+              </div>
             ))}
           </div>
         </div>

@@ -1,7 +1,7 @@
 //! Telegram Bot API client for publishing declassified fragments.
 
 use reqwest::Client;
-use tracing::{info, warn};
+use tracing::info;
 
 const TELEGRAM_API: &str = "https://api.telegram.org/bot";
 
