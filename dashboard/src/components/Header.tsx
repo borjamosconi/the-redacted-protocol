@@ -39,12 +39,18 @@ export function Header() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center gap-6">
           <a href="#airdrop" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
             AIRDROP
           </a>
           <a href="#ocr" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
             OCR
+          </a>
+          <a href="#images" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
+            IMAGES
+          </a>
+          <a href="#gallery" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
+            GALLERY
           </a>
           <a href="#news" className="text-xs text-rd-muted hover:text-rd-red tracking-widest transition-colors">
             NEWS

@@ -5,6 +5,8 @@
 //! - Inline keyboard buttons for quick actions
 //! - Rich formatting with MarkdownV2
 //! - Command handling for /start, /status, /help, /airdrop, /scan_news
+//! - Image generation in Redacted Protocol style
+//! - Photo sending with generated images
 
 use reqwest::Client;
 use serde_json::json;
@@ -12,6 +14,34 @@ use tracing::{info, warn};
 use std::time::Duration;
 
 const TELEGRAM_API: &str = "https://api.telegram.org/bot";
+
+/// Redacted Protocol image style presets (matching images/ folder aesthetic).
+pub const REDACTED_IMAGE_PROMPTS: &[(&str, &str)] = &[
+    (
+        "censored_figure",
+        "dark dystopian figure with holographic rainbow censor bars covering the face, red and orange iridescent interference pattern dripping down, floating redacted documents in background, dark grid background, cinematic lighting, cyberpunk, Solana Hackathon 2026 aesthetic, highly detailed, 8k, photorealistic, mysterious atmosphere",
+    ),
+    (
+        "access_denied",
+        "red 'ACCESS DENIED' rubber stamp on dark background, glitch effect, VHS distortion, holographic interference, floating classified documents, dark grid pattern, cyberpunk dystopian, dramatic lighting, 8k quality, dark moody atmosphere",
+    ),
+    (
+        "floating_documents",
+        "floating redacted documents with black bars and censorship symbols, dark grid background, holographic light effects, classified papers scattered in void, cinematic composition, dark aesthetic, ultra detailed, 8k, mysterious",
+    ),
+    (
+        "circuit_board",
+        "circuit board pattern with redacted elements, glowing red traces, holographic interference, dark background with grid overlay, cyberpunk tech aesthetic, highly detailed, macro photography style, dark and moody",
+    ),
+    (
+        "classified_doc",
+        "classified document with black redaction bars, TOP SECRET stamp, holographic light effects, dark moody lighting, floating in void, grid background, photorealistic, 8k quality, mysterious atmosphere",
+    ),
+    (
+        "glitch_interference",
+        "digital glitch interference pattern, holographic rainbow distortion, red and orange tones, VHS tracking error effect, dark background, classified document fragments visible through static, cyberpunk, cinematic, dark and mysterious",
+    ),
+];
 
 pub struct TelegramBot {
     client: Client,
@@ -144,6 +174,37 @@ impl TelegramBot {
             "disable_web_page_preview": true,
         });
         self.api_post("sendMessage", body).await.map(|_| ())
+    }
+
+    /// Send a photo with caption.
+    pub async fn send_photo(&self, chat_id: i64, photo_url: &str, caption: &str) -> Result<(), String> {
+        let body = json!({
+            "chat_id": chat_id,
+            "photo": photo_url,
+            "caption": caption,
+            "parse_mode": "MarkdownV2",
+        });
+        self.api_post("sendPhoto", body).await.map(|_| ())
+    }
+
+    /// Send a photo with inline keyboard.
+    pub async fn send_photo_with_keyboard(
+        &self,
+        chat_id: i64,
+        photo_url: &str,
+        caption: &str,
+        keyboard: &InlineKeyboard,
+    ) -> Result<(), String> {
+        let body = json!({
+            "chat_id": chat_id,
+            "photo": photo_url,
+            "caption": caption,
+            "parse_mode": "MarkdownV2",
+            "reply_markup": json!({
+                "inline_keyboard": keyboard.to_json(),
+            }),
+        });
+        self.api_post("sendPhoto", body).await.map(|_| ())
     }
 
     /// Show typing indicator.
@@ -418,8 +479,10 @@ impl UserRegistry {
 }
 
 /// Pre-written Redacted Protocol posts for scheduled broadcasts.
-pub const SCHEDULED_POSTS: &[&str] = &[
-    "\u{1F534} FILE \\#0047
+/// Each post includes an image style reference for image generation.
+pub const SCHEDULED_POSTS: &[(&str, &str)] = &[
+    (
+        "\u{1F534} FILE \\#0047
 STATUS: `DECLASSIFIED`
 CONFIDENCE: `94\\.7%`
 
@@ -433,8 +496,10 @@ ACCESS GRANTED\\.
 _The file is breathing\\._
 
 \\#RedactedProtocol \\#RDX",
-
-    "\u{1F534} ACCESS DENIED
+        "censored_figure",
+    ),
+    (
+        "\u{1F534} ACCESS DENIED
 
 FILE \\#0048 — `ENCRYPTED`
 COORDINATES: `[\u{2588}\u{2588}\\.████, \u{2588}\u{2588}\\.████]`
@@ -448,8 +513,10 @@ Reconstruction: `IN PROGRESS`
 _The file is breathing\\._
 
 \\#RedactedProtocol",
-
-    "\u{1F534} *DECLASSIFIED* — FILE \\#0049
+        "access_denied",
+    ),
+    (
+        "\u{1F534} *DECLASSIFIED* — FILE \\#0049
 
 Subject: \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}
 Clearance: \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}
@@ -462,8 +529,10 @@ transported via \u{2588}\u{2588}\u{2588}\u{2588}\u{2588} route\\.\"
 
 ACCESS GRANTED\\.
 \\#RedactedProtocol \\#RDX",
-
-    "\u{1F534} *SIGNAL INTERCEPTED*
+        "classified_doc",
+    ),
+    (
+        "\u{1F534} *SIGNAL INTERCEPTED*
 
 SOURCE: \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588} STATION
 FREQ: `\u{2588}\u{2588}\u{2588}\\.██ MHz`
@@ -477,8 +546,10 @@ further instructions\\.\\.\\.\"
 _The file is breathing\\._
 
 \\#RedactedProtocol",
-
-    "\u{1F534} FILE \\#0050 — ARCHIVE 0
+        "glitch_interference",
+    ),
+    (
+        "\u{1F534} FILE \\#0050 — ARCHIVE 0
 
 This document was redacted
 on \u{2588}\u{2588}/\u{2588}\u{2588}/████ by order of
@@ -491,8 +562,10 @@ ACCESS GRANTED\\.
 Truth cannot be erased\\.
 
 \\#RedactedProtocol \\#RDX",
-
-    "\u{1F534} *URGENT* — FILE \\#0051
+        "floating_documents",
+    ),
+    (
+        "\u{1F534} *URGENT* — FILE \\#0051
 
 CLASSIFICATION: \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}
 HANDLE VIA: \u{2588}\u{2588}\u{2588} PROTOCOL ONLY
@@ -508,4 +581,6 @@ ACCESS DENIED\\.
 _The file is breathing\\._
 
 \\#RedactedProtocol",
+        "circuit_board",
+    ),
 ];

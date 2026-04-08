@@ -6,6 +6,7 @@ pub mod confidence;
 pub mod provider;
 pub mod news;
 pub mod ocr;
+pub mod image_gen;
 
 pub use fragment::*;
 pub use block::*;
@@ -15,3 +16,4 @@ pub use confidence::*;
 pub use provider::*;
 pub use news::*;
 pub use ocr::*;
+pub use image_gen::*;

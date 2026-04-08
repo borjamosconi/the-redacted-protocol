@@ -225,13 +225,22 @@ mod telegram_mode {
             // Scheduled posts at :00 and :33
             if (minute == 0 || minute == 33) && last_post_minute != minute {
                 last_post_minute = minute;
-                let post = SCHEDULED_POSTS[post_index % SCHEDULED_POSTS.len()];
+                let (post_text, image_style) = SCHEDULED_POSTS[post_index % SCHEDULED_POSTS.len()];
                 post_index += 1;
 
                 let user_ids = users.ids();
                 if !user_ids.is_empty() {
-                    let sent = bot.broadcast(&user_ids, post).await;
-                    info!("Scheduled post broadcast to {} users (sent: {})", user_ids.len(), sent);
+                    // Try to send with image first, fallback to text only
+                    let image_url = format!("https://redacted-protocol.vercel.app/api/image?style={}", image_style);
+                    let mut sent_with_image = 0;
+                    for &uid in &user_ids {
+                        if bot.send_photo(uid, &image_url, post_text).await.is_ok() {
+                            sent_with_image += 1;
+                        } else {
+                            bot.send_safe(uid, post_text).await.ok();
+                        }
+                    }
+                    info!("Scheduled post broadcast to {} users ({} with images)", user_ids.len(), sent_with_image);
                 } else {
                     info!("Scheduled post skipped — no users yet");
                 }
@@ -242,7 +251,6 @@ mod telegram_mode {
                 last_news_poll = std::time::Instant::now();
                 info!("Polling news sources for intelligence...");
 
-                let scanner = news_scanner.lock().await;
                 let sample_urls_list = [
                     "https://www.reuters.com/world/",
                     "https://apnews.com/",
@@ -250,50 +258,58 @@ mod telegram_mode {
                 ];
 
                 let user_ids = users.ids();
-                for url in sample_urls_list {
-                    if !scanner.is_seen(url) {
-                        let scanner_clone = Arc::clone(&news_scanner);
-                        drop(scanner);
-                        let mut s = scanner_clone.lock().await;
-                        s.mark_seen(url);
 
-                        if let Ok((title, content)) = s.fetch_article(url).await {
-                            let flags = s.analyze(&title, &content).await;
-                            let threat = rd_types::news::NewsScanner::calculate_threat(&flags);
-
-                            if threat == rd_types::news::ThreatLevel::Flagged
-                                || threat == rd_types::news::ThreatLevel::Critical
-                            {
-                                let alert = format!(
-                                    "🚨 INTELLIGENCE ALERT\n\n\
-                                    Source: {}\n\
-                                    Threat: {:?}\n\
-                                    Flags: {}\n\n\
-                                    {}",
-                                    url,
-                                    threat,
-                                    flags.len(),
-                                    if flags.is_empty() {
-                                        "No indicators.".to_string()
-                                    } else {
-                                        flags.iter()
-                                            .map(|f| format!("• {} ({:.0}%)", f.description, f.confidence * 100.0))
-                                            .collect::<Vec<_>>()
-                                            .join("\n")
-                                    }
-                                );
-
-                                for &uid in &user_ids {
-                                    bot.send_safe(uid, &alert).await.ok();
-                                }
-                                info!("Intelligence alert sent to {} users", user_ids.len());
-                            }
+                // Lock scanner, check URLs, fetch and analyze outside lock
+                let mut unseen_urls = Vec::new();
+                {
+                    let scanner = news_scanner.lock().await;
+                    for url in sample_urls_list {
+                        if !scanner.is_seen(url) {
+                            unseen_urls.push(url.to_string());
                         }
-
-                        scanner = s;
                     }
                 }
-                drop(scanner);
+
+                for url in unseen_urls {
+                    {
+                        let mut scanner = news_scanner.lock().await;
+                        scanner.mark_seen(&url);
+                    }
+
+                    let scanner = news_scanner.lock().await;
+                    if let Ok((title, content)) = scanner.fetch_article(&url).await {
+                        let flags = scanner.analyze(&title, &content).await;
+                        let threat = rd_types::news::NewsScanner::calculate_threat(&flags);
+
+                        if threat == rd_types::news::ThreatLevel::Flagged
+                            || threat == rd_types::news::ThreatLevel::Critical
+                        {
+                            let alert = format!(
+                                "🚨 INTELLIGENCE ALERT\n\n\
+                                Source: {}\n\
+                                Threat: {:?}\n\
+                                Flags: {}\n\n\
+                                {}",
+                                url,
+                                threat,
+                                flags.len(),
+                                if flags.is_empty() {
+                                    "No indicators.".to_string()
+                                } else {
+                                    flags.iter()
+                                        .map(|f| format!("• {} ({:.0}%)", f.description, f.confidence * 100.0))
+                                        .collect::<Vec<_>>()
+                                        .join("\n")
+                                }
+                            );
+
+                            for &uid in &user_ids {
+                                bot.send_safe(uid, &alert).await.ok();
+                            }
+                            info!("Intelligence alert sent to {} users", user_ids.len());
+                        }
+                    }
+                }
             }
 
             // Poll messages
