@@ -24,6 +24,3 @@ Thumbs.db
 # Contract build artifacts
 /contracts/target/
 /contracts/Cargo.lock
-
-# Design assets (not needed in repo)
-/images/
