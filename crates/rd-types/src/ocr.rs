@@ -81,7 +81,7 @@ impl Default for OcrConfig {
 /// Perform OCR on an image/document.
 /// Returns extracted text + redaction analysis.
 pub async fn perform_ocr(
-    image_url_or_base64: &str,
+    _image_url_or_base64: &str,
     config: &OcrConfig,
 ) -> Result<OcrResult, String> {
     // For Puter.js, this is done in the browser via JavaScript.

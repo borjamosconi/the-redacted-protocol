@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use crate::trait_def::*;
 use rd_types::provider::ProviderKind;
 use rd_types::event::StreamEvent;
+use tracing::{warn, info};
 
 pub struct ProviderRouter { providers: HashMap<ProviderKind, Box<dyn Provider>>, default: ProviderKind }
 
@@ -22,6 +23,27 @@ impl ProviderRouter {
     pub fn get(&self, kind: ProviderKind) -> Option<&dyn Provider> { self.providers.get(&kind).map(|p| p.as_ref()) }
     pub fn default_provider(&self) -> Option<&dyn Provider> { self.get(self.default) }
     pub fn registered_kinds(&self) -> Vec<ProviderKind> { self.providers.keys().cloned().collect() }
+
+    /// Send a request using a specific provider (per-request provider selection).
+    pub async fn send_with(&self, kind: ProviderKind, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+        let p = self.get(kind).ok_or_else(|| ProviderError::NotAvailable(format!("Provider {:?} not available", kind)))?;
+        p.send(request).await
+    }
+
+    /// Send with fallback: try the requested provider, fall back to default.
+    pub async fn send_with_fallback(&self, preferred: ProviderKind, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+        if let Some(p) = self.get(preferred) {
+            match p.send(request.clone()).await {
+                Ok(resp) => return Ok(resp),
+                Err(e) => {
+                    warn!("Provider {:?} failed, falling back to default: {}", preferred, e);
+                }
+            }
+        }
+        let p = self.default_provider().ok_or_else(|| ProviderError::NotAvailable("No providers available".into()))?;
+        info!("Using default provider {:?}", self.default);
+        p.send(request).await
+    }
 }
 
 #[async_trait]

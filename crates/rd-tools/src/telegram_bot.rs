@@ -10,7 +10,6 @@
 
 use reqwest::Client;
 use serde_json::json;
-use tracing::{info, warn};
 use std::time::Duration;
 
 const TELEGRAM_API: &str = "https://api.telegram.org";
@@ -168,7 +167,7 @@ impl TelegramBot {
 
     /// Send a plain text message (no formatting).
     pub async fn send_safe(&self, chat_id: i64, text: &str) -> Result<(), String> {
-        let mut body = json!({
+        let body = json!({
             "chat_id": chat_id,
             "text": text,
             "disable_web_page_preview": true,

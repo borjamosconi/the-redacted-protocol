@@ -58,9 +58,31 @@ impl SessionStore {
         Ok(())
     }
     pub async fn load_latest(&self) -> Result<Option<Session>, SessionStoreError> {
-        let ids = self.list_sessions().await?;
-        if ids.is_empty() { return Ok(None); }
-        match self.load(ids.last().unwrap()).await {
+        self.ensure_dir().await?;
+        let mut entries = fs::read_dir(&self.directory).await?;
+        let mut files_with_mtime = Vec::new();
+
+        while let Some(entry) = entries.next_entry().await? {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.ends_with(".json") {
+                let metadata = entry.metadata().await?;
+                if let Ok(modified) = metadata.modified() {
+                    let session_id = name_str.trim_end_matches(".json").to_string();
+                    files_with_mtime.push((session_id, modified));
+                }
+            }
+        }
+
+        // Sort by modification time, newest first
+        files_with_mtime.sort_by(|a, b| b.1.cmp(&a.1));
+
+        if files_with_mtime.is_empty() {
+            return Ok(None);
+        }
+
+        let latest_id = &files_with_mtime[0].0;
+        match self.load(latest_id).await {
             Ok(s) => Ok(Some(s)),
             Err(SessionStoreError::NotFound(_)) => Ok(None),
             Err(e) => Err(e),

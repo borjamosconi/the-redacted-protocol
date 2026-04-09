@@ -133,7 +133,7 @@ impl NewsAnalysisResult {
 
     pub fn detailed_report(&self) -> String {
         let mut report = String::new();
-        report.push_str(&format!("=== NEWS ANALYSIS REPORT ===\n\n"));
+        report.push_str("=== NEWS ANALYSIS REPORT ===\n\n");
         report.push_str(&format!("URL: {}\n", self.url));
         report.push_str(&format!("Title: {}\n", self.title));
         report.push_str(&format!("Threat Level: {:?} {}\n", self.threat_level, self.threat_level.icon()));
@@ -256,6 +256,10 @@ pub struct NewsScanner {
     patterns: ConspiracyPatterns,
     pub seen_urls: HashSet<String>,
     pub feed_sources: Vec<FeedSource>,
+}
+
+impl Default for NewsScanner {
+    fn default() -> Self { Self::new() }
 }
 
 impl NewsScanner {
@@ -408,6 +412,9 @@ impl NewsScanner {
 
     /// Fetch and parse an article from a URL.
     pub async fn fetch_article(&self, url: &str) -> Result<(String, String), String> {
+        // SSRF protection: validate URL before fetching
+        Self::validate_url(url)?;
+
         let resp = self.client.get(url)
             .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
             .send().await
@@ -416,6 +423,32 @@ impl NewsScanner {
         let title = extract_title(&html).unwrap_or_default();
         let content = extract_text(&html).unwrap_or_default();
         Ok((title, content))
+    }
+
+    /// Validate URL to prevent SSRF attacks.
+    fn validate_url(url: &str) -> Result<(), String> {
+        let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {}", e))?;
+
+        if parsed.scheme() != "http" && parsed.scheme() != "https" {
+            return Err("Blocked: only http/https schemes allowed".to_string());
+        }
+
+        if let Some(host) = parsed.host_str() {
+            if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+                return Err("Blocked: cannot fetch from localhost".to_string());
+            }
+            if host.starts_with("10.") || host.starts_with("192.168.") || host.starts_with("172.") {
+                return Err(format!("Blocked: cannot fetch from private network: {}", host));
+            }
+            if host.starts_with("0.") || host.starts_with("169.254.") {
+                return Err(format!("Blocked: cannot fetch from reserved range: {}", host));
+            }
+            if host.contains(':') && !host.starts_with('[') {
+                return Err(format!("Blocked: suspicious host format: {}", host));
+            }
+        }
+
+        Ok(())
     }
 
     /// Fetch articles from RSS feeds.
@@ -472,64 +505,120 @@ impl NewsScanner {
     pub fn seen_count(&self) -> usize { self.seen_urls.len() }
 }
 
-/// Parse RSS/XML content into articles.
+/// Parse RSS/XML content into articles using quick-xml for proper XML parsing.
+/// Supports both RSS 2.0 (<item>) and Atom (<entry>) formats.
 fn parse_rss(xml: &str, source_name: &str) -> Vec<RssArticle> {
+    use quick_xml::events::Event;
+    use quick_xml::Reader;
+
     let mut articles = Vec::new();
+    let mut reader = Reader::from_str(xml);
+    reader.trim_text(true);
 
-    // Simple RSS parser — handles RSS 2.0 and Atom
-    let item_pattern = match regex::Regex::new(r"<item>(.*?)</item>") {
-        Ok(r) => r,
-        Err(_) => return articles,
-    };
-    let title_re = match regex::Regex::new(r"<title[^>]*>(.*?)</title>") {
-        Ok(r) => r,
-        Err(_) => return articles,
-    };
-    let link_re = match regex::Regex::new(r"<link[^>]*>(.*?)</link>") {
-        Ok(r) => r,
-        Err(_) => return articles,
-    };
-    let desc_re = match regex::Regex::new(r"<description[^>]*>(.*?)</description>") {
-        Ok(r) => r,
-        Err(_) => return articles,
-    };
-    let date_re = match regex::Regex::new(r"<pubDate[^>]*>(.*?)</pubDate>") {
-        Ok(r) => r,
-        Err(_) => return articles,
-    };
+    let mut buf = Vec::new();
+    let mut current_item: Option<(String, String, String, String)> = None; // (title, link, description, pubdate_raw)
+    let mut in_item = false;
+    let mut current_tag: Option<&str> = None;
 
-    for item_cap in item_pattern.captures_iter(xml) {
-        let item = item_cap.get(1).map(|m| m.as_str()).unwrap_or("");
+    // Detect if Atom or RSS
+    let is_atom = xml.contains("<feed") || xml.contains("xmlns=");
 
-        let title = title_re.captures(item)
-            .and_then(|c| c.get(1))
-            .map(|m| strip_html(m.as_str()))
-            .unwrap_or_default();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
+                let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
 
-        let link = link_re.captures(item)
-            .and_then(|c| c.get(1))
-            .map(|m| m.as_str().trim().to_string())
-            .unwrap_or_default();
+                // Check for item/entry start
+                if (!is_atom && tag == "item") || (is_atom && tag == "entry") {
+                    in_item = true;
+                    current_item = Some((String::new(), String::new(), String::new(), String::new()));
+                }
 
-        let description = desc_re.captures(item)
-            .and_then(|c| c.get(1))
-            .map(|m| strip_html(m.as_str()))
-            .unwrap_or_default();
+                if in_item {
+                    if tag == "title" && (!is_atom || current_tag.is_none()) {
+                        current_tag = Some("title");
+                    } else if tag == "link" && (!is_atom || current_tag.is_none()) {
+                        current_tag = Some("link");
+                        // For Atom, try to get href attribute immediately
+                        if is_atom {
+                            if let Ok(Some(attr)) = e.try_get_attribute("href") {
+                                if let Ok(val) = String::from_utf8(attr.value.to_vec()) {
+                                    if let Some(ref mut item) = current_item {
+                                        item.1 = val;
+                                    }
+                                }
+                            }
+                        }
+                    } else if (tag == "description" || (is_atom && tag == "summary")) && current_tag.is_none() {
+                        current_tag = Some("description");
+                    } else if (tag == "pubDate" || tag == "published" || tag == "updated") && current_tag.is_none() {
+                        current_tag = Some("pubdate");
+                    }
+                }
+            }
+            Ok(Event::Text(ref e)) => {
+                if in_item {
+                    if let Ok(text) = e.unescape() {
+                        if let Some(ref mut item) = current_item {
+                            match current_tag {
+                                Some("title") => item.0.push_str(&text),
+                                Some("link") => item.1.push_str(&text),
+                                Some("description") => item.2.push_str(&text),
+                                Some("pubdate") => item.3.push_str(&text),
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(Event::End(ref e)) => {
+                let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
 
-        let pub_date = date_re.captures(item)
-            .and_then(|c| c.get(1))
-            .and_then(|m| DateTime::parse_from_rfc2822(m.as_str()).ok())
-            .map(|dt| dt.with_timezone(&Utc));
+                if in_item {
+                    if tag == "title" {
+                        current_tag = None;
+                        if let Some(ref mut item) = current_item {
+                            item.0 = strip_html(&item.0);
+                        }
+                    } else if tag == "link" {
+                        current_tag = None;
+                    } else if tag == "description" || (is_atom && tag == "summary") {
+                        current_tag = None;
+                        if let Some(ref mut item) = current_item {
+                            item.2 = strip_html(&item.2);
+                        }
+                    } else if tag == "pubDate" || tag == "published" || tag == "updated" {
+                        current_tag = None;
+                    } else if tag == "item" || (is_atom && tag == "entry") {
+                        in_item = false;
+                        if let Some((title, link, description, pubdate_raw)) = current_item.take() {
+                            if !title.is_empty() && !link.is_empty() {
+                                let pub_date = chrono::DateTime::parse_from_rfc2822(&pubdate_raw)
+                                    .ok()
+                                    .map(|dt| dt.with_timezone(&Utc))
+                                    .or_else(|| {
+                                        chrono::DateTime::parse_from_rfc3339(&pubdate_raw)
+                                            .ok()
+                                            .map(|dt| dt.with_timezone(&Utc))
+                                    });
 
-        if !title.is_empty() && !link.is_empty() {
-            articles.push(RssArticle {
-                title,
-                link,
-                description,
-                pub_date,
-                source: source_name.to_string(),
-            });
+                                articles.push(RssArticle {
+                                    title,
+                                    link,
+                                    description,
+                                    pub_date,
+                                    source: source_name.to_string(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
         }
+        buf.clear();
     }
 
     articles
@@ -572,20 +661,10 @@ fn extract_text(html: &str) -> Option<String> {
 }
 
 /// Background news monitor state.
+#[derive(Default)]
 pub struct NewsMonitorState {
     pub last_poll: Option<SystemTime>,
     pub articles_scanned: u64,
     pub alerts_triggered: u64,
     pub active_feeds: usize,
-}
-
-impl Default for NewsMonitorState {
-    fn default() -> Self {
-        Self {
-            last_poll: None,
-            articles_scanned: 0,
-            alerts_triggered: 0,
-            active_feeds: 0,
-        }
-    }
 }

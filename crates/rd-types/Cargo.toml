@@ -14,3 +14,6 @@ sha2.workspace = true
 hex.workspace = true
 regex = "1.11"
 reqwest.workspace = true
+tokio.workspace = true
+url.workspace = true
+quick-xml = "0.31"

@@ -7,3 +7,6 @@ pub use orchestrator::*;
 pub use prompt_builder::*;
 pub use turn_summary::*;
 pub use permission_checker::*;
+
+#[cfg(test)]
+mod tests;

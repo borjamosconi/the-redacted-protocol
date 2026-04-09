@@ -10,3 +10,6 @@ pub use registry::*;
 pub use builtins::*;
 pub use telegram::FragmentPublisher;
 pub use telegram_bot::{TelegramBot as TgConversationalBot, TgMessage, InlineKeyboard, InlineButton, UserRegistry, SCHEDULED_POSTS};
+
+#[cfg(test)]
+mod tests;

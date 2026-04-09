@@ -126,7 +126,7 @@ impl<P: Provider> Orchestrator<P> {
                 content: m.blocks.iter().map(|b| match b {
                     ContentBlock::Text { text } => ProviderContentBlock::Text(text.clone()),
                     ContentBlock::ToolUse { id, name, input } => ProviderContentBlock::ToolUse { id: id.clone(), name: name.clone(), input: input.clone() },
-                    ContentBlock::ToolResult { tool_use_id, tool_name, output, is_error } => ProviderContentBlock::ToolResult { tool_use_id: tool_use_id.clone(), output: output.clone(), is_error: *is_error },
+                    ContentBlock::ToolResult { tool_use_id, tool_name: _, output, is_error } => ProviderContentBlock::ToolResult { tool_use_id: tool_use_id.clone(), output: output.clone(), is_error: *is_error },
                 }).collect(),
             }
         }).collect();

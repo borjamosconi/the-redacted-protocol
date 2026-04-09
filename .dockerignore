@@ -1,0 +1,14 @@
+/target/
+**/*.rs.bk
+.env
+.env.local
+*.local.json
+.rd-agent/sessions/
+.git/
+.gitignore
+.qwen/
+images/
+dashboard/.next/
+dashboard/node_modules/
+contracts/target/
+contracts/Cargo.lock

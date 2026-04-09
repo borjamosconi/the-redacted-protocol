@@ -15,7 +15,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/AKIRA-33/the_redacted_protocol"
+repository = "https://github.com/whalesconspiracy-33/the_redacted_protocol"
 description = "Redacted Protocol — Autonomous zero-knowledge AI agent for document declassification on Solana"
 
 [workspace.dependencies]

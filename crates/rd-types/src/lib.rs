@@ -17,3 +17,6 @@ pub use provider::*;
 pub use news::*;
 pub use ocr::*;
 pub use image_gen::*;
+
+#[cfg(test)]
+mod tests;

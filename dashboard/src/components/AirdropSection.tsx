@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
+import { getDeviceFingerprint } from '@/lib/antifraud'
 
 export function AirdropSection() {
   const { connected, publicKey } = useWallet()
@@ -14,6 +15,8 @@ export function AirdropSection() {
   const [registeredData, setRegisteredData] = useState<{
     amount: string;
     wallet: string;
+    xp: number;
+    level: string;
   } | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,12 +35,16 @@ export function AirdropSection() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/airdrop', {
-        method: 'POST',
+      const deviceFingerprint = getDeviceFingerprint()
+
+      const res = await fetch('/api/gamify', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telegramId: telegramId.trim(),
           walletAddress: publicKey.toString(),
+          deviceFingerprint,
+          referredBy: getReferralFromURL(),
         }),
       })
 
@@ -45,16 +52,31 @@ export function AirdropSection() {
 
       if (!res.ok) {
         if (res.status === 400 && data.status === 'already_registered') {
-          setError(`Already registered — Wallet: ${data.walletAddress.slice(0, 8)}...${data.walletAddress.slice(-6)}, Amount: ${data.amountFormatted}`)
+          setError(`Already registered — XP: ${data.xp}, Level: ${data.level}`)
+          return
+        }
+        if (res.status === 429) {
+          setError(`RATE LIMITED — Wait ${data.retryAfter}s and try again`)
+          return
+        }
+        if (res.status === 202) {
+          setError(`Registration under review — Risk score: ${data.riskScore}`)
           return
         }
         setError(data.error || 'REGISTRATION FAILED')
         return
       }
 
+      if (data.status === 'flagged') {
+        setError(`Registration flagged — Risk score: ${data.riskScore}`)
+        return
+      }
+
       setRegisteredData({
-        amount: data.amountFormatted,
+        amount: data.airdropFormatted,
         wallet: publicKey.toString(),
+        xp: data.xp,
+        level: data.level,
       })
       setSubmitted(true)
     } catch {
@@ -62,6 +84,12 @@ export function AirdropSection() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const getReferralFromURL = (): string | null => {
+    if (typeof window === 'undefined') return null
+    const params = new URLSearchParams(window.location.search)
+    return params.get('ref')
   }
 
   return (
@@ -122,14 +150,21 @@ export function AirdropSection() {
               <p className="text-rd-muted/60 text-sm mb-4">
                 Your wallet has been registered for the $RDX airdrop.
               </p>
-              <div className="text-xs text-rd-muted/40 space-y-1">
+              <div className="text-xs text-rd-muted/40 space-y-1 mb-4">
                 <p>Telegram: {telegramId}</p>
                 <p>Wallet: {registeredData.wallet.slice(0, 8)}...{registeredData.wallet.slice(-6)}</p>
                 <p className="text-rd-red font-bold">Allocation: {registeredData.amount}</p>
+                <p className="text-purple-400">XP: {registeredData.xp} · Level: {registeredData.level}</p>
+              </div>
+              <div className="p-3 border border-rd-red/20 bg-rd-red/5 mb-4">
+                <div className="text-[10px] text-rd-muted/50 tracking-widest mb-1">🎮 UNLOCK GAMIFICATION</div>
+                <p className="text-xs text-rd-muted/60">
+                  Check in daily for XP, complete quests, climb the leaderboard, and earn bonus RDX!
+                </p>
               </div>
               <button
                 onClick={() => { setSubmitted(false); setTelegramId(''); setRegisteredData(null) }}
-                className="btn-ghost mt-6"
+                className="btn-ghost"
               >
                 REGISTER ANOTHER
               </button>
@@ -198,12 +233,14 @@ export function AirdropSection() {
 
               {/* Bonus info */}
               <div className="mt-6 pt-4 border-t border-rd-border">
-                <div className="text-[10px] text-rd-muted/40 tracking-widest mb-2">EARN MORE RDX</div>
+                <div className="text-[10px] text-rd-muted/40 tracking-widest mb-3">🎮 EARN XP → MORE RDX</div>
                 <div className="grid grid-cols-2 gap-2 text-xs text-rd-muted/50">
-                  <div>&#x1F4C4; Submit document: <span className="text-rd-red">+100 RDX</span></div>
-                  <div>&#x2705; Verify fragment: <span className="text-rd-red">+50 RDX</span></div>
-                  <div>&#x1F4E2; Publish: <span className="text-rd-red">+25 RDX</span></div>
-                  <div>&#x1F465; Referral: <span className="text-rd-red">+50 RDX</span></div>
+                  <div>📡 Daily check-in: <span className="text-rd-red">+25 XP</span></div>
+                  <div>📄 OCR scan: <span className="text-rd-red">+50 XP</span></div>
+                  <div>📰 News scan: <span className="text-rd-red">+30 XP</span></div>
+                  <div>👥 Referral: <span className="text-rd-red">+200 XP</span></div>
+                  <div>🎨 Gen image: <span className="text-rd-red">+40 XP</span></div>
+                  <div>🔥 7-day streak: <span className="text-rd-red">+500 XP</span></div>
                 </div>
               </div>
             </>

@@ -1,9 +1,11 @@
 'use client'
 
+import { useWallet } from '@solana/wallet-adapter-react'
 import { Header } from '@/components/Header'
 import { Hero } from '@/components/Hero'
 import { ColosseumSection } from '@/components/ColosseumSection'
 import { AirdropSection } from '@/components/AirdropSection'
+import { GamificationPanel } from '@/components/GamificationPanel'
 import { OcrSection } from '@/components/OcrSection'
 import { ImageGenSection } from '@/components/ImageGenSection'
 import { GallerySection } from '@/components/GallerySection'
@@ -13,6 +15,8 @@ import { TokenomicsSection } from '@/components/TokenomicsSection'
 import { Footer } from '@/components/Footer'
 
 export default function Home() {
+  const { publicKey } = useWallet()
+
   return (
     <>
       <Header />
@@ -20,6 +24,7 @@ export default function Home() {
         <Hero />
         <ColosseumSection />
         <AirdropSection />
+        <GamificationPanel walletAddress={publicKey?.toString()} />
         <OcrSection />
         <ImageGenSection />
         <GallerySection />

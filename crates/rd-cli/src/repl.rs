@@ -1,6 +1,5 @@
 use std::io::{self, Write};
 use std::path::Path;
-use rd_config::ConfigLoader;
 use rd_tools::{ToolRegistry, builtins::register_builtins};
 use rd_hooks::HookRunner;
 use rd_types::provider::ProviderKind;

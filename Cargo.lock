@@ -1252,6 +1252,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1004a344b30a54e2ee58d66a71b32d2db2feb0a31f9a2d302bf0536f15de2a33"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1367,6 +1376,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bytes",
  "futures",
  "rd-types",
  "reqwest",
@@ -1418,12 +1428,15 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "hex",
+ "quick-xml",
  "regex",
  "reqwest",
  "serde",
  "serde_json",
  "sha2",
  "thiserror 2.0.18",
+ "tokio",
+ "url",
  "uuid",
 ]
 

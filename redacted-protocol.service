@@ -1,0 +1,46 @@
+[Unit]
+Description=Redacted Protocol Agent — Autonomous Document Declassification
+Documentation=https://github.com/whalesconspiracy-33/the_redacted_protocol
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rd-agent
+Group=rd-agent
+WorkingDirectory=/opt/redacted-protocol
+ExecStart=/opt/redacted-protocol/rd --telegram
+
+# Environment file
+EnvironmentFile=/opt/redacted-protocol/.env
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=redacted-protocol
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/redacted-protocol/data
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=2G
+CPUQuota=80%
+
+# Graceful shutdown
+TimeoutStopSec=30
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target

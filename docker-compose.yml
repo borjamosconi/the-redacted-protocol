@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  rd-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redacted-protocol-agent
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - rd-data:/app/data
+      - rd-logs:/app/logs
+    ports:
+      - "8080:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+volumes:
+  rd-data:
+  rd-logs:

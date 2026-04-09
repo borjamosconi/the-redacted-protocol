@@ -133,7 +133,7 @@ impl ToolHandler for ScanNewsTool {
 
         match scanner.scan_url(url).await {
             Ok(result) => {
-                let mut output = result.detailed_report();
+                let output = result.detailed_report();
                 // Drop back to scanner reference
                 drop(scanner);
                 Ok(output)

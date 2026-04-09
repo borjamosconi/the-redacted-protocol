@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="redGlowSmall" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff1a1a"/>
+      <stop offset="100%" stop-color="#ff3333"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="64" height="64" rx="12" fill="#0a0a0a"/>
+  
+  <!-- Border -->
+  <rect x="2" y="2" width="60" height="60" rx="10" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+  
+  <!-- Red top accent -->
+  <rect x="8" y="8" width="48" height="2" rx="1" fill="#ff1a1a"/>
+  
+  <!-- Censor bars -->
+  <rect x="12" y="18" width="40" height="6" rx="1" fill="#ff1a1a" opacity="0.9"/>
+  <rect x="12" y="28" width="32" height="6" rx="1" fill="#ff1a1a" opacity="0.7"/>
+  <rect x="12" y="38" width="36" height="6" rx="1" fill="#ff1a1a" opacity="0.85"/>
+  
+  <!-- RD text -->
+  <text x="32" y="56" text-anchor="middle" font-family="monospace" font-size="14" font-weight="bold" fill="#ff1a1a">RD</text>
+</svg>

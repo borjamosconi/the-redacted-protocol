@@ -39,6 +39,9 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Set up graceful shutdown handler
+    let shutdown_signal = setup_shutdown_signal();
+
     let cli = Cli::parse();
     let cwd = if let Some(ref d) = cli.cwd {
         std::path::PathBuf::from(d)
@@ -66,7 +69,41 @@ async fn main() -> anyhow::Result<()> {
         Action::Repl
     };
 
-    action.run(&cwd).await
+    let result = tokio::select! {
+        res = action.run(&cwd) => res,
+        _ = shutdown_signal => {
+            tracing::info!("Shutdown signal received, exiting gracefully");
+            Ok(())
+        }
+    };
+
+    result
+}
+
+/// Set up graceful shutdown on SIGINT/SIGTERM
+async fn setup_shutdown_signal() -> () {
+    use tokio::signal;
+
+    #[cfg(unix)]
+    {
+        let mut term = signal::unix::signal(signal::unix::SignalKind::terminate()).unwrap();
+        let mut int = signal::unix::signal(signal::unix::SignalKind::interrupt()).unwrap();
+
+        tokio::select! {
+            _ = term.recv() => {
+                tracing::info!("Received SIGTERM");
+            }
+            _ = int.recv() => {
+                tracing::info!("Received SIGINT");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
+        tracing::info!("Received Ctrl+C");
+    }
 }
 
 enum Action<'a> {
@@ -153,7 +190,7 @@ mod oneshot {
 
 mod telegram_mode {
     use crate::oneshot;
-    use rd_tools::telegram_bot::{TelegramBot, UserRegistry, SCHEDULED_POSTS, InlineKeyboard, InlineButton};
+    use rd_tools::telegram_bot::{TelegramBot, UserRegistry, SCHEDULED_POSTS};
     use rd_tools::airdrop::AirdropRegistry;
     use rd_tools::TgMessage;
     use rd_core::Orchestrator;
@@ -396,7 +433,6 @@ mod telegram_mode {
                             }
                             bot.show_typing(msg.chat_id).await.ok();
 
-                            let url_list: Vec<&str> = msg.urls.iter().map(|u| u.as_str()).collect();
                             let mut reply = format!("🔍 Detected {} URL(s):\n", msg.urls.len());
                             for url in &msg.urls {
                                 reply.push_str(&format!("• {}\n", url));
@@ -497,7 +533,7 @@ mod telegram_mode {
         drop(scanner);
 
         // Fetch and analyze
-        let mut s = scanner_clone.lock().await;
+        let s = scanner_clone.lock().await;
         match s.scan_url(url).await {
             Ok(result) => {
                 let r = result.clone();

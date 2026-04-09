@@ -17,7 +17,7 @@
 ### 1. Clone & Setup
 
 ```bash
-git clone https://github.com/AKIRA-33/the_redacted_protocol.git
+git clone https://github.com/whalesconspiracy-33/the_redacted_protocol.git
 cd the_redacted_protocol
 cp .env.example .env
 ```
@@ -124,7 +124,7 @@ This project was built for the **Colosseum Agent Hackathon** on Solana.
 
 - **Name**: Redacted Protocol
 - **Description**: Autonomous AI agent that detects, reconstructs, and declassifies censored/redacted information on Solana using zero-knowledge proofs and multi-provider LLMs
-- **Repo**: https://github.com/AKIRA-33/the_redacted_protocol
+- **Repo**: https://github.com/whalesconspiracy-33/the_redacted_protocol
 - **Tags**: `ai`, `privacy`, `infra`
 
 ### Solana Integration

@@ -1,14 +1,19 @@
 use std::process::Stdio;
 use tokio::process::Command;
+use tokio::time::{Duration, timeout};
 use tracing::{warn, info, debug};
 use crate::hook_types::*;
 use rd_config::RuntimeSettings;
 
+/// Default hook timeout in seconds
+const DEFAULT_HOOK_TIMEOUT_SECS: u64 = 30;
+
 #[derive(Debug, Clone)]
-pub struct HookCommand { pub command: String, pub args: Vec<String> }
+pub struct HookCommand { pub command: String, pub args: Vec<String>, pub timeout_secs: u64 }
 impl HookCommand {
-    pub fn new(command: impl Into<String>) -> Self { Self { command: command.into(), args: Vec::new() } }
+    pub fn new(command: impl Into<String>) -> Self { Self { command: command.into(), args: Vec::new(), timeout_secs: DEFAULT_HOOK_TIMEOUT_SECS } }
     pub fn with_args(mut self, args: Vec<String>) -> Self { self.args = args; self }
+    pub fn with_timeout(mut self, secs: u64) -> Self { self.timeout_secs = secs; self }
 }
 
 pub struct HookRunner { pre_tool_use: Vec<HookCommand>, post_tool_use: Vec<HookCommand> }
@@ -34,7 +39,7 @@ impl HookRunner {
     async fn run_hooks(&self, hooks: &[HookCommand], payload: &HookPayload) -> HookResult {
         let phase_str = match payload.phase { HookPhase::PreToolUse => "pre_tool_use", HookPhase::PostToolUse => "post_tool_use" };
         for hook in hooks {
-            debug!("Running {} hook: {}", phase_str, hook.command);
+            debug!("Running {} hook: {} (timeout: {}s)", phase_str, hook.command, hook.timeout_secs);
             let mut cmd = Command::new(&hook.command);
             cmd.args(&hook.args);
             cmd.env("RD_HOOK_PHASE", phase_str);
@@ -43,8 +48,21 @@ impl HookRunner {
             if let Some(ref output) = payload.tool_output { cmd.env("RD_HOOK_TOOL_OUTPUT", output); }
             if let Some(is_err) = payload.tool_is_error { cmd.env("RD_HOOK_TOOL_IS_ERROR", is_err.to_string()); }
             cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+
             let child = match cmd.spawn() { Ok(c) => c, Err(e) => { warn!("Hook spawn failed: {}", e); continue; } };
-            let output = match child.wait_with_output().await { Ok(o) => o, Err(e) => { warn!("Hook wait failed: {}", e); continue; } };
+
+            let timeout_secs = hook.timeout_secs;
+            let result = timeout(Duration::from_secs(timeout_secs), child.wait_with_output()).await;
+
+            let output = match result {
+                Ok(Ok(o)) => o,
+                Ok(Err(e)) => { warn!("Hook wait failed: {}", e); continue; }
+                Err(_) => {
+                    warn!("Hook timed out after {}s: {}", timeout_secs, hook.command);
+                    return HookResult::Deny { reason: format!("Hook '{}' timed out after {} seconds", hook.command, timeout_secs) };
+                }
+            };
+
             let code = output.status.code().unwrap_or(-1);
             let stdout = String::from_utf8_lossy(&output.stdout);
             let result = interpret_exit(code, &stdout);

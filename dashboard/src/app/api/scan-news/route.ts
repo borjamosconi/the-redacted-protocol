@@ -87,7 +87,7 @@ export async function GET(request: Request) {
     const title = titleMatch ? titleMatch[1].trim() : 'Unknown';
 
     // Extract text content from article/main/body
-    const bodyMatch = html.match(/<(?:article|main|body)[^>]*>(.*?)<\/(?:article|main|body)>/is);
+    const bodyMatch = html.match(/<(?:article|main|body)[^>]*>([\s\S]*?)<\/(?:article|main|body)>/i);
     const bodyContent = bodyMatch ? bodyMatch[1] : html;
     const textContent = bodyContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 

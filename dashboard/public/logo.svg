@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="redGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff1a1a"/>
+      <stop offset="100%" stop-color="#ff3333"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="#0a0a0a"/>
+  
+  <!-- Outer border -->
+  <rect x="16" y="16" width="480" height="480" rx="48" fill="none" stroke="#1a1a1a" stroke-width="4"/>
+  
+  <!-- Red accent border top -->
+  <rect x="48" y="48" width="416" height="4" rx="2" fill="url(#redGlow)" filter="url(#glow)"/>
+  
+  <!-- Censor bars -->
+  <rect x="80" y="120" width="352" height="32" rx="4" fill="#ff1a1a" opacity="0.9"/>
+  <rect x="80" y="170" width="280" height="32" rx="4" fill="#ff1a1a" opacity="0.7"/>
+  <rect x="80" y="220" width="320" height="32" rx="4" fill="#ff1a1a" opacity="0.85"/>
+  <rect x="80" y="270" width="200" height="32" rx="4" fill="#ff1a1a" opacity="0.6"/>
+  
+  <!-- RD text -->
+  <text x="256" y="420" text-anchor="middle" font-family="monospace" font-size="120" font-weight="bold" fill="#ff1a1a" filter="url(#glow)">RD</text>
+  
+  <!-- Pulsing dot -->
+  <circle cx="420" cy="92" r="12" fill="#ff1a1a" filter="url(#glow)"/>
+  
+  <!-- Bottom accent -->
+  <rect x="48" y="460" width="416" height="4" rx="2" fill="url(#redGlow)" opacity="0.5"/>
+</svg>

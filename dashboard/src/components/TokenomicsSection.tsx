@@ -119,10 +119,11 @@ export function TokenomicsSection() {
           <div className="space-y-3">
             {[
               { name: 'RDX Token', address: 'REPLACEME_TOKEN_MINT_ADDRESS' },
-              { name: 'Fragment Program', address: 'RDfrag11111111111111111111111111111111111111' },
-              { name: 'Staking Program', address: 'RDstk111111111111111111111111111111111111111' },
-              { name: 'Rewards Program', address: 'RDrew111111111111111111111111111111111111111' },
-              { name: 'Treasury Program', address: 'RDtr11111111111111111111111111111111111111' },
+              { name: 'Fragment Program (rd-fragment)', address: 'RDfrag11111111111111111111111111111111111111' },
+              { name: 'Archive Program (rd-archive)', address: 'RDarkc111111111111111111111111111111111111111' },
+              { name: 'Staking Program (rd-staking)', address: 'RDstk111111111111111111111111111111111111111' },
+              { name: 'Rewards Program (rd-rewards)', address: 'RDrew111111111111111111111111111111111111111' },
+              { name: 'Treasury Program (rd-treasury)', address: 'RDtr11111111111111111111111111111111111111' },
             ].map((prog, i) => (
               <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border border-rd-border gap-2">
                 <span className="text-sm text-rd-text font-bold">{prog.name}</span>

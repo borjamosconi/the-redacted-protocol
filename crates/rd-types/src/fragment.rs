@@ -78,7 +78,7 @@ impl Fragment {
 
     pub fn is_ready_for_publication(&self) -> bool {
         matches!(self.status, FragmentStatus::Declassified | FragmentStatus::Anchored)
-            && self.confidence.as_ref().map_or(false, |c| c.is_above_threshold(0.85))
+            && self.confidence.as_ref().is_some_and(|c| c.is_above_threshold(0.85))
     }
 }
 
@@ -97,7 +97,7 @@ pub enum SourceType {
     Image, Pdf, Text, Video, Audio,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FragmentStatus {
     Pending,
     Processing,

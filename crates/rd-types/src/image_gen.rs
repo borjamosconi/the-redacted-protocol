@@ -178,7 +178,7 @@ pub async fn generate_image(
     config: &ImageConfig,
 ) -> Result<GeneratedImage, String> {
     let prompt = config.style.prompt(content);
-    let negative = config.style.negative_prompt();
+    let _negative = config.style.negative_prompt();
 
     // Puter.js implementation (browser-side):
     // 
