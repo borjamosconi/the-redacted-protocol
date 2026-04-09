@@ -14,7 +14,7 @@ This project follows a simple principle: **be respectful, be helpful, be constru
 
 ### 1. Report Bugs
 
-Open a [GitHub Issue](https://github.com/whalesconspiracy-33/the_redacted_protocol/issues) with:
+Open a [GitHub Issue](https://github.com/whalesconspiracy-33/the-redacted-protocol/issues) with:
 - What you expected to happen
 - What actually happened
 - Steps to reproduce

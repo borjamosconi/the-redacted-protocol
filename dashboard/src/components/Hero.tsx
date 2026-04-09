@@ -169,7 +169,7 @@ export function Hero() {
             TELEGRAM BOT
           </a>
           <a
-            href="https://github.com/whalesconspiracy-33/the_redacted_protocol"
+            href="https://github.com/whalesconspiracy-33/the-redacted-protocol"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-ghost min-w-[200px] text-center"
@@ -186,7 +186,7 @@ export function Hero() {
           className="flex items-center justify-center gap-6 mb-8"
         >
           <a
-            href="https://github.com/whalesconspiracy-33/the_redacted_protocol"
+            href="https://github.com/whalesconspiracy-33/the-redacted-protocol"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-rd-muted/50 hover:text-rd-red transition-colors group"

@@ -6,7 +6,7 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/whalesconspiracy-33/the_redacted_protocol.git
+git clone https://github.com/whalesconspiracy-33/the-redacted-protocol.git
 cd the_redacted_protocol
 
 # 2. Configure environment
@@ -29,7 +29,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 
 # 3. Clone and build
-git clone https://github.com/whalesconspiracy-33/the_redacted_protocol.git
+git clone https://github.com/whalesconspiracy-33/the-redacted-protocol.git
 cd the_redacted_protocol
 cargo build --release
 

@@ -93,7 +93,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source $HOME/.cargo/env
 
 # Clone
-git clone https://github.com/whalesconspiracy-33/the_redacted_protocol.git
+git clone https://github.com/whalesconspiracy-33/the-redacted-protocol.git
 cd the_redacted_protocol
 
 # Build

@@ -37,7 +37,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/whalesconspiracy-33/the_redacted_protocol.git
+git clone https://github.com/whalesconspiracy-33/the-redacted-protocol.git
 cd the_redacted_protocol
 
 # Run deployment script
@@ -54,7 +54,7 @@ sudo systemctl restart redacted-protocol
 
 ```bash
 # Clone and configure
-git clone https://github.com/whalesconspiracy-33/the_redacted_protocol.git
+git clone https://github.com/whalesconspiracy-33/the-redacted-protocol.git
 cd the_redacted_protocol
 cp .env.example .env
 nano .env  # Set your API keys
@@ -74,7 +74,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 
 # 2. Clone and build
-git clone https://github.com/whalesconspiracy-33/the_redacted_protocol.git
+git clone https://github.com/whalesconspiracy-33/the-redacted-protocol.git
 cd the_redacted_protocol
 cargo build --release
 

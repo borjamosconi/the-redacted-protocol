@@ -198,7 +198,7 @@ export function ColosseumSection() {
             </a>
 
             <a
-              href="https://github.com/whalesconspiracy-33/the_redacted_protocol"
+              href="https://github.com/whalesconspiracy-33/the-redacted-protocol"
               target="_blank"
               rel="noopener noreferrer"
               className="rd-card p-6 text-center hover:border-rd-red/40 transition-all group"

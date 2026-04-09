@@ -552,7 +552,7 @@ spl-token transfer <TOKEN_MINT> <AMOUNT> <WALLET>
 
 ## Support
 
-- **GitHub:** https://github.com/whalesconspiracy-33/the_redacted_protocol
+- **GitHub:** https://github.com/whalesconspiracy-33/the-redacted-protocol
 - **Telegram Bot:** https://t.me/theredacted_bot
 - **Dashboard:** https://redacted-protocol.vercel.app (coming soon)
 
