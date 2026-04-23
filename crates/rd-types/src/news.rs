@@ -21,7 +21,7 @@ impl ThreatLevel {
     pub fn icon(&self) -> &'static str {
         match self {
             Self::Safe => "\u{2705}",
-            Self::Suspicious => "\u{26A0}",
+            Self::Suspicious => "\u{26A0}\u{FE0F}",
             Self::Flagged => "\u{1F6A8}",
             Self::Critical => "\u{1F534}",
         }
@@ -97,6 +97,8 @@ pub enum FeedCategory {
     Government,
     Intelligence,
     Alternative,
+    CensoredRegions,
+    Whistleblower,
 }
 
 /// Parsed RSS article.
@@ -282,15 +284,39 @@ impl NewsScanner {
     }
 
     /// Default RSS feed sources for intelligence monitoring.
+    /// Sources from regions with known government censorship.
     fn default_feeds() -> Vec<FeedSource> {
         vec![
-            FeedSource { name: "Reuters World".into(), url: "https://www.rss.reuters.com/newsArchive".into(), category: FeedCategory::WorldNews, enabled: true, last_polled: None },
-            FeedSource { name: "AP News".into(), url: "https://rsshub.rssforever.com/apnews/topics/worldnews".into(), category: FeedCategory::WorldNews, enabled: true, last_polled: None },
-            FeedSource { name: "Al Jazeera".into(), url: "https://www.aljazeera.com/xml/rss/all.xml".into(), category: FeedCategory::WorldNews, enabled: true, last_polled: None },
-            FeedSource { name: "BBC World".into(), url: "https://feeds.bbci.co.uk/news/world/rss.xml".into(), category: FeedCategory::WorldNews, enabled: true, last_polled: None },
-            FeedSource { name: "The Guardian".into(), url: "https://www.theguardian.com/world/rss".into(), category: FeedCategory::WorldNews, enabled: true, last_polled: None },
+            // ─── CHINA / HK ───
+            FeedSource { name: "RFA Cantonese".into(), url: "https://www.rfa.org/cantonese/news/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            FeedSource { name: "RFA Mandarin".into(), url: "https://www.rfa.org/mandarin/news/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            FeedSource { name: "China Digital Times".into(), url: "https://chinadigitaltimes.net/feed/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            FeedSource { name: "VOA Chinese".into(), url: "https://www.voachinese.com/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            // ─── IRAN ───
+            FeedSource { name: "Iran International".into(), url: "https://www.iranintl.com/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            FeedSource { name: "Radio Farda".into(), url: "https://www.radiofarda.com/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            FeedSource { name: "Anaj".into(), url: "https://www.anaj.ir/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            // ─── RUSSIA ───
+            FeedSource { name: "Meduza".into(), url: "https://meduza.io/rss/en".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            FeedSource { name: "Novaya Gazeta".into(), url: "https://novayagazeta.eu/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            FeedSource { name: "Kommersant".into(), url: "https://www.kommersant.ru/rss/news.xml".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            // ─── SYRIA ───
+            FeedSource { name: "Syrian Human Rights".into(), url: "https://www.syriahr.com/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            FeedSource { name: "Enab Baladi".into(), url: "https://www.enabbaladi.net/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            // ─── VENEZUELA / LATAM ───
+            FeedSource { name: "Resumen Latino".into(), url: "https://www.resumenlatinoamericano.org/feed/".into(), category: FeedCategory::CensoredRegions, enabled: true, last_polled: None },
+            // ─── WHISTLEBLOWER ───
+            FeedSource { name: "Cryptome".into(), url: "https://cryptome.org/feed.rss".into(), category: FeedCategory::Whistleblower, enabled: true, last_polled: None },
+            FeedSource { name: "The Intercept".into(), url: "https://theintercept.com/feed/".into(), category: FeedCategory::Investigative, enabled: true, last_polled: None },
+            FeedSource { name: "The Grayzone".into(), url: "https://www.thegrayzone.com/feed/".into(), category: FeedCategory::Whistleblower, enabled: true, last_polled: None },
+            // ─── INVESTIGATIVE ───
+            FeedSource { name: "ProPublica".into(), url: "https://www.propublica.org/feeds/".into(), category: FeedCategory::Investigative, enabled: true, last_polled: None },
+            FeedSource { name: "ICIJ".into(), url: "https://www.icij.org/feeds/".into(), category: FeedCategory::Investigative, enabled: true, last_polled: None },
+            // ─── GOVERNMENT / DEEP STATE ───
             FeedSource { name: "CIA FOIA".into(), url: "https://www.cia.gov/rss/".into(), category: FeedCategory::Government, enabled: true, last_polled: None },
-            FeedSource { name: "Cryptome".into(), url: "https://cryptome.org/feed.rss".into(), category: FeedCategory::Intelligence, enabled: true, last_polled: None },
+            FeedSource { name: "NSA".into(), url: "https://www.nsa.gov/news/".into(), category: FeedCategory::Intelligence, enabled: true, last_polled: None },
+            FeedSource { name: "FBI".into(), url: "https://www.fbi.gov/news/".into(), category: FeedCategory::Government, enabled: true, last_polled: None },
+            FeedSource { name: "DoD".into(), url: "https://www.defense.gov/News/".into(), category: FeedCategory::Government, enabled: true, last_polled: None },
         ]
     }
 
@@ -413,7 +439,7 @@ impl NewsScanner {
     /// Fetch and parse an article from a URL.
     pub async fn fetch_article(&self, url: &str) -> Result<(String, String), String> {
         // SSRF protection: validate URL before fetching
-        Self::validate_url(url)?;
+        Self::validate_url(url).await?;
 
         let resp = self.client.get(url)
             .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
@@ -426,26 +452,60 @@ impl NewsScanner {
     }
 
     /// Validate URL to prevent SSRF attacks.
-    fn validate_url(url: &str) -> Result<(), String> {
+    /// Resolves DNS before checking to prevent DNS rebinding attacks.
+    async fn validate_url(url: &str) -> Result<(), String> {
         let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {}", e))?;
 
         if parsed.scheme() != "http" && parsed.scheme() != "https" {
             return Err("Blocked: only http/https schemes allowed".to_string());
         }
 
-        if let Some(host) = parsed.host_str() {
-            if host == "localhost" || host == "127.0.0.1" || host == "::1" {
-                return Err("Blocked: cannot fetch from localhost".to_string());
+        let host = parsed.host_str().ok_or("No host in URL")?;
+
+        // Block obvious private hosts
+        if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0" {
+            return Err("Blocked: cannot fetch from localhost".to_string());
+        }
+
+        // Resolve DNS and check resolved IP
+        match tokio::net::lookup_host((host, parsed.port().unwrap_or(80))).await {
+            Ok(mut addrs) => {
+                if let Some(addr) = addrs.next() {
+                    let ip = addr.ip();
+                    // Check for loopback/unspecified
+                    if ip.is_loopback() || ip.is_unspecified() {
+                        return Err(format!("Blocked: resolved to loopback/unspecified: {}", ip));
+                    }
+                    // Check for private ranges manually (std IpAddr doesn't have is_private)
+                    let is_private = match ip {
+                        std::net::IpAddr::V4(v4) => {
+                            let octets = v4.octets();
+                            octets[0] == 10 ||
+                            (octets[0] == 172 && (octets[1] >= 16 && octets[1] <= 31)) ||
+                            (octets[0] == 192 && octets[1] == 168)
+                        }
+                        std::net::IpAddr::V6(v6) => v6.octets()[0] == 0xfd || v6.octets()[0] == 0xfc,
+                    };
+                    if is_private {
+                        return Err(format!("Blocked: resolved to private IP: {}", ip));
+                    }
+                    // Check link-local (169.254.x.x)
+                    if let std::net::IpAddr::V4(v4) = ip {
+                        if v4.is_link_local() {
+                            return Err(format!("Blocked: resolved to link-local IP: {}", ip));
+                        }
+                    }
+                }
             }
-            if host.starts_with("10.") || host.starts_with("192.168.") || host.starts_with("172.") {
-                return Err(format!("Blocked: cannot fetch from private network: {}", host));
+            Err(e) => {
+                // DNS resolution failed — could be DNS rebinding attempt
+                tracing::warn!("[NewsScanner] DNS resolution failed for {}: {}", host, e);
             }
-            if host.starts_with("0.") || host.starts_with("169.254.") {
-                return Err(format!("Blocked: cannot fetch from reserved range: {}", host));
-            }
-            if host.contains(':') && !host.starts_with('[') {
-                return Err(format!("Blocked: suspicious host format: {}", host));
-            }
+        }
+
+        // Also check for DNS rebinding via known-bad patterns
+        if host.contains("metadata") || host.contains("internal") || host.ends_with(".local") {
+            return Err(format!("Blocked: suspicious host: {}", host));
         }
 
         Ok(())
@@ -470,7 +530,7 @@ impl NewsScanner {
     }
 
     /// Scan a URL and return full analysis result.
-    pub async fn scan_url(&self, url: &str) -> Result<NewsAnalysisResult, String> {
+    pub async fn scan_url(&mut self, url: &str) -> Result<NewsAnalysisResult, String> {
         if self.is_seen(url) {
             return Err(format!("Already scanned: {}", url));
         }
@@ -478,6 +538,9 @@ impl NewsScanner {
         let (title, content) = self.fetch_article(url).await?;
         let flags = self.analyze(&title, &content).await;
         let threat = Self::calculate_threat(&flags);
+
+        // Mark as seen before returning
+        self.mark_seen(url);
 
         Ok(NewsAnalysisResult {
             url: url.to_string(),

@@ -3,6 +3,7 @@ use std::path::Path;
 use rd_tools::{ToolRegistry, builtins::register_builtins};
 use rd_hooks::HookRunner;
 use rd_types::provider::ProviderKind;
+use rd_session::{Session, SessionStore};
 use crate::commands::handle_slash_command;
 use crate::display::format_assistant_response;
 
@@ -17,6 +18,28 @@ pub async fn run(cwd: &Path) -> anyhow::Result<()> {
     let provider = setup_provider().await?;
     let mut orch = rd_core::Orchestrator::new(provider, tools, hooks, settings);
     orch.build_system_prompt(cwd, Vec::new()).await;
+    run_repl_loop(orch, cwd).await
+}
+
+/// Run REPL with a pre-loaded session (for session resume)
+pub async fn run_with_session(cwd: &Path, session: Session, store: SessionStore) -> anyhow::Result<()> {
+    let settings = load_settings(cwd).await;
+    let mut tools = ToolRegistry::new(); register_builtins(&mut tools);
+    let hooks = HookRunner::from_settings(&settings);
+    let provider = setup_provider().await?;
+    let mut orch = rd_core::Orchestrator::new(provider, tools, hooks, settings);
+    orch.build_system_prompt(cwd, Vec::new()).await;
+    
+    // Attach session store and restore session state
+    orch = orch.with_session_store(store);
+    // Manually restore session messages into orchestrator
+    orch.session = session;
+    
+    println!("Session restored successfully. Continuing conversation.");
+    run_repl_loop(orch, cwd).await
+}
+
+async fn run_repl_loop(mut orch: rd_core::Orchestrator<Box<dyn rd_providers::Provider>>, _cwd: &Path) -> anyhow::Result<()> {
     let mut line = String::new();
     loop {
         print!("\n> "); io::stdout().flush()?; line.clear();

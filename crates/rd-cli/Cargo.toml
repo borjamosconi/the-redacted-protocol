@@ -13,9 +13,11 @@ rd-types = { path = "../rd-types" }
 rd-session = { path = "../rd-session" }
 rd-providers = { path = "../rd-providers" }
 rd-tools = { path = "../rd-tools" }
+rd-muapi = { path = "../rd-muapi" }
 rd-hooks = { path = "../rd-hooks" }
 rd-config = { path = "../rd-config" }
 rd-core = { path = "../rd-core" }
+rd-arweave = { path = "../rd-arweave" }
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -24,8 +26,5 @@ anyhow.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-crossterm.workspace = true
-ratatui.workspace = true
 chrono.workspace = true
-hex.workspace = true
 uuid.workspace = true

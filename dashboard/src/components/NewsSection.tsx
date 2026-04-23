@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useState } from 'react'
+import { useWallet } from '@solana/wallet-adapter-react'
 
 interface NewsFlag {
   flag_type: string;
@@ -34,6 +35,7 @@ const THREAT_ICONS: Record<string, string> = {
 };
 
 export function NewsSection() {
+  const { publicKey } = useWallet()
   const [scanning, setScanning] = useState(false)
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const [error, setError] = useState('')
@@ -61,6 +63,18 @@ export function NewsSection() {
       }
 
       setScanResult(data)
+
+      // Award XP for news scan
+      if (publicKey) {
+        fetch('/api/gamify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: publicKey.toString(),
+            action: 'news_scan',
+          }),
+        }).catch(() => {}) // Silently fail
+      }
     } catch {
       setError('NETWORK ERROR — UNABLE TO SCAN')
     } finally {

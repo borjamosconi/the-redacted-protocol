@@ -50,11 +50,59 @@ impl ToolHandler for GrepTool {
     }
 }
 
+/// Dangerous command patterns to block (prevents LLM prompt injection attacks)
+const DANGEROUS_PATTERNS: &[&str] = &[
+    "rm -rf", "rm -r /", "rm -rf /", "rm -fr /", "rm -fr *",
+    "> /dev/", "> /etc/", "> /proc/", "> /sys/",
+    "dd if=", "mkfs", "fdisk", "format",
+    "curl ", "wget ", "nc ", "ncat ", "socat ",
+    "bash -i", "sh -i", "python -c", "python3 -c", "perl -e", "ruby -e",
+    "/dev/tcp/", "/dev/udp/",
+    "chmod 777", "chmod +s", "chown root",
+    "sudo ", "su -", "passwd ", "shadow",
+    "iptables", "ufw ", "firewall-cmd",
+    "kill -9", "killall", "pkill -9",
+    "crontab -r", "systemctl disable",
+    "DROP TABLE", "DELETE FROM",
+    "base64 -d", "base64 --decode",
+    "eval(", "exec(", "`", "$(",
+];
+
+/// Commands that are always allowed (informational — used for allowlist expansion if needed)
+#[allow(dead_code)]
+const ALLOWED_COMMANDS: &[&str] = &[
+    "ls", "dir", "pwd", "cd", "echo", "cat", "head", "tail",
+    "wc", "sort", "uniq", "grep", "find", "stat", "file",
+    "date", "uptime", "whoami", "id", "ps", "top",
+    "df", "du", "free", "uname", "hostname",
+    "cargo", "rustc", "npm", "node", "git",
+    "mkdir", "touch", "cp", "mv", "rename",
+    "sed", "awk", "cut", "tr", "tee",
+    "systemctl status", "journalctl",
+    "docker ps", "docker images",
+];
+
 pub struct ShellTool;
 #[async_trait]
 impl ToolHandler for ShellTool {
     async fn execute(&self, input: serde_json::Value) -> Result<String, ToolError> {
-        let command = input.get("command").and_then(|v| v.as_str()).ok_or_else(|| ToolError::InvalidInput("missing 'command'".into()))?;
+        let command = input.get("command").and_then(|v| v.as_str())
+            .ok_or_else(|| ToolError::InvalidInput("missing 'command'".into()))?;
+
+        // Security: Check against dangerous patterns
+        let cmd_lower = command.to_lowercase();
+        for pattern in DANGEROUS_PATTERNS {
+            if cmd_lower.contains(pattern) {
+                tracing::warn!("[ShellTool] BLOCKED dangerous command: {}", command);
+                return Err(ToolError::ExecutionFailed(
+                    format!("Command blocked for security: contains '{}' pattern", pattern)
+                ));
+            }
+        }
+
+        // Log every command for audit
+        tracing::info!("[ShellTool] Executing: {}", command);
+
         let workdir = input.get("workdir").and_then(|v| v.as_str()).unwrap_or(".");
         let (shell, flag) = if cfg!(windows) { ("cmd.exe", "/C") } else { ("sh", "-c") };
         let output = tokio::process::Command::new(shell).arg(flag).arg(command).current_dir(workdir).output().await
@@ -70,8 +118,99 @@ pub struct InspectFragmentTool;
 #[async_trait]
 impl ToolHandler for InspectFragmentTool {
     async fn execute(&self, input: serde_json::Value) -> Result<String, ToolError> {
-        let id = input.get("fragment_id").and_then(|v| v.as_str()).ok_or_else(|| ToolError::InvalidInput("missing 'fragment_id'".into()))?;
-        Ok(format!("Fragment {} — status: pending (no store connected)", id))
+        let id = input.get("fragment_id").and_then(|v| v.as_str())
+            .ok_or_else(|| ToolError::InvalidInput("missing 'fragment_id'".into()))?;
+        let _action = input.get("action").and_then(|v| v.as_str())
+            .unwrap_or("inspect");
+
+        // Try to fetch fragment from Solana RPC if configured
+        let rpc_url = std::env::var("SOLANA_RPC_URL")
+            .unwrap_or_else(|_| "https://api.devnet.solana.com".to_string());
+        
+        // Fragment program ID placeholder
+        let program_id = "RDfrag11111111111111111111111111111111111111";
+        
+        // Build Solana RPC request to fetch fragment account
+        let client = reqwest::Client::new();
+        let payload = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getAccountInfo",
+            "params": [
+                id,
+                {
+                    "encoding": "jsonParsed",
+                    "commitment": "confirmed"
+                }
+            ]
+        });
+        
+        match client.post(&rpc_url)
+            .json(&payload)
+            .send()
+            .await 
+        {
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    match resp.json::<serde_json::Value>().await {
+                        Ok(json) => {
+                            if let Some(value) = json.get("result").and_then(|r| r.get("value")) {
+                                if !value.is_null() {
+                                    let default_data = serde_json::json!({});
+                                    let data = value.get("data").and_then(|d| d.get("parsed"))
+                                        .and_then(|p| p.get("info"))
+                                        .unwrap_or(&default_data);
+                                    
+                                    let status = data.get("isVerified").and_then(|v| v.as_bool())
+                                        .map(|v| if v { "verified" } else { "pending" })
+                                        .unwrap_or("unknown");
+                                    
+                                    let confidence = data.get("confidence").and_then(|v| v.as_u64())
+                                        .unwrap_or(0);
+                                    
+                                    let submitter = data.get("submitter").and_then(|v| v.as_str())
+                                        .unwrap_or("unknown");
+                                    
+                                    let arweave_tx = data.get("arweaveTxId").and_then(|v| v.as_str())
+                                        .unwrap_or("not anchored");
+                                    
+                                    let tags = data.get("topicTags").and_then(|v| v.as_array())
+                                        .map(|arr| arr.iter()
+                                            .filter_map(|t| t.as_str())
+                                            .collect::<Vec<_>>()
+                                            .join(", "))
+                                        .unwrap_or_else(|| "none".to_string());
+                                    
+                                    Ok(format!(
+                                        "Fragment: {}\n\
+                                         Status: {}\n\
+                                         Confidence: {}/100\n\
+                                         Submitter: {}\n\
+                                         Arweave TX: {}\n\
+                                         Tags: {}\n\
+                                         Program: {}",
+                                        id, status, confidence, submitter, arweave_tx, tags, program_id
+                                    ))
+                                } else {
+                                    Ok(format!("Fragment {} — status: not found on chain", id))
+                                }
+                            } else {
+                                Ok(format!("Fragment {} — status: data unavailable", id))
+                            }
+                        }
+                        Err(e) => {
+                            Ok(format!("Fragment {} — status: pending (parse error: {})", id, e))
+                        }
+                    }
+                } else {
+                    Ok(format!("Fragment {} — status: pending (RPC error: {})", id, resp.status()))
+                }
+            }
+            Err(e) => {
+                // Fallback to local status if RPC unavailable
+                Ok(format!("Fragment {} — status: pending (RPC unavailable: {})", id, e))
+            }
+        }
     }
 }
 
@@ -129,22 +268,20 @@ impl ToolHandler for ScanNewsTool {
             return Ok(format!("Already scanned: {}. No new flags.", url));
         }
 
-        scanner.mark_seen(url);
-
+        // scan_url now marks the URL as seen automatically
         match scanner.scan_url(url).await {
             Ok(result) => {
                 let output = result.detailed_report();
-                // Drop back to scanner reference
-                drop(scanner);
                 Ok(output)
             }
             Err(e) => {
-                drop(scanner);
                 Err(ToolError::ExecutionFailed(format!("Scan error: {}", e)))
             }
         }
     }
 }
+
+pub mod muapi_tools;
 
 pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("read_file", "Read a file.", file_schema(), PermissionLevel::Observer), Box::new(ReadFileTool));
@@ -155,6 +292,11 @@ pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("reconstruct", "Reconstruct redacted content.", frag_schema(), PermissionLevel::Reconstructor), Box::new(ReconstructTool));
     registry.register(ToolSpec::builtin("telegram_publish", "Publish a message to Telegram.", telegram_schema(), PermissionLevel::Declassifier), Box::new(TelegramPublishTool));
     registry.register(ToolSpec::builtin("telegram_status", "Check Telegram bot connection.", serde_json::json!({"type":"object","properties":{}}), PermissionLevel::Observer), Box::new(TelegramStatusTool));
+    
+    // Muapi AI Generation Tools
+    registry.register(ToolSpec::builtin("gen_image", "Generate an AI image from a prompt.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenImageTool));
+    registry.register(ToolSpec::builtin("gen_video", "Generate an AI video from a prompt.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenVideoTool));
+    registry.register(ToolSpec::builtin("gen_cinema", "Generate a cinematic AI shot with pro camera controls.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenCinemaTool));
 }
 
 /// Register news scanning tool (needs shared scanner).
@@ -182,6 +324,7 @@ pub fn tool_aliases() -> HashMap<String, String> {
         ("grep".into(),"grep_search".into()),("exec".into(),"shell".into()),
         ("run".into(),"shell".into()),("inspect".into(),"inspect_fragment".into()),
         ("tg".into(),"telegram_publish".into()),("tg_status".into(),"telegram_status".into()),
+        ("image".into(),"gen_image".into()),("video".into(),"gen_video".into()),("cinema".into(),"gen_cinema".into()),
     ])
 }
 pub fn resolve_tool_name(name: &str) -> String {

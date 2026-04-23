@@ -1,0 +1,58 @@
+# Stage 1: Build Anchor CLI
+FROM ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/usr/local/cargo/bin:/opt/solana/bin:$PATH"
+
+RUN apt-get update && apt-get install -y \
+    build-essential pkg-config libssl-dev libudev-dev \
+    curl git ca-certificates wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust (pinned to 1.79.0)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.79.0
+
+# Install Solana CLI
+RUN mkdir -p /opt/solana \
+    && (curl -L "https://release.solana.com/v1.18.15/solana-release-x86_64-unknown-linux-gnu.tar.bz2" -o /tmp/solana.tar.bz2 2>/dev/null \
+        || curl -k -L "https://release.anza.xyz/v1.18.15/solana-release-x86_64-unknown-linux-gnu.tar.bz2" -o /tmp/solana.tar.bz2) \
+    && tar -xjf /tmp/solana.tar.bz2 -C /tmp/ \
+    && mv /tmp/solana-release /opt/solana \
+    && rm /tmp/solana.tar.bz2
+
+# Install Anchor CLI
+RUN cargo install --git https://github.com/solana-foundation/anchor --tag v0.30.1 anchor-cli --locked
+
+# Install Node.js for tests
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g yarn
+
+# Stage 2: Slim runtime
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/usr/local/cargo/bin:/opt/solana/bin:$PATH"
+
+RUN apt-get update && apt-get install -y \
+    build-essential pkg-config libssl-dev libudev-dev \
+    curl git ca-certificates wget \
+    nodejs npm \
+    && npm install -g yarn \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Rust toolchain
+COPY --from=builder /usr/local/rustup /usr/local/rustup
+COPY --from=builder /usr/local/cargo /usr/local/cargo
+
+# Copy Solana
+COPY --from=builder /opt/solana /opt/solana
+
+# Copy Anchor
+COPY --from=builder /usr/local/cargo/bin/anchor /usr/local/cargo/bin/anchor
+
+# Install Solana platform tools
+RUN /opt/solana/bin/solana-install init 1.18.15 2>/dev/null || true
+
+WORKDIR /workspace
+CMD ["bash"]

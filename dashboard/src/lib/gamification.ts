@@ -220,6 +220,6 @@ export function getStreakMultiplier(streak: number): number {
 
 // ── Helper: Calculate RDX bonus from XP ──
 export function calculateRDxBonus(xp: number): number {
-  // 1 XP = 0.5 RDX bonus on top of base 1000 RDX
+  // 1 XP = 0.5 RDX bonus on top of base 700 RDX
   return Math.floor(xp * 0.5 * 1_000_000_000); // in lamports (9 decimals)
 }

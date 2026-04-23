@@ -1,54 +1,71 @@
 #!/bin/bash
-# Redacted Protocol Agent - Autonomous Startup Script
-# This script starts the agent with full autonomy
+# start-autonomous.sh — Launch Redacted Protocol bot in autonomous mode
+# Runs in background with auto-restart on crash
 
 set -e
 
-echo "🔴 Redacted Protocol Agent - Autonomous Mode"
-echo "=============================================="
+cd "$(dirname "$0")"
 
-# Check if .env exists
-if [ ! -f .env ]; then
-    echo "❌ .env file not found!"
-    echo "Please copy .env.example to .env and set your API keys"
-    exit 1
-fi
+echo ""
+echo "═══════════════════════════════════════════════════"
+echo "   REDACTED PROTOCOL — Autonomous Mode Launcher"
+echo "═══════════════════════════════════════════════════"
+echo ""
 
-# Load environment variables
-source .env
-
-# Check required variables
-if [ -z "$OPENROUTER_API_KEY" ]; then
-    echo "❌ OPENROUTER_API_KEY not set in .env"
-    exit 1
+# Check if bot token is set
+if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+    # Try to load from .env
+    if [ -f .env ]; then
+        export $(grep -v '^#' .env | xargs)
+    fi
 fi
 
 if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-    echo "❌ TELEGRAM_BOT_TOKEN not set in .env"
+    echo "❌ TELEGRAM_BOT_TOKEN not set!"
+    echo "   Edit .env and set your bot token from @BotFather"
     exit 1
 fi
 
-echo "✅ Environment variables loaded"
-echo "🔑 OpenRouter API Key: ${OPENROUTER_API_KEY:0:10}..."
-echo "🤖 Telegram Bot: @theredacted_bot"
-echo "🌐 Model: ${OPENROUTER_MODEL:-google/gemini-2.0-flash-exp:free}"
-echo ""
-
-# Check if binary exists
-if [ ! -f "./target/release/rd" ]; then
-    echo "🔨 Building agent..."
-    cargo build --release
+if [ -z "$OPENROUTER_API_KEY" ]; then
+    echo "⚠️  OPENROUTER_API_KEY not set — AI reconstruction disabled"
+    echo "   Get free key at: https://openrouter.ai"
 fi
 
-echo "🚀 Starting agent in autonomous mode..."
-echo "📱 Telegram commands:"
-echo "   /start - Initialize"
-echo "   /scan_news <url> - Scan for redactions"
-echo "   /status - System status"
-echo "   /help - Show commands"
+# Check if already running
+if pgrep -f "rd.*--telegram" > /dev/null 2>&1; then
+    echo "⚠️  Bot is already running!"
+    echo "   PID: $(pgrep -f 'rd.*--telegram')"
+    echo "   To restart: kill the process and run this script again"
+    exit 0
+fi
+
+echo "🔴 Starting Redacted Protocol Autonomous Agent..."
 echo ""
-echo "🔴 The file is breathing."
+echo "   Bot: @theredacted_bot"
+echo "   Mode: Autonomous (news scanning + reconstruction)"
+echo "   Log:  autonomous.log"
 echo ""
 
-# Start the agent
-exec ./target/release/rd --telegram
+# Start in background with auto-restart
+nohup cargo run --release -- --telegram > autonomous.log 2>&1 &
+BOT_PID=$!
+
+echo "✅ Bot started with PID: $BOT_PID"
+echo ""
+echo "   Monitor: tail -f autonomous.log"
+echo "   Stop:    kill $BOT_PID"
+echo ""
+
+# Wait a few seconds and check if it's still running
+sleep 5
+if kill -0 $BOT_PID 2>/dev/null; then
+    echo "✅ Bot is running successfully"
+    echo ""
+    echo "═══════════════════════════════════════════════════"
+    echo "   The file is breathing..."
+    echo "═══════════════════════════════════════════════════"
+else
+    echo "❌ Bot crashed on startup. Check autonomous.log:"
+    echo "   cat autonomous.log"
+    exit 1
+fi

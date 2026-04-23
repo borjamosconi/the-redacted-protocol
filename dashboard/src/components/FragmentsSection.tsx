@@ -26,22 +26,34 @@ export function FragmentsSection() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/fragments')
-      .then(res => res.json())
+    const controller = new AbortController()
+    fetch('/api/fragments', { signal: controller.signal })
+      .then(res => {
+        if (!res.ok) throw new Error('Fetch failed')
+        return res.json()
+      })
       .then(data => {
         setFragments(data.fragments || [])
         setStats(data.stats || null)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.error('[FragmentsSection]', err)
+        }
+        setFragments([])
+        setStats(null)
+        setLoading(false)
+      })
+    return () => controller.abort()
   }, [])
 
   const statusBadgeClass = (status: string) => {
     switch (status) {
-      case 'VERIFIED': return 'badge-active';
-      case 'DECLASSIFIED': return 'badge-pending';
-      case 'PROCESSING': return 'badge-pending';
-      default: return '';
+      case 'VERIFIED': return 'badge-verified';
+      case 'DECLASSIFIED': return 'badge-declassified';
+      case 'PROCESSING': return 'badge-processing';
+      default: return 'badge-pending';
     }
   }
 

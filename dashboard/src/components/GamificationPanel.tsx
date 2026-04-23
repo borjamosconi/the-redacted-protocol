@@ -31,11 +31,26 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
   const [level, setLevel] = useState<LevelInfo | null>(null)
   const [streak, setStreak] = useState(0)
   const [multiplier, setMultiplier] = useState(1)
-  const [airdropAmount, setAirdropAmount] = useState('1,000 RDX')
+  const [airdropAmount, setAirdropAmount] = useState('700 RDX')
   const [badges, setBadges] = useState<string[]>([])
   const [quests, setQuests] = useState<Quest[]>([])
-  const [leaderboard, setLeaderboard] = useState<any[]>([])
-  const [stats, setStats] = useState<any>(null)
+  const [leaderboard, setLeaderboard] = useState<Array<{
+    rank: number;
+    walletAddress: string;
+    telegramId: string;
+    xp: number;
+    level: string;
+    streak: number;
+    referrals: number;
+    badges: number;
+  }>>([])
+  const [stats, setStats] = useState<{
+    totalUsers: number;
+    totalXP: number;
+    avgStreak: number;
+    maxStreak: number;
+    totalReferrals: number;
+  } | null>(null)
   const [activeTab, setActiveTab] = useState<'profile' | 'quests' | 'leaderboard'>('profile')
   const [loading, setLoading] = useState(true)
   const [checkinLoading, setCheckinLoading] = useState(false)
@@ -48,11 +63,21 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
     fetchStats()
   }, [walletAddress])
 
+  const [error, setError] = useState<string | null>(null)
+
   const fetchProfile = async () => {
     if (!walletAddress) return
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch(`/api/gamify?wallet=${walletAddress}`)
+      if (!res.ok) {
+        if (res.status === 404) {
+          fetchQuestsForUnregistered()
+          return
+        }
+        throw new Error(`API ${res.status}: ${await res.text()}`)
+      }
       const data = await res.json()
       if (data.status !== 'not_found') {
         setXP(data.xp)
@@ -63,9 +88,21 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
         setBadges(data.badges || [])
         setQuests(data.quests || [])
         setReferralCode(data.referralCode || '')
+      } else {
+        fetchQuestsForUnregistered()
       }
-    } catch { /* ignore */ }
-    finally { setLoading(false) }
+    } catch (e: any) { 
+      console.error('[GamificationPanel]', e);
+      setError(e.message || 'Failed to load profile')
+    } finally { setLoading(false) }
+  }
+
+  const fetchQuestsForUnregistered = async () => {
+    try {
+      const res = await fetch(`/api/gamify?quests=1`)
+      const data = await res.json()
+      setQuests(data.quests || [])
+    } catch (e) { console.error('[GamificationPanel]', e); }
   }
 
   const fetchLeaderboard = async () => {
@@ -73,7 +110,7 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
       const res = await fetch('/api/gamify?leaderboard=1&limit=20')
       const data = await res.json()
       setLeaderboard(data.leaderboard || [])
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[GamificationPanel]', e); }
   }
 
   const fetchStats = async () => {
@@ -81,12 +118,13 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
       const res = await fetch('/api/gamify?stats=1')
       const data = await res.json()
       setStats(data.stats || null)
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[GamificationPanel]', e); }
   }
 
   const handleCheckin = async () => {
     if (!walletAddress) return
     setCheckinLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/gamify', {
         method: 'POST',
@@ -97,6 +135,7 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
           action: 'daily_checkin',
         }),
       })
+      if (!res.ok) throw new Error(`API ${res.status}`)
       const data = await res.json()
       if (data.success) {
         setXP(data.totalXP)
@@ -107,8 +146,10 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
         setBadges(data.badges || [])
         onXPEarned?.(data.xpEarned)
       }
-    } catch { /* ignore */ }
-    finally { setCheckinLoading(false) }
+    } catch (e: any) { 
+      console.error('[GamificationPanel]', e);
+      setError(e.message || 'Check-in failed')
+    } finally { setCheckinLoading(false) }
   }
 
   const completeQuest = async (questId: string) => {
@@ -132,7 +173,7 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
         fetchProfile()
         onXPEarned?.(data.xpEarned)
       }
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[GamificationPanel]', e); }
   }
 
   const copyReferral = () => {
@@ -179,7 +220,7 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
       <div className="max-w-5xl mx-auto px-4 relative z-10">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="text-xs tracking-[0.3em] text-rd-muted mb-3">FILE #0004</div>
+          <div className="text-xs tracking-[0.3em] text-rd-muted mb-3">FILE #0006</div>
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             <span className="text-rd-red">OPERATOR</span>{' '}
             <span className="text-rd-text">STATUS</span>
@@ -227,7 +268,7 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
                         {level.name}
                       </div>
                       <div className="text-xs text-rd-muted/50 tracking-widest">
-                        {xp.toLocaleString()} XP
+                        {(xp ?? 0).toLocaleString()} XP
                       </div>
                     </>
                   )}
@@ -277,7 +318,7 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
                     </div>
                     <div className="text-2xl font-bold text-rd-red">{airdropAmount}</div>
                     <div className="text-[10px] text-rd-muted/40 mt-1">
-                      Base: 1,000 RDX + XP Bonuses
+                      Base: 700 RDX + XP Bonuses
                     </div>
                   </div>
 
@@ -331,10 +372,10 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
             {stats && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: 'TOTAL AGENTS', value: stats.totalUsers.toString(), icon: '👥' },
-                  { label: 'TOTAL XP', value: stats.totalXP.toLocaleString(), icon: '⚡' },
-                  { label: 'AVG STREAK', value: `${stats.avgStreak} days`, icon: '🔥' },
-                  { label: 'MAX STREAK', value: `${stats.maxStreak} days`, icon: '👁️' },
+                  { label: 'TOTAL AGENTS', value: stats?.totalUsers?.toString() || '0', icon: '👥' },
+                  { label: 'TOTAL XP', value: stats?.totalXP?.toLocaleString() || '0', icon: '⚡' },
+                  { label: 'AVG STREAK', value: `${stats?.avgStreak || 0} days`, icon: '🔥' },
+                  { label: 'MAX STREAK', value: `${stats?.maxStreak || 0} days`, icon: '👁️' },
                 ].map((stat, i) => (
                   <div key={i} className="rd-card text-center p-4">
                     <div className="text-lg mb-1">{stat.icon}</div>
@@ -447,7 +488,7 @@ export function GamificationPanel({ walletAddress, telegramId, onXPEarned }: {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-bold text-rd-red">{entry.xp.toLocaleString()} XP</div>
+                        <div className="text-sm font-bold text-rd-red">{(entry?.xp || 0).toLocaleString()} XP</div>
                         {entry.badges > 0 && (
                           <div className="text-[10px] text-rd-muted/30">{entry.badges} badges</div>
                         )}

@@ -1,21 +1,45 @@
-module.exports = {
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
   content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
   theme: {
+    screens: {
+      xs: '480px',
+      sm: '640px',
+      md: '768px',
+      lg: '1024px',
+      xl: '1280px',
+      '2xl': '1536px',
+    },
     extend: {
       colors: {
-        'rd-black': '#0a0a0a',
+        'rd-red': '#ff1a1a',
+        'rd-red-bright': '#ff4444',
+        'rd-red-dim': '#cc1414',
+        'rd-red-glow': '#ff3333',
+        'rd-black': '#030303',
+        'rd-black-2': '#0a0a0a',
         'rd-dark': '#0f0f0f',
         'rd-card': '#111111',
-        'rd-red': '#ff1a1a',
-        'rd-red-glow': '#ff3333',
-        'rd-purple': '#9945FF',
-        'rd-text': '#e0e0e0',
-        'rd-muted': '#666666',
-        'rd-border': '#1a1a1a',
+        'rd-card-2': '#161616',
+        'rd-card-3': '#1a1a1a',
+        'rd-text': '#ffffff',
+        'rd-text-2': '#e0e0e0',
+        'rd-text-3': '#b0b0b0',
+        'rd-muted': '#999999',
+        'rd-muted-2': '#666666',
+        'rd-muted-3': '#444444',
+        'rd-border': '#222222',
+        'rd-border-2': '#2a2a2a',
+        'rd-purple': '#a855f7',
+        'rd-purple-bright': '#c084fc',
+        'rd-cyan': '#06b6d4',
+        'rd-green': '#00ff88',
       },
       fontFamily: {
-        mono: ['"Courier New"', 'Courier', 'monospace'],
-        sans: ['system-ui', '-apple-system', 'sans-serif'],
+        grotesk: ['var(--font-grotesk)', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['var(--font-mono)', '"Space Mono"', 'Menlo', 'monospace'],
+        sans: ['var(--font-grotesk)', 'system-ui', '-apple-system', 'sans-serif'],
       },
       animation: {
         'glitch': 'glitch 0.3s infinite',
@@ -25,6 +49,9 @@ module.exports = {
         'float': 'float 6s ease-in-out infinite',
         'pulse-red': 'pulse-red 2s ease-in-out infinite',
         'decode': 'decode 2s steps(1) forwards',
+        'typing': 'typing 3.5s steps(40) 1s forwards, blink-caret 0.75s step-end infinite',
+        'matrix-fall': 'matrixFall linear infinite',
+        'scan-line': 'scanLine 8s linear infinite',
       },
       keyframes: {
         glitch: {
@@ -61,8 +88,26 @@ module.exports = {
           '50%': { opacity: '0.5', filter: 'blur(5px)' },
           '100%': { opacity: '1', filter: 'blur(0px)' },
         },
+        typing: {
+          'from': { width: '0' },
+          'to': { width: '100%' },
+        },
+        'blink-caret': {
+          'from, to': { borderColor: 'transparent' },
+          '50%': { borderColor: '#ff1a1a' },
+        },
+        matrixFall: {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100%)' },
+        },
+        scanLine: {
+          '0%': { transform: 'translateY(-100vh)' },
+          '100%': { transform: 'translateY(100vh)' },
+        },
       },
     },
   },
   plugins: [],
 }
+
+export default config

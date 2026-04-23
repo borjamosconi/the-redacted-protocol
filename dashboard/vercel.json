@@ -1,5 +1,42 @@
 {
-  "framework": "nextjs",
-  "buildCommand": "next build",
-  "outputDirectory": ".next"
+  "git": {
+    "enabled": false
+  },
+  "crons": [
+    {
+      "path": "/api/telegram/broadcast",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/telegram/broadcast",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/telegram/broadcast",
+      "schedule": "0 21 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ]
 }

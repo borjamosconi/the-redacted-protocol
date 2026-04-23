@@ -11,10 +11,11 @@ export function SolanaProvider({ children }: { children: React.ReactNode }) {
     process.env.NEXT_PUBLIC_SOLANA_RPC || 'https://api.devnet.solana.com'
   )
 
-  const wallets = useMemo(
-    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
-    []
-  )
+  const [wallets, setWallets] = useState<any[]>([])
+
+  useEffect(() => {
+    setWallets([new PhantomWalletAdapter(), new SolflareWalletAdapter()])
+  }, [])
 
   return (
     <ConnectionProvider endpoint={rpcUrl}>

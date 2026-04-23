@@ -9,7 +9,7 @@ export function Footer() {
           {/* Logo + Tagline */}
           <div className="flex flex-col items-center md:items-start gap-3">
             <div className="flex items-center gap-3">
-              <img src="/icon.svg" alt="Redacted Protocol" className="w-7 h-7 drop-shadow-[0_0_6px_rgba(255,26,26,0.4)]" />
+              <img src="/logo.svg" alt="Redacted Protocol" className="w-7 h-7 drop-shadow-[0_0_6px_rgba(255,26,26,0.4)]" />
               <span className="text-[10px] tracking-[0.4em] text-rd-muted">
                 REDACTED PROTOCOL
               </span>
@@ -40,6 +40,15 @@ export function Footer() {
               </a>
             ))}
           </div>
+        </div>
+
+        {/* Vault — Agent Donation */}
+        <div className="mb-10 p-4 border border-red-900/20 bg-red-950/5 rounded-sm text-center">
+          <p className="text-[9px] font-mono text-red-500/50 tracking-[0.3em] uppercase mb-2">Support The Agent — Vault Address</p>
+          <p className="text-[10px] font-mono text-gray-600 tracking-wider break-all select-all hover:text-gray-400 transition-colors cursor-text">
+            BWhHF85ZNoR3x7GhoxhXEK6C4bBZvCyMFDZfMWNRXiME
+          </p>
+          <p className="text-[9px] text-gray-700 mt-1 tracking-widest">SOL / SPL TOKENS ACCEPTED</p>
         </div>
 
         {/* Bottom */}

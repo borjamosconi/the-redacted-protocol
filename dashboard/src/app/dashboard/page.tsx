@@ -1,0 +1,698 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useWallet } from '@solana/wallet-adapter-react'
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Header } from '@/components/Header'
+import { useWalletReady } from '@/components/Providers'
+
+interface UserProfile {
+  walletAddress: string
+  telegramId: string
+  xp: number
+  level: string
+  levelName: string
+  streak: number
+  streakMultiplier: number
+  referrals: number
+  referralCode: string
+  totalActions: number
+  badges: string[]
+  registeredAt: string
+  airdropAmount: string
+  airdropFormatted: string
+  questsCompleted: number
+  quests: Array<{
+    id: string
+    name: string
+    description: string
+    xp: number
+    rdx: number
+    completed: boolean
+    type: string
+  }>
+}
+
+interface GlobalStats {
+  totalUsers: number
+  totalXP: number
+  totalAirdrop: string
+  avgLevel: number
+}
+
+const LEVEL_STYLES: Record<string, { bg: string; text: string; glow: string; border: string }> = {
+  CLASSIFIED:    { bg: 'rgba(60,60,60,0.4)',  text: '#888888', glow: 'rgba(136,136,136,0.2)',  border: 'rgba(136,136,136,0.2)' },
+  RECONSTRUCTED: { bg: 'rgba(80,20,160,0.4)', text: '#a855f7', glow: 'rgba(153,69,255,0.25)', border: 'rgba(153,69,255,0.25)' },
+  DECLASSIFIED:  { bg: 'rgba(20,60,160,0.4)', text: '#60a5fa', glow: 'rgba(59,130,246,0.25)', border: 'rgba(59,130,246,0.25)' },
+  ARCHIVIST:     { bg: 'rgba(10,100,60,0.4)',  text: '#34d399', glow: 'rgba(16,185,129,0.25)', border: 'rgba(16,185,129,0.25)' },
+  INTELLIGENCE:  { bg: 'rgba(120,80,0,0.4)',   text: '#fbbf24', glow: 'rgba(245,158,11,0.25)', border: 'rgba(245,158,11,0.25)' },
+  DECLASSIFIER:  { bg: 'rgba(120,20,20,0.4)', text: '#f87171', glow: 'rgba(239,68,68,0.25)', border: 'rgba(239,68,68,0.25)' },
+  'THE FILE':    { bg: 'rgba(180,0,0,0.5)',   text: '#ff1a1a', glow: 'rgba(255,26,26,0.35)', border: 'rgba(255,26,26,0.3)' },
+}
+
+function IconUser({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+    </svg>
+  )
+}
+
+function IconZap({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" />
+    </svg>
+  )
+}
+
+function IconGift({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="8" width="18" height="4" rx="1" />
+      <path d="M12 8v13M7 21h10M12 12c-2-2-4-2.5-4-5 0-1.5 1-3 4-3s4 1.5 4 3c0 2.5-2 3-4 5z" />
+      <path d="M12 12c2-2 4-2.5 4-5 0-1.5-1-3-4-3s-4 1.5-4 3c0 2.5 2 3 4 5z" />
+    </svg>
+  )
+}
+
+function IconFlame({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 23c-3.9 0-7-3.1-7-7 0-2.8 1.6-5.1 3-6.4V3l2.5 3.5c.5.7 1.5 1 2 0l.5-1c.5 1.5 1.5 3 3 4 2 1.4 3 3.5 3 6 0 3.9-3.1 7-7 7zm0-11c-.6 1-1 2-1 3 0 1.1.9 2 2 2s2-.9 2-2c0-1-.4-2-1-3h-2z" />
+    </svg>
+  )
+}
+
+function IconTrophy({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 21h8M12 17v4M7 4h10v7a5 5 0 01-10 0V4zM7 4H4v3a3 3 0 003 3M17 4h3v3a3 3 0 01-3 3" />
+    </svg>
+  )
+}
+
+function IconCheck({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
+function IconLink({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+    </svg>
+  )
+}
+
+function IconCopy({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  )
+}
+
+function IconWallet({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="6" width="20" height="14" rx="2" />
+      <path d="M2 10h20M16 14a2 2 0 100 4 2 2 0 000-4z" />
+    </svg>
+  )
+}
+
+function IconNetwork({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="2" />
+      <circle cx="5" cy="19" r="2" />
+      <circle cx="19" cy="19" r="2" />
+      <path d="M12 7v4M8.5 16.5L10.8 14M15.2 16.5L13.2 14" />
+    </svg>
+  )
+}
+
+function SkeletonLine({ className = 'w-32 h-4' }: { className?: string }) {
+  return <div className={`skeleton ${className}`} />
+}
+
+export default function DashboardPage() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-5 h-5 border border-red-900/30 border-t-red-500 rounded-full animate-spin" />
+          <span className="text-gray-600 text-xs font-mono tracking-widest uppercase">Initializing Protocol...</span>
+        </div>
+      </div>
+    )
+  }
+
+  return <DashboardContent />
+}
+
+function DashboardContent() {
+  const walletReady = useWalletReady()
+  const { connected, publicKey } = useWallet()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [stats, setStats] = useState<GlobalStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'overview' | 'quests' | 'referrals'>('overview')
+  const [claiming, setClaiming] = useState(false)
+  const [claimed, setClaimed] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!connected) return
+    fetchProfile()
+    fetchStats()
+  }, [connected])
+
+  const fetchProfile = async () => {
+    if (!publicKey) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/gamify?wallet=${publicKey.toString()}`)
+      const data = await res.json()
+      if (data && data.xp !== undefined) {
+        setProfile(data)
+      } else {
+        setProfile(null)
+      }
+    } catch {
+      console.error('Failed to fetch profile')
+    }
+    setLoading(false)
+  }
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/gamify?stats=1')
+      const data = await res.json()
+      if (data && data.stats) {
+        setStats(data.stats)
+      } else {
+        setStats(data) // Fallback if API structure is different
+      }
+    } catch {
+      console.error('Failed to fetch stats')
+    }
+  }
+
+  const handleDailyCheckin = async () => {
+    if (!publicKey || claiming) return
+    setClaiming(true)
+    try {
+      const res = await fetch('/api/gamify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress: publicKey.toString(),
+          action: 'daily_checkin',
+        }),
+      })
+      const data = await res.json()
+      if (data.xp) {
+        setClaimed(true)
+        fetchProfile()
+        setTimeout(() => setClaimed(false), 3000)
+      }
+    } catch {
+      console.error('Check-in failed')
+    }
+    setClaiming(false)
+  }
+
+  const handleCopyRef = () => {
+    if (!profile?.referralCode) return
+    const url = `${window.location.origin}?ref=${profile.referralCode}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  if (!walletReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-5 h-5 border border-red-900/30 border-t-red-500 rounded-full animate-spin" />
+          <span className="text-gray-600 text-xs font-mono tracking-widest">INITIALIZING PROTOCOL...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!connected) {
+    return (
+      <>
+        <Header />
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center max-w-md"
+          >
+            <div className="w-16 h-16 mx-auto mb-8 rounded-2xl border border-red-900/30 bg-red-950/20 flex items-center justify-center">
+              <IconWallet className="w-8 h-8 text-red-500" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+              Connect Your Wallet
+            </h1>
+            <p className="text-gray-400 mb-8 text-sm leading-relaxed">
+              Connect your Solana wallet to access your agent dashboard, track XP, and manage your airdrop allocation.
+            </p>
+            <div className="flex justify-center">
+              <WalletMultiButton
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255, 26, 26, 0.4)',
+                  color: '#ff1a1a',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.1em',
+                  height: '44px',
+                  padding: '0 1.5rem',
+                  borderRadius: '2px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  textTransform: 'uppercase',
+                }}
+              />
+            </div>
+          </motion.div>
+        </div>
+      </>
+    )
+  }
+
+  const levelStyle = LEVEL_STYLES[profile?.level || 'CLASSIFIED'] || LEVEL_STYLES.CLASSIFIED
+
+  return (
+    <>
+      <Header />
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-28 pb-20">
+
+        {/* Welcome card */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rd-card mb-6 relative overflow-hidden"
+        >
+          {/* Glow */}
+          <div
+            className="absolute -top-16 -right-16 w-48 h-48 rounded-full blur-3xl pointer-events-none"
+            style={{ background: levelStyle.glow }}
+          />
+
+          <div className="relative flex flex-col md:flex-row items-start md:items-center gap-6">
+
+            {/* Avatar block */}
+            <div
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center flex-shrink-0 border"
+              style={{
+                background: levelStyle.bg,
+                borderColor: levelStyle.border,
+                boxShadow: `0 0 30px ${levelStyle.glow}`,
+              }}
+            >
+              <span className="text-2xl sm:text-3xl font-bold" style={{ color: levelStyle.text }}>
+                {profile?.levelName?.charAt(0) || 'C'}
+              </span>
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-white truncate">
+                  {profile?.levelName || 'Classified'} Agent
+                </h1>
+                <span
+                  className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider rounded border"
+                  style={{
+                    background: levelStyle.bg,
+                    color: levelStyle.text,
+                    borderColor: levelStyle.border,
+                  }}
+                >
+                  Level {profile?.level || '?'}
+                </span>
+              </div>
+              <p className="text-gray-500 font-mono text-xs mb-3">
+                {publicKey?.toString().slice(0, 8)}...{publicKey?.toString().slice(-6)}
+              </p>
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                <StatChip label="XP" value={profile?.xp?.toLocaleString() || '—'} accent="text-purple-400" />
+                <StatChip label="Streak" value={`${profile?.streak || 0} days`} accent="text-orange-400" />
+                <StatChip label="Airdrop" value={`${profile?.airdropFormatted || '0'} RDX`} accent="text-green-400" />
+                <StatChip label="Rank" value="#—" accent="text-blue-400" />
+              </div>
+            </div>
+
+            {/* Daily check-in */}
+            <button
+              onClick={handleDailyCheckin}
+              disabled={claiming || claimed}
+              className={`flex-shrink-0 flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-mono font-bold transition-all ${
+                claimed
+                  ? 'bg-green-950/40 text-green-400 border border-green-900/30'
+                  : 'bg-red-950/40 text-red-400 border border-red-900/30 hover:bg-red-900/30'
+              }`}
+            >
+              {claimed ? (
+                <>
+                  <IconCheck className="w-4 h-4" />
+                  Checked In
+                </>
+              ) : claiming ? (
+                'Processing...'
+              ) : (
+                <>
+                  <IconFlame className="w-4 h-4" />
+                  Daily Check-in
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* XP progress bar */}
+          {profile && profile.xp !== undefined && (
+            <div className="mt-6 pt-5 border-t border-white/[0.04]">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-mono text-gray-500">
+                  {(profile?.xp ?? 0).toLocaleString()} XP
+                </span>
+                <span className="text-xs text-gray-600">Next Level</span>
+              </div>
+              <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((profile.xp / 10000) * 100, 100)}%` }}
+                  transition={{ duration: 1.2, ease: 'easeOut' }}
+                  className="h-full rounded-full"
+                  style={{
+                    background: `linear-gradient(90deg, ${levelStyle.text}cc, ${levelStyle.text})`,
+                    boxShadow: `0 0 12px ${levelStyle.glow}`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 bg-white/[0.02] p-1 rounded-xl border border-white/[0.04] w-fit">
+          {(['overview', 'quests', 'referrals'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-all capitalize ${
+                activeTab === tab
+                  ? 'bg-red-950/60 text-red-400 border border-red-900/30 shadow-[0_0_20px_rgba(255,26,26,0.08)]'
+                  : 'text-gray-500 hover:text-white hover:bg-white/[0.03]'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'overview' && (
+            <motion.div
+              key="overview"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              {loading ? (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="rd-card">
+                      <SkeletonLine className="w-8 h-8 rounded mb-3" />
+                      <SkeletonLine className="w-20 h-7 mb-2" />
+                      <SkeletonLine className="w-16 h-3" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <StatCard
+                    label="Total XP"
+                    value={(profile?.xp ?? 0).toLocaleString()}
+                    icon={<IconZap className="w-5 h-5" />}
+                    color="#a855f7"
+                  />
+                  <StatCard
+                    label="Airdrop"
+                    value={`${profile?.airdropFormatted || '0'} RDX`}
+                    icon={<IconGift className="w-5 h-5" />}
+                    color="#34d399"
+                  />
+                  <StatCard
+                    label="Streak"
+                    value={`${profile?.streak || 0} days`}
+                    icon={<IconFlame className="w-5 h-5" />}
+                    color="#fb923c"
+                  />
+                  <StatCard
+                    label="Actions"
+                    value={profile?.totalActions?.toString() || '0'}
+                    icon={<IconTrophy className="w-5 h-5" />}
+                    color="#60a5fa"
+                  />
+                </div>
+              )}
+
+              {/* Badges */}
+              {!loading && profile?.badges && profile.badges.length > 0 && (
+                <div className="rd-card mb-6">
+                  <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-4">Badges</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.badges.map((badge, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1.5 rounded-lg text-xs font-mono border"
+                        style={{
+                          background: 'rgba(153,69,255,0.08)',
+                          borderColor: 'rgba(153,69,255,0.2)',
+                          color: '#a855f7',
+                        }}
+                      >
+                        {badge}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Network stats */}
+              {!loading && stats && (
+                <div className="rd-card">
+                  <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-5">Network Stats</h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                    <NetworkStat
+                      label="Total Agents"
+                      value={(stats?.totalUsers ?? 0).toLocaleString()}
+                      icon={<IconUser className="w-4 h-4" />}
+                    />
+                    <NetworkStat
+                      label="Total XP"
+                      value={(stats?.totalXP ?? 0).toLocaleString()}
+                      icon={<IconZap className="w-4 h-4" />}
+                    />
+                    <NetworkStat
+                      label="Airdropped"
+                      value={stats?.totalAirdrop || '0'}
+                      icon={<IconGift className="w-4 h-4" />}
+                    />
+                    <NetworkStat
+                      label="Avg Level"
+                      value={stats?.avgLevel?.toFixed(1) || '0.0'}
+                      icon={<IconNetwork className="w-4 h-4" />}
+                    />
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === 'quests' && (
+            <motion.div
+              key="quests"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-3"
+            >
+              {loading ? (
+                [1, 2, 3, 4].map(i => (
+                  <div key={i} className="rd-card flex items-center gap-4">
+                    <SkeletonLine className="w-10 h-10 rounded-lg flex-shrink-0" />
+                    <div className="flex-1">
+                      <SkeletonLine className="w-40 h-4 mb-2" />
+                      <SkeletonLine className="w-60 h-3" />
+                    </div>
+                    <SkeletonLine className="w-16 h-3" />
+                  </div>
+                ))
+              ) : profile?.quests && profile.quests.length > 0 ? (
+                profile.quests.map((quest) => (
+                  <div
+                    key={quest.id}
+                    className={`rd-card flex items-center justify-between gap-4 ${
+                      quest.completed ? 'opacity-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border"
+                        style={{
+                          background: quest.completed ? 'rgba(52,211,153,0.1)' : 'rgba(255,26,26,0.06)',
+                          borderColor: quest.completed ? 'rgba(52,211,153,0.2)' : 'rgba(255,26,26,0.12)',
+                        }}
+                      >
+                        {quest.completed ? (
+                          <IconCheck className="w-5 h-5 text-green-400" />
+                        ) : (
+                          <div className="w-5 h-5 rounded border border-red-900/40" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-white truncate">{quest.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{quest.description}</div>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-xs font-mono text-purple-400">+{quest.xp} XP</div>
+                      <div className="text-xs font-mono text-green-400">+{quest.rdx} RDX</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rd-card text-center py-16">
+                  <IconTrophy className="w-10 h-10 text-gray-700 mx-auto mb-4" />
+                  <p className="text-gray-500 text-sm font-mono">No quests available</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === 'referrals' && (
+            <motion.div
+              key="referrals"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="rd-card max-w-lg mx-auto text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl border border-red-900/30 bg-red-950/20 flex items-center justify-center">
+                  <IconLink className="w-7 h-7 text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Refer & Earn</h3>
+                <p className="text-gray-400 text-sm mb-8 leading-relaxed">
+                  Share your referral link and earn 200 XP + 100 RDX for each agent who joins.
+                </p>
+
+                {profile?.referralCode && (
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] mb-2">
+                      <span className="text-sm font-mono text-gray-400 flex-1 text-left truncate">
+                        {typeof window !== 'undefined' ? `${window.location.origin}?ref=${profile.referralCode}` : `?ref=${profile.referralCode}`}
+                      </span>
+                      <button
+                        onClick={handleCopyRef}
+                        className="flex-shrink-0 p-2 rounded-lg border border-white/[0.06] hover:bg-white/[0.05] transition-colors group"
+                      >
+                        {copied ? (
+                          <IconCheck className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <IconCopy className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      {copied ? 'Copied to clipboard' : 'Click to copy your referral link'}
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white">{profile?.referrals || 0}</div>
+                    <div className="text-xs text-gray-600 mt-1">Referred</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-400">{(profile?.referrals || 0) * 200}</div>
+                    <div className="text-xs text-gray-600 mt-1">XP Earned</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-400">{(profile?.referrals || 0) * 100}</div>
+                    <div className="text-xs text-gray-600 mt-1">RDX Earned</div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {loading && (
+          <div className="flex items-center justify-center py-16 gap-3">
+            <div className="w-4 h-4 border border-red-900/30 border-t-red-500 rounded-full animate-spin" />
+            <p className="text-gray-500 text-sm font-mono">Loading agent data...</p>
+          </div>
+        )}
+      </main>
+    </>
+  )
+}
+
+function StatCard({ label, value, icon, color }: { label: string; value: string; icon: React.ReactNode; color: string }) {
+  return (
+    <div className="rd-card relative overflow-hidden group">
+      <div
+        className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-20 transition-opacity duration-300 group-hover:opacity-30"
+        style={{ background: color }}
+      />
+      <div style={{ color }} className="mb-3">{icon}</div>
+      <div className="text-2xl font-bold text-white mb-1">{value}</div>
+      <div className="text-xs font-mono text-gray-500 uppercase tracking-wider">{label}</div>
+    </div>
+  )
+}
+
+function NetworkStat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div className="text-center">
+      <div className="w-10 h-10 mx-auto mb-3 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-center text-gray-500">
+        {icon}
+      </div>
+      <div className="text-xl font-bold text-white mb-0.5">{value}</div>
+      <div className="text-xs text-gray-600">{label}</div>
+    </div>
+  )
+}
+
+function StatChip({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs text-gray-600 font-mono">{label}</span>
+      <span className={`text-sm font-bold font-mono ${accent}`}>{value}</span>
+    </div>
+  )
+}
+

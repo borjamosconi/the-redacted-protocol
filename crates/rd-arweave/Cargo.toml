@@ -1,0 +1,15 @@
+[package]
+name = "rd-arweave"
+description = "Arweave upload client for Redacted Protocol — permanent document storage"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+tokio.workspace = true
+reqwest = { workspace = true }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+tracing.workspace = true
+base64 = "0.22"

@@ -6,6 +6,7 @@ members = [
     "programs/rd-rewards",
     "programs/rd-treasury",
     "programs/rd-token",
+    "programs/rd-presale",
 ]
 resolver = "2"
 

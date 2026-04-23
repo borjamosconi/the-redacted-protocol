@@ -1,0 +1,28 @@
+{
+  "name": "the_redacted_protocol",
+  "version": "1.0.0",
+  "description": "> **Autonomous AI Agent for Document Declassification on Solana** > > [![Rust](https://img.shields.io/badge/Rust-1.83-orange)](https://www.rust-lang.org/) > [![Tests](https://img.shields.io/badge/Tests-47%20passing-brightgreen)]() > [![License](https://img.shields.io/badge/License-MIT-blue)](./LICENSE) > > **Colosseum Agent Hackathon Submission** → [See SUBMISSION.md](./SUBMISSION.md)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/whalesconspiracy-33/the-redacted-protocol.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/whalesconspiracy-33/the-redacted-protocol/issues"
+  },
+  "homepage": "https://github.com/whalesconspiracy-33/the-redacted-protocol#readme",
+  "dependencies": {
+    "arweave": "^1.15.7"
+  }
+}

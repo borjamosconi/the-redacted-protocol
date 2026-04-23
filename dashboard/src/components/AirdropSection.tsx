@@ -37,8 +37,8 @@ export function AirdropSection() {
     try {
       const deviceFingerprint = getDeviceFingerprint()
 
-      const res = await fetch('/api/gamify', {
-        method: 'PUT',
+      const res = await fetch('/api/airdrop', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telegramId: telegramId.trim(),
@@ -50,30 +50,32 @@ export function AirdropSection() {
 
       const data = await res.json()
 
+      if (res.status === 200 && data.status === 'already_registered') {
+        setRegisteredData({
+          amount: data.amountFormatted,
+          wallet: data.walletAddress,
+          xp: data.xp,
+          level: data.level,
+        })
+        setSubmitted(true)
+        return
+      }
+
       if (!res.ok) {
-        if (res.status === 400 && data.status === 'already_registered') {
-          setError(`Already registered — XP: ${data.xp}, Level: ${data.level}`)
-          return
-        }
         if (res.status === 429) {
           setError(`RATE LIMITED — Wait ${data.retryAfter}s and try again`)
           return
         }
-        if (res.status === 202) {
-          setError(`Registration under review — Risk score: ${data.riskScore}`)
+        if (res.status === 400) {
+          setError(data.error || 'ALREADY REGISTERED')
           return
         }
         setError(data.error || 'REGISTRATION FAILED')
         return
       }
 
-      if (data.status === 'flagged') {
-        setError(`Registration flagged — Risk score: ${data.riskScore}`)
-        return
-      }
-
       setRegisteredData({
-        amount: data.airdropFormatted,
+        amount: data.amountFormatted,
         wallet: publicKey.toString(),
         xp: data.xp,
         level: data.level,
@@ -93,45 +95,47 @@ export function AirdropSection() {
   }
 
   return (
-    <section id="airdrop" className="py-24 relative">
-      <div className="max-w-4xl mx-auto px-4">
+    <section id="airdrop" className="py-24 sm:py-32 relative">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6">
+
         {/* Section header */}
         <div className="text-center mb-16">
-          <div className="text-xs tracking-[0.3em] text-rd-muted mb-3">
-            FILE #0001
-          </div>
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            <span className="text-rd-red">$RDX</span>{' '}
-            <span className="text-rd-text">AIRDROP</span>
+          <p className="text-xs font-mono text-gray-600 tracking-[0.3em] uppercase mb-4">
+            File #0001
+          </p>
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6">
+            <span className="text-red-500 neon-red">$RDX</span>{' '}
+            <span className="text-white">Airdrop</span>
           </h2>
           <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="h-px w-16 bg-gradient-to-r from-transparent to-rd-red/30" />
+            <div className="h-px w-16 bg-gradient-to-r from-transparent to-red-900/40" />
             <div className="w-24 h-2 censor-bar" />
-            <div className="h-px w-16 bg-gradient-to-l from-transparent to-rd-red/30" />
+            <div className="h-px w-16 bg-gradient-to-l from-transparent to-red-900/40" />
           </div>
-          <p className="text-rd-muted/60 tracking-widest text-sm">
-            1,000 RDX GUARANTEED FOR EVERY EARLY USER
+          <p className="text-gray-400 text-sm sm:text-base tracking-wide">
+            500 RDX base + 200 RDX wallet bonus ={' '}
+            <span className="text-white font-semibold">700 RDX guaranteed</span>
           </p>
         </div>
 
         {/* Stats grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
           {[
-            { label: 'TOTAL AIRDROP POOL', value: '400,000,000', sub: 'RDX TOKENS' },
-            { label: 'PER USER', value: '1,000', sub: 'RDX GUARANTEED' },
-            { label: 'BONUSES', value: '+150', sub: 'RDX PER ACTION' },
+            { label: 'Total Airdrop Pool', value: '400M', sub: 'RDX tokens' },
+            { label: 'Per User', value: '700', sub: 'RDX (500 + 200 bonus)' },
+            { label: 'Action Bonus', value: '+150', sub: 'RDX per action' },
           ].map((item, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="rd-card text-center"
+              transition={{ delay: i * 0.1, duration: 0.4 }}
+              className="rd-card text-center py-6"
             >
-              <div className="text-[10px] text-rd-muted/50 tracking-[0.2em] mb-2">{item.label}</div>
-              <div className="text-2xl md:text-3xl font-bold text-rd-red">{item.value}</div>
-              <div className="text-[10px] text-rd-muted/40 mt-1 tracking-widest">{item.sub}</div>
+              <div className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-3">{item.label}</div>
+              <div className="text-3xl font-bold text-red-500 mb-1">{item.value}</div>
+              <div className="text-xs text-gray-600">{item.sub}</div>
             </motion.div>
           ))}
         </div>
@@ -141,66 +145,110 @@ export function AirdropSection() {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
           className="rd-card max-w-lg mx-auto"
         >
           {submitted && registeredData ? (
-            <div className="text-center py-8">
-              <div className="text-4xl mb-4">████████</div>
-              <div className="text-xl font-bold text-rd-red mb-2">ACCESS GRANTED</div>
-              <p className="text-rd-muted/60 text-sm mb-4">
-                Your wallet has been registered for the $RDX airdrop.
-              </p>
-              <div className="text-xs text-rd-muted/40 space-y-1 mb-4">
-                <p>Telegram: {telegramId}</p>
-                <p>Wallet: {registeredData.wallet.slice(0, 8)}...{registeredData.wallet.slice(-6)}</p>
-                <p className="text-rd-red font-bold">Allocation: {registeredData.amount}</p>
-                <p className="text-purple-400">XP: {registeredData.xp} · Level: {registeredData.level}</p>
+            <div className="text-center py-10">
+              {/* Access granted icon */}
+              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl border border-red-900/40 bg-red-950/20 flex items-center justify-center">
+                <svg className="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                </svg>
               </div>
-              <div className="p-3 border border-rd-red/20 bg-rd-red/5 mb-4">
-                <div className="text-[10px] text-rd-muted/50 tracking-widest mb-1">🎮 UNLOCK GAMIFICATION</div>
-                <p className="text-xs text-rd-muted/60">
-                  Check in daily for XP, complete quests, climb the leaderboard, and earn bonus RDX!
+              <h3 className="text-2xl font-bold text-white mb-2">Access Granted</h3>
+              <p className="text-gray-400 text-sm mb-6">
+                Your wallet is registered for the $RDX airdrop.
+              </p>
+
+              <div className="space-y-3 mb-8 text-left max-w-sm mx-auto">
+                <div className="flex justify-between py-2 border-b border-white/[0.04]">
+                  <span className="text-sm text-gray-500">Telegram ID</span>
+                  <span className="text-sm text-white font-mono">{telegramId}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-white/[0.04]">
+                  <span className="text-sm text-gray-500">Wallet</span>
+                  <span className="text-sm text-white font-mono">
+                    {registeredData.wallet.slice(0, 6)}...{registeredData.wallet.slice(-4)}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-white/[0.04]">
+                  <span className="text-sm text-gray-500">Allocation</span>
+                  <span className="text-sm text-red-400 font-bold">{registeredData.amount} RDX</span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-sm text-gray-500">XP / Level</span>
+                  <span className="text-sm text-purple-400 font-mono">
+                    {registeredData.xp} · Lv.{registeredData.level}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl border border-red-900/20 bg-red-950/10 mb-6">
+                <p className="text-xs text-gray-400 mb-1 font-mono uppercase tracking-wider">Unlock Gamification</p>
+                <p className="text-sm text-gray-300">
+                  Check in daily for XP, complete quests, and earn bonus RDX.
                 </p>
               </div>
+
               <button
                 onClick={() => { setSubmitted(false); setTelegramId(''); setRegisteredData(null) }}
                 className="btn-ghost"
               >
-                REGISTER ANOTHER
+                Register Another
               </button>
             </div>
           ) : (
             <>
-              <div className="border-b border-rd-border pb-4 mb-6">
-                <div className="text-[10px] text-rd-muted/50 tracking-[0.2em] mb-1">
-                  REGISTRATION FORM
-                </div>
-                <div className="text-lg font-bold text-rd-text">
-                  CONNECT WALLET & REGISTER
-                </div>
+              <div className="border-b border-white/[0.04] pb-5 mb-6">
+                <h3 className="text-lg font-semibold text-white mb-1">Register for Airdrop</h3>
+                <p className="text-sm text-gray-500">Connect your wallet and link your Telegram ID.</p>
               </div>
 
               {/* Wallet connection */}
               <div className="mb-6">
-                <label className="block text-[10px] text-rd-muted/50 tracking-[0.2em] mb-2">
-                  SOLANA WALLET
+                <label className="block text-xs font-mono text-gray-500 uppercase tracking-widest mb-3">
+                  Solana Wallet
                 </label>
                 {connected ? (
-                  <div className="p-3 border border-rd-red/20 bg-rd-red/5 font-mono text-sm text-rd-red break-all">
-                    {publicKey?.toString().slice(0, 8)}...{publicKey?.toString().slice(-6)}
-                    <span className="ml-2 text-green-500 text-xs">&#x2713; CONNECTED</span>
+                  <div className="flex items-center gap-3 p-4 rounded-xl border border-green-900/30 bg-green-950/10">
+                    <div className="w-8 h-8 rounded-lg bg-green-950/40 border border-green-900/30 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="text-sm font-mono text-green-400">Connected</div>
+                      <div className="text-xs text-gray-500 font-mono">
+                        {publicKey?.toString().slice(0, 8)}...{publicKey?.toString().slice(-6)}
+                      </div>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex justify-center">
-                    <WalletMultiButton className="!bg-rd-red/10 !border !border-rd-red/30 !text-rd-red !font-mono !text-xs !tracking-widest hover:!bg-rd-red hover:!text-rd-black !transition-all !w-full !justify-center" />
-                  </div>
+                  <WalletMultiButton
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(255, 26, 26, 0.35)',
+                      color: '#ff1a1a',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.7rem',
+                      letterSpacing: '0.1em',
+                      height: '48px',
+                      padding: '0 1.5rem',
+                      borderRadius: '2px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      textTransform: 'uppercase',
+                      width: '100%',
+                    }}
+                  />
                 )}
               </div>
 
               {/* Telegram ID */}
               <div className="mb-6">
-                <label className="block text-[10px] text-rd-muted/50 tracking-[0.2em] mb-2">
-                  TELEGRAM USER ID
+                <label className="block text-xs font-mono text-gray-500 uppercase tracking-widest mb-3">
+                  Telegram User ID
                 </label>
                 <input
                   type="text"
@@ -216,9 +264,9 @@ export function AirdropSection() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="mb-4 p-3 border border-rd-red/40 bg-rd-red/10 text-rd-red text-xs tracking-wider"
+                  className="mb-5 p-4 rounded-lg border border-red-900/40 bg-red-950/20"
                 >
-                  &#x26A0; {error}
+                  <p className="text-sm font-mono text-red-400">⚠ {error}</p>
                 </motion.div>
               )}
 
@@ -226,36 +274,52 @@ export function AirdropSection() {
               <button
                 onClick={handleSubmit}
                 disabled={!connected || !telegramId || loading}
-                className="w-full btn-redacted disabled:opacity-40"
+                className="w-full btn-redacted text-sm py-4"
               >
-                {loading ? 'REGISTERING...' : '\u2588 REGISTER FOR AIRDROP \u2588'}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin" />
+                    Registering...
+                  </span>
+                ) : (
+                  'Register for Airdrop'
+                )}
               </button>
 
-              {/* Bonus info */}
-              <div className="mt-6 pt-4 border-t border-rd-border">
-                <div className="text-[10px] text-rd-muted/40 tracking-widest mb-3">🎮 EARN XP → MORE RDX</div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-rd-muted/50">
-                  <div>📡 Daily check-in: <span className="text-rd-red">+25 XP</span></div>
-                  <div>📄 OCR scan: <span className="text-rd-red">+50 XP</span></div>
-                  <div>📰 News scan: <span className="text-rd-red">+30 XP</span></div>
-                  <div>👥 Referral: <span className="text-rd-red">+200 XP</span></div>
-                  <div>🎨 Gen image: <span className="text-rd-red">+40 XP</span></div>
-                  <div>🔥 7-day streak: <span className="text-rd-red">+500 XP</span></div>
+              {/* XP Info */}
+              <div className="mt-6 pt-5 border-t border-white/[0.04]">
+                <p className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-4">
+                  Earn XP → More RDX
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { action: 'Daily check-in', xp: '+25 XP' },
+                    { action: 'OCR scan', xp: '+50 XP' },
+                    { action: 'News scan', xp: '+30 XP' },
+                    { action: 'Referral', xp: '+200 XP' },
+                    { action: 'Gen image', xp: '+40 XP' },
+                    { action: '7-day streak', xp: '+500 XP' },
+                  ].map((item) => (
+                    <div key={item.action} className="flex justify-between text-xs">
+                      <span className="text-gray-500">{item.action}</span>
+                      <span className="text-red-400 font-mono">{item.xp}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </>
           )}
         </motion.div>
 
-        {/* Check status link */}
+        {/* Check status */}
         <div className="text-center mt-8">
           <a
             href="https://t.me/theredacted_bot"
             target="_blank"
             rel="noopener"
-            className="text-xs text-rd-muted/40 hover:text-rd-red/70 transition-colors tracking-widest"
+            className="text-sm text-gray-500 hover:text-red-400 transition-colors"
           >
-            CHECK STATUS ON TELEGRAM &#x2192;
+            Check status on Telegram →
           </a>
         </div>
       </div>

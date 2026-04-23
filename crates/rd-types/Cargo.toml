@@ -16,4 +16,5 @@ regex = "1.11"
 reqwest.workspace = true
 tokio.workspace = true
 url.workspace = true
+tracing.workspace = true
 quick-xml = "0.31"

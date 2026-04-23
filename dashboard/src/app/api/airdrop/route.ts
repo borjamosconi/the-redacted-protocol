@@ -1,133 +1,130 @@
-// POST /api/airdrop/register — Register wallet for airdrop
-// GET /api/airdrop/check?telegramId=<id> — Check airdrop status
-
 export const dynamic = 'force-dynamic';
 
-// In-memory store (replace with database in production)
-interface AirdropRegistration {
-  telegramId: string;
-  walletAddress: string;
-  amount: number;
-  claimed: boolean;
-  registeredAt: string;
-  bonuses: BonusRecord[];
-}
+import * as db from '@/lib/db';
+import * as antifraud from '@/lib/antifraud';
 
-interface BonusRecord {
-  type: string;
-  amount: number;
-  timestamp: string;
-}
-
-// Simple file-based persistence using in-memory fallback
-const registrations = new Map<string, AirdropRegistration>();
+const TELEGRAM_USER_AMOUNT = 500_000_000_000;
+const WALLET_CONNECT_BONUS = 200_000_000_000;
+const MAX_PER_USER_CAP = 50_000_000_000_000;
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { telegramId, walletAddress } = body;
+    const { telegramId, walletAddress, deviceFingerprint, referredBy } = body;
 
     if (!telegramId || !walletAddress) {
-      return Response.json(
-        { error: 'TELEGRAM_ID and WALLET_ADDRESS required' },
-        { status: 400 }
-      );
+      return Response.json({ error: 'TELEGRAM_ID and WALLET_ADDRESS required' }, { status: 400 });
     }
-
-    // Validate wallet address format (Solana base58, ~32-44 chars)
     if (walletAddress.length < 32 || walletAddress.length > 44) {
-      return Response.json(
-        { error: 'INVALID_SOLANA_ADDRESS' },
-        { status: 400 }
-      );
+      return Response.json({ error: 'INVALID_SOLANA_ADDRESS' }, { status: 400 });
     }
 
-    // Check if already registered
-    if (registrations.has(telegramId)) {
-      const existing = registrations.get(telegramId)!;
+    const ipHash = request.headers.get('x-forwarded-for') || 'unknown';
+    const users = await db.getAllUsersList();
+    const fraudCheck = antifraud.checkWalletRegistration({
+      walletAddress, existingUsers: users, ipHash,
+      deviceFingerprint: deviceFingerprint || 'unknown',
+    });
+    if (fraudCheck.flagged) {
+      return Response.json({ error: 'FRAUD_DETECTED', reasons: fraudCheck.flags }, { status: 403 });
+    }
+
+    const existingByWallet = await db.getUser(walletAddress);
+    if (existingByWallet) {
       return Response.json({
         status: 'already_registered',
-        telegramId,
-        walletAddress: existing.walletAddress,
-        amount: existing.amount,
-        registeredAt: existing.registeredAt,
+        walletAddress: existingByWallet.walletAddress.slice(0, 8) + '...' + existingByWallet.walletAddress.slice(-6),
+        amount: existingByWallet.airdropAmount,
+        amountFormatted: `${(existingByWallet.airdropAmount / 1_000_000_000).toLocaleString()} RDX`,
+        message: 'Wallet already registered',
       });
     }
 
-    // Register with 1000 RDX base allocation
-    const registration: AirdropRegistration = {
-      telegramId,
-      walletAddress,
-      amount: 1_000_000_000_000, // 1000 RDX (with 9 decimals)
-      claimed: false,
-      registeredAt: new Date().toISOString(),
-      bonuses: [],
+    const existingByTelegram = await db.getUserByTelegram(telegramId);
+    if (existingByTelegram) {
+      return Response.json({
+        status: 'already_registered',
+        telegramId,
+        walletAddress: existingByTelegram.walletAddress.slice(0, 8) + '...' + existingByTelegram.walletAddress.slice(-6),
+        amount: existingByTelegram.airdropAmount,
+        amountFormatted: `${(existingByTelegram.airdropAmount / 1_000_000_000).toLocaleString()} RDX`,
+        message: 'Telegram account already registered',
+      });
+    }
+
+    const baseAmount = TELEGRAM_USER_AMOUNT + WALLET_CONNECT_BONUS;
+    const cappedAmount = Math.min(baseAmount, MAX_PER_USER_CAP);
+    const now = new Date();
+
+    const profile: db.UserProfile = {
+      walletAddress, telegramId, xp: 100, level: 'CLASSIFIED', streak: 0,
+      lastCheckin: null, referrals: [], referredBy: referredBy || null, totalActions: 1,
+      badges: ['early_adopter'], registeredAt: now.toISOString(),
+      airdropAmount: cappedAmount, ipHash, deviceFingerprint: deviceFingerprint || 'unknown',
+      flagged: false, actions: { airdrop_register: 1 }, questsCompleted: [],
+      weeklyActions: { airdrop_register: 1 },
+      weeklyResetAt: now.getTime() + 7 * 24 * 60 * 60 * 1000,
     };
 
-    registrations.set(telegramId, registration);
+    // Handle referral bonus
+    if (profile.referredBy) {
+      const referrer = await db.getUser(profile.referredBy);
+      if (referrer && !referrer.flagged) {
+        referrer.referrals.push(walletAddress);
+        referrer.xp += 200;
+        referrer.level = 'CLASSIFIED'; // Will be recalculated on display
+        referrer.airdropAmount = Math.min(referrer.airdropAmount + 100_000_000_000, 50_000_000_000_000);
+        await db.saveUser(referrer);
+        profile.xp += 200; // Referred user also gets bonus
+      }
+    }
+
+    await db.saveUser(profile);
 
     return Response.json({
-      status: 'registered',
-      telegramId,
-      walletAddress,
-      amount: registration.amount,
-      amountFormatted: '1,000 RDX',
-      registeredAt: registration.registeredAt,
+      status: 'registered', telegramId,
+      walletAddress: profile.walletAddress.slice(0, 8) + '...' + profile.walletAddress.slice(-6),
+      amount: profile.airdropAmount,
+      amountFormatted: `${(profile.airdropAmount / 1_000_000_000).toLocaleString()} RDX`,
+      breakdown: {
+        base: `${(TELEGRAM_USER_AMOUNT / 1_000_000_000).toLocaleString()} RDX`,
+        walletBonus: `${(WALLET_CONNECT_BONUS / 1_000_000_000).toLocaleString()} RDX`,
+        total: `${(cappedAmount / 1_000_000_000).toLocaleString()} RDX`,
+      },
+      xp: profile.xp, level: profile.level, registeredAt: profile.registeredAt,
       message: 'ACCESS GRANTED — Wallet registered for $RDX airdrop',
     }, { status: 201 });
   } catch (err: any) {
-    return Response.json(
-      { error: `Registration failed: ${err.message || 'Unknown error'}` },
-      { status: 500 }
-    );
+    return Response.json({ error: `Registration failed: ${err.message || 'Unknown error'}` }, { status: 500 });
   }
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const wallet = searchParams.get('wallet');
   const telegramId = searchParams.get('telegramId');
 
-  if (!telegramId) {
-    // Return aggregate stats
-    const totalRegistered = registrations.size;
-    const totalAllocated = Array.from(registrations.values())
-      .reduce((sum, r) => sum + r.amount, 0);
-
+  if (!wallet && !telegramId) {
+    const allUsers = await db.getAllUsersList();
+    const totalAllocated = allUsers.reduce((sum, u) => sum + u.airdropAmount, 0);
     return Response.json({
       stats: {
-        totalRegistered,
+        totalRegistered: allUsers.length,
         totalAllocated,
-        totalAllocatedFormatted: `${(totalAllocated / 1_000_000_000_000).toLocaleString()} RDX`,
+        totalAllocatedFormatted: `${(totalAllocated / 1_000_000_000).toLocaleString()} RDX`,
       },
     });
   }
 
-  const registration = registrations.get(telegramId);
-
-  if (!registration) {
-    return Response.json({
-      status: 'not_found',
-      telegramId,
-      message: 'No registration found for this Telegram ID',
-    });
-  }
-
-  const amountRdx = registration.amount / 1_000_000_000_000;
+  const user = wallet ? await db.getUser(wallet) : telegramId ? await db.getUserByTelegram(telegramId) : null;
+  if (!user) return Response.json({ status: 'not_found', message: 'No registration found' });
 
   return Response.json({
-    status: 'registered',
-    telegramId: registration.telegramId,
-    walletAddress: maskWallet(registration.walletAddress),
-    walletAddressFull: registration.walletAddress,
-    amount: registration.amount,
-    amountFormatted: `${amountRdx.toLocaleString()} RDX`,
-    claimed: registration.claimed,
-    registeredAt: registration.registeredAt,
-    bonuses: registration.bonuses,
+    status: 'registered', telegramId: user.telegramId,
+    walletAddress: user.walletAddress.slice(0, 8) + '...' + user.walletAddress.slice(-6),
+    amount: user.airdropAmount,
+    amountFormatted: `${(user.airdropAmount / 1_000_000_000).toLocaleString()} RDX`,
+    xp: user.xp, level: user.level, streak: user.streak,
+    badges: user.badges, registeredAt: user.registeredAt, referrals: user.referrals.length,
   });
-}
-
-function maskWallet(wallet: string): string {
-  if (wallet.length < 16) return wallet;
-  return `${wallet.slice(0, 8)}...${wallet.slice(-6)}`;
 }

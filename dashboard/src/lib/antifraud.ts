@@ -1,16 +1,21 @@
-// Anti-fraud: IP detection + device fingerprinting
+// Anti-fraud: IP detection + device fingerprinting + Redis rate limiting
 
-// ── Fraud thresholds ──
+import { Redis } from '@upstash/redis'
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_URL || '',
+  token: process.env.UPSTASH_REDIS_TOKEN || '',
+})
+
 export const FRAUD_THRESHOLDS = {
   MAX_WALLETS_PER_IP: 2,
   MAX_WALLETS_PER_DEVICE: 1,
-  RATE_LIMIT_WINDOW_MS: 60_000, // 1 minute
+  RATE_LIMIT_WINDOW_MS: 60_000,
   RATE_LIMIT_MAX_REQUESTS: 3,
   SUSPICIOUS_RISK_SCORE: 60,
   BLOCK_RISK_SCORE: 80,
 };
 
-// ── Server-side: Hash IP address ──
 export async function hashIP(ip: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(ip + 'rdx_salt_2026_anonymous');
@@ -19,81 +24,49 @@ export async function hashIP(ip: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
 }
 
-// ── Server-side: Extract IP from request ──
 export function getClientIP(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    // x-forwarded-for can be comma-separated list, take first
-    return forwarded.split(',')[0].trim();
-  }
+  if (forwarded) return forwarded.split(',')[0].trim();
   const realIP = request.headers.get('x-real-ip');
   if (realIP) return realIP.trim();
-  // Fallback (for local dev)
   return '127.0.0.1';
 }
 
-// ── Client-side: Simple device fingerprint ──
 export function getDeviceFingerprint(): string {
   const parts: string[] = [];
-
-  // User agent
   parts.push(navigator.userAgent);
-
-  // Screen resolution
   parts.push(`${screen.width}x${screen.height}x${screen.colorDepth}`);
-
-  // Timezone
   parts.push(String(new Date().getTimezoneOffset()));
-
-  // Language
   parts.push(navigator.language);
-
-  // Platform
   parts.push(navigator.platform);
 
-  // Canvas fingerprint (simple)
   try {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      canvas.width = 200;
-      canvas.height = 50;
+      canvas.width = 200; canvas.height = 50;
       ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = '#f60';
-      ctx.fillRect(10, 5, 80, 40);
-      ctx.fillStyle = '#069';
-      ctx.font = '16px Arial';
-      ctx.fillText('RDX Protocol 🔒', 10, 30);
-      ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
-      ctx.font = '12px Times';
-      ctx.fillText('Anti-Fraud Check', 80, 40);
+      ctx.fillStyle = '#f60'; ctx.fillRect(10, 5, 80, 40);
+      ctx.fillStyle = '#069'; ctx.font = '16px Arial';
+      ctx.fillText('RDX Protocol', 10, 30);
       parts.push(canvas.toDataURL());
     }
-  } catch {
-    // Canvas blocked or not available
-  }
+  } catch { /* Canvas blocked */ }
 
-  // Installed plugins count
   parts.push(String(navigator.plugins?.length || 0));
-
-  // Hardware concurrency
   parts.push(String(navigator.hardwareConcurrency || 0));
-
-  // Device memory
   parts.push(String((navigator as any).deviceMemory || 0));
 
-  // Simple hash of the combined string
   let hash = 0;
   const str = parts.join('|');
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash;
   }
   return Math.abs(hash).toString(36) + '_' + btoa(str).substring(0, 12);
 }
 
-// ── Server-side: Fraud risk assessment ──
 export interface FraudAssessment {
   riskScore: number;
   flags: string[];
@@ -109,68 +82,78 @@ export async function assessFraudRisk(params: {
   let riskScore = 0;
   const flags: string[] = [];
 
-  // Check IP collision
   const sameIP = params.existingUsers.filter(u => u.ipHash === params.ipHash);
   if (sameIP.length >= 2) {
     riskScore += 40;
     flags.push(`Multiple wallets on same IP (${sameIP.length})`);
   }
 
-  // Check device collision
   const sameDevice = params.existingUsers.filter(u => u.deviceFingerprint === params.deviceFingerprint);
   if (sameDevice.length >= 1) {
     riskScore += 50;
     flags.push('Same device fingerprint detected');
   }
 
-  // Check if wallet already registered
   const sameWallet = params.existingUsers.find(u => u.walletAddress === params.walletAddress);
   if (sameWallet) {
     riskScore += 80;
     flags.push('Wallet already registered');
   }
 
-  // Check if any existing user is flagged
   const flaggedUser = params.existingUsers.find(u => u.flagged);
   if (flaggedUser && (flaggedUser.ipHash === params.ipHash || flaggedUser.deviceFingerprint === params.deviceFingerprint)) {
     riskScore += 30;
     flags.push('Associated with flagged account');
   }
 
-  return {
-    riskScore: Math.min(riskScore, 100),
-    flags,
-    blocked: riskScore >= 80,
-  };
+  return { riskScore: Math.min(riskScore, 100), flags, blocked: riskScore >= 80 };
 }
 
-// ── Rate limiting (in-memory, replace with Redis in production) ──
-const rateLimitStore = new Map<string, { count: number; firstRequest: number }>();
-
-export function checkRateLimit(ipHash: string, windowMs: number = 60_000, maxRequests: number = 3): { allowed: boolean; retryAfter?: number } {
+// ── Redis-based rate limiting (works in serverless) ──
+export async function checkRateLimit(ipHash: string, windowMs: number = 60_000, maxRequests: number = 3): Promise<{ allowed: boolean; retryAfter?: number }> {
   const now = Date.now();
-  const entry = rateLimitStore.get(ipHash);
+  const key = `rl:${ipHash}`
 
-  if (!entry || (now - entry.firstRequest) > windowMs) {
-    rateLimitStore.set(ipHash, { count: 1, firstRequest: now });
-    return { allowed: true };
+  const current = await redis.get<{ count: number; firstRequest: number }>(key)
+
+  if (!current || (now - current.firstRequest) > windowMs) {
+    await redis.set(key, { count: 1, firstRequest: now }, { ex: Math.ceil(windowMs / 1000) + 10 })
+    return { allowed: true }
   }
 
-  if (entry.count >= maxRequests) {
-    const retryAfter = Math.ceil((entry.firstRequest + windowMs - now) / 1000);
-    return { allowed: false, retryAfter };
+  if (current.count >= maxRequests) {
+    const retryAfter = Math.ceil(((current.firstRequest + windowMs) - now) / 1000)
+    return { allowed: false, retryAfter }
   }
 
-  entry.count++;
-  return { allowed: true };
+  current.count += 1
+  await redis.set(key, current, { ex: Math.ceil(windowMs / 1000) + 10 })
+  return { allowed: true }
 }
 
-// Cleanup old entries every minute
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of rateLimitStore.entries()) {
-    if (now - value.firstRequest > 120_000) {
-      rateLimitStore.delete(key);
-    }
+export function checkWalletRegistration(params: {
+  walletAddress: string;
+  existingUsers: Array<{ ipHash: string; deviceFingerprint: string; walletAddress: string; flagged?: boolean }>;
+  ipHash: string;
+  deviceFingerprint: string;
+}): { flagged: boolean; flags: string[] } {
+  const flags: string[] = [];
+  const { walletAddress, existingUsers, ipHash, deviceFingerprint } = params;
+
+  const sameWallet = existingUsers.find(u => u.walletAddress === walletAddress);
+  if (sameWallet) flags.push('Wallet already registered');
+
+  const sameIP = existingUsers.filter(u => u.ipHash === ipHash);
+  const uniqueWalletsOnIP = new Set(sameIP.map(u => u.walletAddress)).size;
+  if (uniqueWalletsOnIP >= FRAUD_THRESHOLDS.MAX_WALLETS_PER_IP) {
+    flags.push(`Multiple wallets on same IP (${uniqueWalletsOnIP})`);
   }
-}, 60_000);
+
+  const sameDevice = existingUsers.filter(u => u.deviceFingerprint === deviceFingerprint);
+  const uniqueWalletsOnDevice = new Set(sameDevice.map(u => u.walletAddress)).size;
+  if (uniqueWalletsOnDevice >= FRAUD_THRESHOLDS.MAX_WALLETS_PER_DEVICE) {
+    flags.push(`Multiple wallets on same device (${uniqueWalletsOnDevice})`);
+  }
+
+  return { flagged: flags.length > 0, flags };
+}

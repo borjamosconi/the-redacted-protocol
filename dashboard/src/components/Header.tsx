@@ -1,152 +1,273 @@
 'use client'
 
 import { useWallet } from '@solana/wallet-adapter-react'
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { useState, useEffect } from 'react'
+import { useWalletReady } from './Providers'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+const NAV_LINKS = [
+  { href: '#colosseum', label: 'Colosseum' },
+  { href: '#airdrop', label: 'Airdrop' },
+  { href: '#gamification', label: 'Gamification' },
+  { href: '#ocr', label: 'OCR' },
+  { href: '#images', label: 'Images' },
+  { href: '#news', label: 'News' },
+  { href: '#token', label: 'Token' },
+]
 
 export function Header() {
+  const walletReady = useWalletReady()
   const { connected, publicKey } = useWallet()
+  const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [activeSection, setActiveSection] = useState('')
+  const [scrollProgress, setScrollProgress] = useState(0)
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', handler)
-    return () => window.removeEventListener('scroll', handler)
+    const handler = () => {
+      setScrolled(window.scrollY > 20)
+      const scrollTop = window.scrollY
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight
+      setScrollProgress(docHeight > 0 ? (scrollTop / docHeight) * 100 : 0)
+    }
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false)
+    }
+    window.addEventListener('scroll', handler, { passive: true })
+    window.addEventListener('keydown', keyHandler)
+    handler()
+    return () => {
+      window.removeEventListener('scroll', handler)
+      window.removeEventListener('keydown', keyHandler)
+    }
   }, [])
 
+  useEffect(() => {
+    if (pathname === '/dashboard') return;
+    const sections = NAV_LINKS.map(link => link.href.replace('#', ''))
+      .map(id => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[]
+
+    if (sections.length === 0) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(`#${entry.target.id}`)
+          }
+        })
+      },
+      { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
+    )
+
+    sections.forEach(section => observer.observe(section))
+    return () => observer.disconnect()
+  }, [pathname])
+
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-      scrolled
-        ? 'bg-rd-black/95 backdrop-blur-xl border-b border-rd-red/10 shadow-[0_0_30px_rgba(255,26,26,0.05)]'
-        : 'bg-transparent'
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="relative">
-            <img src="/icon.svg" alt="Redacted Protocol" className="w-8 h-8 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_#ff1a1a]" />
-            <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-rd-red rounded-full animate-pulse shadow-[0_0_6px_#ff1a1a]" />
-          </div>
-          <div>
-            <div className="text-sm font-bold tracking-[0.2em] text-rd-text group-hover:text-rd-red transition-all duration-300 group-hover:text-glow">
-              REDACTED
-            </div>
-            <div className="text-[10px] text-rd-muted tracking-[0.3em] -mt-0.5">
-              PROTOCOL
-            </div>
-          </div>
-        </Link>
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${
+        scrolled
+          ? 'bg-black/70 backdrop-blur-3xl border-b border-red-500/10 shadow-[0_0_80px_rgba(255,26,26,0.05)]'
+          : 'bg-gradient-to-b from-black/80 to-transparent'
+      }`}
+    >
+      {/* Scroll progress bar */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[2px] pointer-events-none z-[60]"
+        style={{
+          background: `linear-gradient(90deg, #ff1a1a ${scrollProgress}%, rgba(255,26,26,0) ${scrollProgress}%)`,
+          boxShadow: scrollProgress > 0 ? '0 0 15px rgba(255, 26, 26, 0.8)' : 'none',
+        }}
+      />
 
-        {/* Desktop Nav */}
-        <nav className="hidden lg:flex items-center gap-6">
-          {[
-            { href: '#colosseum', label: 'COLOSSEUM' },
-            { href: '#airdrop', label: 'AIRDROP' },
-            { href: '#gamification', label: '🎮 GAMIFICATION' },
-            { href: '#ocr', label: 'OCR' },
-            { href: '#images', label: 'IMAGES' },
-            { href: '#gallery', label: 'GALLERY' },
-            { href: '#news', label: 'NEWS' },
-            { href: '#token', label: 'TOKEN' },
-          ].map(link => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-[10px] text-rd-muted hover:text-rd-red tracking-[0.2em] transition-all duration-300 hover:text-glow"
-            >
-              {link.label}
-            </a>
-          ))}
-          <a
-            href="https://t.me/theredacted_bot"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] text-rd-muted hover:text-rd-red tracking-[0.2em] transition-all duration-300 hover:text-glow"
-          >
-            BOT
-          </a>
-        </nav>
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-20">
 
-        {/* Right side */}
-        <div className="flex items-center gap-3">
-          {/* GitHub link - always visible */}
-          <a
-            href="https://github.com/whalesconspiracy-33/the-redacted-protocol"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden md:flex items-center gap-1.5 text-[10px] text-rd-muted hover:text-rd-red tracking-[0.2em] transition-all duration-300"
-          >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            CODE
-          </a>
-
-          {/* Wallet status */}
-          {connected && (
-            <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-rd-muted">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_4px_#22c55e]" />
-              {publicKey?.toString().slice(0, 4)}...{publicKey?.toString().slice(-4)}
+          {/* Logo - More Futuristic */}
+          <Link href="/" className="flex items-center gap-4 group flex-shrink-0 relative">
+            <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full scale-0 group-hover:scale-150 transition-transform duration-700" />
+            <div className="relative flex-shrink-0">
+              <div className="absolute -inset-2 bg-gradient-to-r from-red-500/0 via-red-500/20 to-red-500/0 rounded-full animate-spin-slow opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <img
+                src="/logo.svg"
+                alt="Redacted Protocol"
+                className="w-12 h-12 relative z-10 transition-all duration-500 group-hover:drop-shadow-[0_0_15px_#ff1a1a] group-hover:scale-110 object-contain"
+              />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_#ff1a1a] z-20 border-2 border-black" />
             </div>
+            <div className="hidden sm:flex flex-col justify-center relative z-10">
+              <div className="text-lg font-black tracking-[0.2em] text-white group-hover:text-red-400 transition-colors duration-300 leading-none" style={{ textShadow: '0 0 20px rgba(255,26,26,0.5)' }}>
+                REDACTED
+              </div>
+              <div className="text-[10px] text-red-500/80 tracking-[0.4em] mt-1.5 font-mono uppercase font-bold flex items-center gap-2">
+                <span className="w-2 h-[1px] bg-red-500/80 inline-block" />
+                PROTOCOL
+                <span className="w-12 h-[1px] bg-gradient-to-r from-red-500/80 to-transparent inline-block" />
+              </div>
+            </div>
+          </Link>
+
+          {/* Desktop Nav - Glassmorphism & Neon */}
+          {pathname !== '/dashboard' && (
+            <nav className="hidden xl:flex items-center gap-1 px-4 py-2 rounded-full border border-white/5 bg-white/[0.02] backdrop-blur-md shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
+              {NAV_LINKS.map(link => {
+                const isActive = activeSection === link.href
+                return (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className={`px-5 py-2 text-xs font-mono uppercase tracking-widest rounded-full transition-all duration-500 relative group overflow-hidden ${
+                      isActive
+                        ? 'text-white bg-red-500/10'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <span className="relative z-10">{link.label}</span>
+                    {isActive && (
+                      <>
+                        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[2px] bg-red-500 shadow-[0_0_12px_#ff1a1a] rounded-t-full" />
+                        <span className="absolute inset-0 bg-gradient-to-t from-red-500/20 to-transparent opacity-50" />
+                      </>
+                    )}
+                  </a>
+                )
+              })}
+            </nav>
           )}
 
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-rd-muted hover:text-rd-red transition-colors"
-            aria-label="Toggle menu"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {/* Right side - Controls */}
+          <div className="flex items-center gap-4">
+            {/* Dashboard link when connected */}
+            {walletReady && connected && (
+              <Link
+                href="/dashboard"
+                className={`hidden md:flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-mono uppercase tracking-wider transition-all duration-300 border ${
+                  pathname === '/dashboard'
+                    ? 'border-red-500/50 bg-red-500/10 text-white shadow-[0_0_20px_rgba(255,26,26,0.2)]'
+                    : 'border-white/10 bg-white/5 text-gray-300 hover:border-red-500/30 hover:text-white hover:bg-red-500/5'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${pathname === '/dashboard' ? 'bg-red-500 animate-pulse shadow-[0_0_8px_#ff1a1a]' : 'bg-gray-500'}`} />
+                Dashboard
+              </Link>
+            )}
+
+            {/* Wallet */}
+            {walletReady && (
+              <div className="hidden md:block">
+                <WalletMultiButton
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255,26,26,0.1) 0%, rgba(255,26,26,0.02) 100%)',
+                    border: '1px solid rgba(255, 26, 26, 0.3)',
+                    color: '#ff1a1a',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.75rem',
+                    letterSpacing: '0.15em',
+                    height: '40px',
+                    padding: '0 1.5rem',
+                    borderRadius: '9999px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    textTransform: 'uppercase',
+                    boxShadow: '0 0 20px rgba(255,26,26,0.1), inset 0 0 10px rgba(255,26,26,0.05)',
+                  }}
+                  className="hover:shadow-[0_0_30px_rgba(255,26,26,0.3)] hover:border-red-500 hover:bg-red-500/10"
+                />
+              </div>
+            )}
+
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="xl:hidden p-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 hover:border-red-500/50 transition-all duration-300 relative group"
+              aria-label="Toggle menu"
+            >
+              <div className="absolute inset-0 bg-red-500/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
               {mobileMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg className="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <svg className="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h7" />
+                </svg>
               )}
-            </svg>
-          </button>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu - Futuristic overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-rd-black/95 backdrop-blur-xl border-t border-rd-border">
-          <nav className="px-4 py-4 space-y-3">
-            {[
-              { href: '#colosseum', label: 'COLOSSEUM' },
-              { href: '#airdrop', label: 'AIRDROP' },
-              { href: '#gamification', label: '🎮 GAMIFICATION' },
-              { href: '#ocr', label: 'OCR' },
-              { href: '#images', label: 'IMAGES' },
-              { href: '#gallery', label: 'GALLERY' },
-              { href: '#news', label: 'NEWS INTEL' },
-              { href: '#fragments', label: 'FRAGMENTS' },
-              { href: '#tokenomics', label: 'TOKENOMICS' },
-            ].map(link => (
+        <div className="xl:hidden absolute top-full left-0 right-0 bg-black/95 backdrop-blur-3xl border-t border-red-500/20 shadow-[0_20px_40px_rgba(0,0,0,0.8)] overflow-hidden">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,26,26,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,26,26,0.03)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+          <nav className="max-w-6xl mx-auto px-6 py-8 flex flex-col gap-2 relative z-10">
+            {pathname !== '/dashboard' && NAV_LINKS.map((link, i) => {
+              const isActive = activeSection === link.href
+              return (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block py-4 px-6 text-sm font-mono uppercase tracking-[0.2em] rounded-xl transition-all duration-300 border ${
+                    isActive
+                      ? 'text-red-400 bg-red-500/10 border-red-500/30 shadow-[0_0_20px_rgba(255,26,26,0.1)]'
+                      : 'text-gray-400 border-transparent hover:text-white hover:bg-white/5 hover:border-white/10 hover:translate-x-2'
+                  }`}
+                  style={{ animationDelay: `${i * 50}ms`, animation: 'fadeInRight 0.3s ease forwards' }}
+                >
+                  <div className="flex items-center gap-4">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-red-500 shadow-[0_0_10px_#ff1a1a]' : 'bg-gray-600'}`} />
+                    {link.label}
+                  </div>
+                </a>
+              )
+            })}
+            
+            <div className="mt-6 pt-6 border-t border-red-500/20 flex flex-col gap-4">
+              {walletReady && (
+                <div className="md:hidden flex justify-center mb-4">
+                  <WalletMultiButton
+                    style={{
+                      background: 'rgba(255,26,26,0.1)',
+                      border: '1px solid rgba(255, 26, 26, 0.3)',
+                      color: '#ff1a1a',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.8rem',
+                      letterSpacing: '0.15em',
+                      height: '44px',
+                      width: '100%',
+                      justifyContent: 'center',
+                      borderRadius: '12px',
+                      textTransform: 'uppercase',
+                    }}
+                  />
+                </div>
+              )}
               <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-[10px] text-rd-muted hover:text-rd-red tracking-[0.3em] transition-colors py-2"
+                href="https://t.me/theredacted_bot"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-3 py-4 px-6 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 rounded-xl transition-all font-mono text-sm uppercase tracking-widest"
               >
-                {link.label}
-              </a>
-            ))}
-            <div className="pt-3 border-t border-rd-border space-y-3">
-              <a href="https://github.com/whalesconspiracy-33/the-redacted-protocol" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[10px] text-rd-muted hover:text-rd-red tracking-[0.3em] transition-colors">
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-                GITHUB REPO
-              </a>
-              <a href="https://t.me/theredacted_bot" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[10px] text-rd-muted hover:text-rd-red tracking-[0.3em] transition-colors">
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                TELEGRAM BOT
-              </a>
-              <a href="https://x.com/theprotocol_sol" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[10px] text-rd-muted hover:text-rd-red tracking-[0.3em] transition-colors">
-                <span className="text-xs font-bold">&#x1D54F;</span>
-                X / TWITTER
+                Launch Protocol Bot
               </a>
             </div>
           </nav>
         </div>
       )}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fadeInRight {
+          from { opacity: 0; transform: translateX(-20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .animate-spin-slow { animation: spin 8s linear infinite; }
+      `}} />
     </header>
   )
 }

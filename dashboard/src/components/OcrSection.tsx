@@ -2,8 +2,10 @@
 
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useWallet } from '@solana/wallet-adapter-react'
 
 export function OcrSection() {
+  const { publicKey } = useWallet()
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState<{
     text: string
@@ -61,6 +63,18 @@ export function OcrSection() {
         redactionCount,
         redactions: redactionCount > 0,
       })
+
+      // Award XP for OCR scan
+      if (publicKey) {
+        fetch('/api/gamify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: publicKey.toString(),
+            action: 'ocr_scan',
+          }),
+        }).catch(() => {}) // Silently fail — don't break UX
+      }
     } catch (err: any) {
       setError(err.message || 'OCR processing failed')
     } finally {
@@ -135,7 +149,8 @@ export function OcrSection() {
               type="file"
               accept="image/*,.pdf"
               onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-              className="hidden"
+              style={{ display: 'none' }}
+              tabIndex={-1}
             />
           </div>
 

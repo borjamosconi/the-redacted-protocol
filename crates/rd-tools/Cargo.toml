@@ -6,8 +6,10 @@ license.workspace = true
 
 [dependencies]
 rd-types = { path = "../rd-types" }
+rd-muapi = { path = "../rd-muapi" }
 rd-providers = { path = "../rd-providers" }
 rd-config = { path = "../rd-config" }
+rd-arweave = { path = "../rd-arweave" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -18,3 +20,8 @@ async-trait.workspace = true
 reqwest.workspace = true
 chrono.workspace = true
 regex = "1.11"
+urlencoding = "2.1"
+sha2 = { workspace = true }
+hex = { workspace = true }
+bs58 = "0.5"
+base64 = "0.22"

@@ -118,18 +118,22 @@ export function TokenomicsSection() {
 
           <div className="space-y-3">
             {[
-              { name: 'RDX Token', address: 'REPLACEME_TOKEN_MINT_ADDRESS' },
-              { name: 'Fragment Program (rd-fragment)', address: 'RDfrag11111111111111111111111111111111111111' },
-              { name: 'Archive Program (rd-archive)', address: 'RDarkc111111111111111111111111111111111111111' },
-              { name: 'Staking Program (rd-staking)', address: 'RDstk111111111111111111111111111111111111111' },
-              { name: 'Rewards Program (rd-rewards)', address: 'RDrew111111111111111111111111111111111111111' },
-              { name: 'Treasury Program (rd-treasury)', address: 'RDtr11111111111111111111111111111111111111' },
+              { name: 'RDX Token', address: 'COMING SOON', deployed: false },
+              { name: 'Fragment Program', address: 'COMING SOON', deployed: false },
+              { name: 'Archive Program', address: 'COMING SOON', deployed: false },
+              { name: 'Staking Program', address: 'COMING SOON', deployed: false },
+              { name: 'Rewards Program', address: 'COMING SOON', deployed: false },
+              { name: 'Treasury Program', address: 'COMING SOON', deployed: false },
             ].map((prog, i) => (
               <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border border-rd-border gap-2">
                 <span className="text-sm text-rd-text font-bold">{prog.name}</span>
-                <code className="text-xs text-rd-red/70 bg-rd-red/5 px-2 py-1 break-all text-center sm:text-right">
-                  {prog.address}
-                </code>
+                {prog.deployed ? (
+                  <code className="text-xs text-rd-red/70 bg-rd-red/5 px-2 py-1 break-all text-center sm:text-right">
+                    {prog.address}
+                  </code>
+                ) : (
+                  <span className="text-xs text-rd-muted/30 tracking-widest">{prog.address}</span>
+                )}
               </div>
             ))}
           </div>

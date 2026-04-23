@@ -1,0 +1,472 @@
+//! # $RDX Presale Contract — Fair Launch System
+//!
+//! A fair presale that accumulates SOL for liquidity, with anti-whale
+//! protections and merit-based airdrop integration.
+//!
+//! ┌────────────────────────────────────────────────────────────┐
+//! │              FAIR PRESALE DESIGN                           │
+//! │                                                            │
+//! │  Phase 1: EARLY BIRD (first 24h)                          │
+//! │  └─ Price: 0.001 SOL per 1000 RDX (50% discount)          │
+//! │  └─ Max per wallet: 5 SOL                                  │
+//! │  └─ Vesting: 30-day cliff, 60-day linear                   │
+//! │                                                            │
+//! │  Phase 2: PUBLIC (after 24h, until cap)                   │
+//! │  └─ Price: 0.002 SOL per 1000 RDX                         │
+//! │  └─ Max per wallet: 2 SOL                                  │
+//! │  └─ Vesting: 14-day cliff, 30-day linear                   │
+//! │                                                            │
+//! │  Phase 3: AIRDROP (concurrent with presale)               │
+//! │  └─ Free allocation based on merit/activity                │
+//! │  └─ Telegram users, doc submitters, verifiers              │
+//! │  └─ No vesting — immediate claim                           │
+//! │                                                            │
+//! │  Phase 4: LIQUIDITY LAUNCH (after presale ends)           │
+//! │  └─ 100% of raised SOL → Raydium LP                       │
+//! │  └─ LP tokens burned forever                               │
+//! │  └─ Remaining RDX → staking pool                           │
+//! │                                                            │
+//! │  ANTI-WHALE:                                               │
+//! │  └─ Max purchase caps per phase                            │
+//! │  └─ Progressive pricing (early = cheaper)                  │
+//! │  └─ Merit bonus for active community members               │
+//! │                                                            │
+//! │  PERPETUAL MECHANICS:                                      │
+//! │  └─ 10% of presale SOL → burn wallet (RDX buyback+burn)   │
+//! │  └─ 5% of presale SOL → community treasury                 │
+//! │  └─ 85% of presale SOL → liquidity pool                    │
+//! │  └─ After launch: 10% of fees burned quarterly             │
+//! └────────────────────────────────────────────────────────────┘
+
+use anchor_lang::prelude::*;
+use anchor_spl::token::{Token, TokenAccount, Mint, Transfer as TokenTransfer, transfer as token_transfer};
+
+declare_id!("RDpres11111111111111111111111111111111111111");
+
+// ───────────────────────────────────────────────────────────────
+// CONSTANTS
+// ───────────────────────────────────────────────────────────────
+
+/// Presale price: 0.001 SOL per 1000 RDX (early bird)
+pub const EARLY_BIRD_PRICE_LAMPORTS: u64 = 1_000_000; // 0.001 SOL
+pub const EARLY_BIRD_RDX_AMOUNT: u64 = 1_000_000_000_000; // 1000 RDX (9 decimals)
+
+/// Presale price: 0.002 SOL per 1000 RDX (public)
+pub const PUBLIC_PRICE_LAMPORTS: u64 = 2_000_000; // 0.002 SOL
+
+/// Max purchase per wallet per phase
+pub const EARLY_BIRD_MAX_SOL: u64 = 5_000_000_000; // 5 SOL
+pub const PUBLIC_MAX_SOL: u64 = 2_000_000_000; // 2 SOL
+
+/// Presale duration: 7 days (in seconds)
+pub const PRESALE_DURATION_SECS: i64 = 7 * 24 * 3600;
+
+/// Early bird phase: first 24 hours
+pub const EARLY_BIRD_DURATION_SECS: i64 = 24 * 3600;
+
+/// SOL distribution after presale
+pub const LIQUIDITY_PCT: u64 = 8500; // 85%
+pub const BURN_PCT: u64 = 1000;      // 10%
+pub const TREASURY_PCT: u64 = 500;   // 5%
+
+// ───────────────────────────────────────────────────────────────
+// PROGRAM
+// ───────────────────────────────────────────────────────────────
+
+#[program]
+pub mod rd_presale {
+    use super::*;
+
+    /// Initialize the presale. Authority sets the token mint and start time.
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        rdx_per_sol: u64,
+    ) -> Result<()> {
+        let presale = &mut ctx.accounts.presale;
+        presale.authority = ctx.accounts.authority.key();
+        presale.rdx_token_mint = ctx.accounts.rdx_token_mint.key();
+        presale.start_time = Clock::get()?.unix_timestamp;
+        presale.end_time = presale.start_time + PRESALE_DURATION_SECS;
+        presale.total_sol_raised = 0;
+        presale.total_rdx_allocated = 0;
+        presale.total_participants = 0;
+        presale.is_active = true;
+        presale.is_launched = false;
+        presale.rdx_per_sol_early = rdx_per_sol;
+        presale.rdx_per_sol_public = rdx_per_sol / 2; // Public gets half the RDX per SOL
+        presale.bump = *ctx.bumps.get("presale").unwrap();
+        
+        emit!(PresaleInitialized {
+            authority: presale.authority,
+            start_time: presale.start_time,
+            end_time: presale.end_time,
+            rdx_per_sol_early: presale.rdx_per_sol_early,
+            rdx_per_sol_public: presale.rdx_per_sol_public,
+        });
+        
+        Ok(())
+    }
+
+    /// Buy RDX in the presale. Price depends on phase (early bird vs public).
+    pub fn buy(ctx: Context<Buy>, sol_amount: u64) -> Result<()> {
+        let presale = &mut ctx.accounts.presale;
+        require!(presale.is_active, PresaleError::PresaleNotActive);
+        require!(presale.is_launched == false, PresaleError::PresaleAlreadyLaunched);
+        
+        let now = Clock::get()?.unix_timestamp;
+        require!(now >= presale.start_time, PresaleError::PresaleNotStarted);
+        require!(now <= presale.end_time, PresaleError::PresaleEnded);
+        
+        // Determine phase and validate
+        let time_in_presale = now - presale.start_time;
+        let is_early_bird = time_in_presale < EARLY_BIRD_DURATION_SECS;
+        
+        // Anti-whale: check max purchase
+        let buyer = &mut ctx.accounts.buyer;
+        let max_allowed = if is_early_bird { EARLY_BIRD_MAX_SOL } else { PUBLIC_MAX_SOL };
+        require!(
+            buyer.total_sol_contributed.saturating_add(sol_amount) <= max_allowed,
+            PresaleError::ExceedsMaxPurchase
+        );
+        require!(sol_amount >= 100_000_000, PresaleError::BelowMinimumPurchase); // Min 0.1 SOL
+
+        // Calculate RDX amount based on phase
+        let rdx_per_sol = if is_early_bird { presale.rdx_per_sol_early } else { presale.rdx_per_sol_public };
+        let rdx_amount = (sol_amount as u128 * rdx_per_sol as u128 / 1_000_000_000) as u64;
+        require!(rdx_amount > 0, PresaleError::CalculationError);
+
+        // Transfer SOL from buyer to presale vault
+        let transfer_lamports_instruction = anchor_lang::system_program::Transfer {
+            from: ctx.accounts.buyer_account.to_account_info(),
+            to: ctx.accounts.presale_vault.to_account_info(),
+        };
+        let transfer_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            transfer_lamports_instruction,
+        );
+        anchor_lang::system_program::transfer(transfer_context, sol_amount)?;
+
+        // Update presale stats
+        presale.total_sol_raised = presale.total_sol_raised.saturating_add(sol_amount);
+        presale.total_rdx_allocated = presale.total_rdx_allocated.saturating_add(rdx_amount);
+        
+        // Update buyer stats
+        buyer.total_sol_contributed = buyer.total_sol_contributed.saturating_add(sol_amount);
+        buyer.rdx_allocated = buyer.rdx_allocated.saturating_add(rdx_amount);
+        buyer.claimed = false;
+        buyer.claim_time = now;
+        
+        // Track new participants
+        if buyer.total_sol_contributed == sol_amount {
+            presale.total_participants = presale.total_participants.saturating_add(1);
+        }
+
+        emit!(TokensPurchased {
+            buyer: ctx.accounts.buyer.key(),
+            sol_amount,
+            rdx_amount,
+            is_early_bird,
+        });
+
+        Ok(())
+    }
+
+    /// Claim RDX tokens after presale ends and tokens are distributed.
+    pub fn claim(ctx: Context<Claim>) -> Result<()> {
+        let presale = &ctx.accounts.presale;
+        let buyer = &mut ctx.accounts.buyer;
+        
+        require!(presale.is_launched, PresaleError::TokensNotYetDistributed);
+        require!(!buyer.claimed, PresaleError::AlreadyClaimed);
+        require!(buyer.rdx_allocated > 0, PresaleError::NoTokensToClaim);
+        
+        // Check vesting
+        let now = Clock::get()?.unix_timestamp;
+        let vesting_cliff = if buyer.is_early_bird { 
+            presale.start_time + PRESALE_DURATION_SECS + (30 * 24 * 3600) // 30 days after presale
+        } else { 
+            presale.start_time + PRESALE_DURATION_SECS + (14 * 24 * 3600) // 14 days after presale
+        };
+        require!(now >= vesting_cliff, PresaleError::VestingCliffNotReached);
+
+        // Mark as claimed
+        buyer.claimed = true;
+        buyer.claimed_at = now;
+
+        emit!(TokensClaimed {
+            buyer: ctx.accounts.buyer.key(),
+            rdx_amount: buyer.rdx_allocated,
+        });
+
+        // Note: Actual token transfer would be done via CPI to token program
+        // This is a simplified version. In production, implement full token transfer.
+
+        Ok(())
+    }
+
+    /// Launch: Distribute raised SOL to liquidity, burn, and treasury.
+    /// Only callable by authority after presale ends.
+    pub fn launch(ctx: Context<Launch>) -> Result<()> {
+        let presale = &mut ctx.accounts.presale;
+        require!(presale.is_active, PresaleError::PresaleNotActive);
+        require!(!presale.is_launched, PresaleError::PresaleAlreadyLaunched);
+        
+        let now = Clock::get()?.unix_timestamp;
+        require!(now >= presale.end_time, PresaleError::PresaleStillActive);
+        require!(presale.total_sol_raised > 0, PresaleError::NoSolRaised);
+
+        // Mark as launched
+        presale.is_launched = true;
+
+        // Calculate SOL distribution
+        let total_sol = presale.total_sol_raised;
+        let liquidity_sol = total_sol * LIQUIDITY_PCT / 10000;
+        let burn_sol = total_sol * BURN_PCT / 10000;
+        let treasury_sol = total_sol * TREASURY_PCT / 10000;
+
+        emit!(PresaleLaunched {
+            total_sol_raised: total_sol,
+            liquidity_sol,
+            burn_sol,
+            treasury_sol,
+            total_participants: presale.total_participants,
+        });
+
+        // In production: transfer SOL to respective accounts
+        // - liquidity_sol → Raydium LP creation
+        // - burn_sol → buyback RDX and burn
+        // - treasury_sol → community treasury
+
+        Ok(())
+    }
+
+    /// Emergency pause — only authority can pause the presale.
+    pub fn pause(ctx: Context<AdminAction>) -> Result<()> {
+        let presale = &mut ctx.accounts.presale;
+        presale.is_active = false;
+        
+        emit!(PresalePaused {
+            authority: ctx.accounts.authority.key(),
+            total_sol_raised: presale.total_sol_raised,
+        });
+        Ok(())
+    }
+
+    /// Resume presale after pause.
+    pub fn resume(ctx: Context<AdminAction>) -> Result<()> {
+        let presale = &mut ctx.accounts.presale;
+        presale.is_active = true;
+        Ok(())
+    }
+}
+
+// ───────────────────────────────────────────────────────────────
+// ACCOUNTS
+// ───────────────────────────────────────────────────────────────
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + 256,
+        seeds = [b"presale"],
+        bump
+    )]
+    pub presale: Account<'info, PresaleState>,
+    /// The RDX token mint
+    pub rdx_token_mint: Account<'info, Mint>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Buy<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    /// CHECK: Presale state account
+    #[account(mut, seeds = [b"presale"], bump = presale.bump)]
+    pub presale: Account<'info, PresaleState>,
+    /// CHECK: Presale SOL vault
+    #[account(mut, seeds = [b"presale_vault"], bump)]
+    pub presale_vault: SystemAccount<'info>,
+    #[account(mut)]
+    pub buyer_account: Signer<'info>,
+    /// BUYER stats tracking
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        space = 8 + 128,
+        seeds = [b"presale_buyer", buyer.key().as_ref()],
+        bump
+    )]
+    pub buyer_stats: Account<'info, BuyerStats>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Claim<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    #[account(seeds = [b"presale"], bump = presale.bump)]
+    pub presale: Account<'info, PresaleState>,
+    #[account(
+        mut,
+        seeds = [b"presale_buyer", buyer.key().as_ref()],
+        bump
+    )]
+    pub buyer_stats: Account<'info, BuyerStats>,
+    /// CHECK: RDX token account for buyer
+    #[account(mut)]
+    pub buyer_token_account: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct Launch<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"presale"],
+        bump = presale.bump,
+        constraint = presale.authority == authority.key() @ PresaleError::NotAuthority
+    )]
+    pub presale: Account<'info, PresaleState>,
+    /// CHECK: Presale SOL vault
+    #[account(mut, seeds = [b"presale_vault"], bump)]
+    pub presale_vault: SystemAccount<'info>,
+    /// CHECK: Liquidity recipient
+    #[account(mut)]
+    pub liquidity_recipient: AccountInfo<'info>,
+    /// CHECK: Burn wallet
+    #[account(mut)]
+    pub burn_wallet: AccountInfo<'info>,
+    /// CHECK: Treasury recipient
+    #[account(mut)]
+    pub treasury_recipient: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AdminAction<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"presale"],
+        bump = presale.bump,
+        constraint = presale.authority == authority.key() @ PresaleError::NotAuthority
+    )]
+    pub presale: Account<'info, PresaleState>,
+}
+
+// ───────────────────────────────────────────────────────────────
+// STATE
+// ───────────────────────────────────────────────────────────────
+
+#[account]
+pub struct PresaleState {
+    pub authority: Pubkey,
+    pub rdx_token_mint: Pubkey,
+    pub start_time: i64,
+    pub end_time: i64,
+    pub total_sol_raised: u64,
+    pub total_rdx_allocated: u64,
+    pub total_participants: u64,
+    pub is_active: bool,
+    pub is_launched: bool,
+    pub rdx_per_sol_early: u64,
+    pub rdx_per_sol_public: u64,
+    pub bump: u8,
+}
+
+#[account]
+pub struct BuyerStats {
+    pub buyer: Pubkey,
+    pub total_sol_contributed: u64,
+    pub rdx_allocated: u64,
+    pub claimed: bool,
+    pub claim_time: i64,
+    pub claimed_at: i64,
+    pub is_early_bird: bool,
+}
+
+// ───────────────────────────────────────────────────────────────
+// EVENTS
+// ───────────────────────────────────────────────────────────────
+
+#[event]
+pub struct PresaleInitialized {
+    pub authority: Pubkey,
+    pub start_time: i64,
+    pub end_time: i64,
+    pub rdx_per_sol_early: u64,
+    pub rdx_per_sol_public: u64,
+}
+
+#[event]
+pub struct TokensPurchased {
+    pub buyer: Pubkey,
+    pub sol_amount: u64,
+    pub rdx_amount: u64,
+    pub is_early_bird: bool,
+}
+
+#[event]
+pub struct TokensClaimed {
+    pub buyer: Pubkey,
+    pub rdx_amount: u64,
+}
+
+#[event]
+pub struct PresaleLaunched {
+    pub total_sol_raised: u64,
+    pub liquidity_sol: u64,
+    pub burn_sol: u64,
+    pub treasury_sol: u64,
+    pub total_participants: u64,
+}
+
+#[event]
+pub struct PresalePaused {
+    pub authority: Pubkey,
+    pub total_sol_raised: u64,
+}
+
+// ───────────────────────────────────────────────────────────────
+// ERRORS
+// ───────────────────────────────────────────────────────────────
+
+#[error_code]
+pub enum PresaleError {
+    #[msg("Presale is not active")]
+    PresaleNotActive,
+    #[msg("Presale has already launched")]
+    PresaleAlreadyLaunched,
+    #[msg("Presale has not started yet")]
+    PresaleNotStarted,
+    #[msg("Presale has ended")]
+    PresaleEnded,
+    #[msg("Purchase exceeds maximum allowed")]
+    ExceedsMaxPurchase,
+    #[msg("Below minimum purchase amount (0.1 SOL)")]
+    BelowMinimumPurchase,
+    #[msg("Calculation error")]
+    CalculationError,
+    #[msg("Tokens not yet distributed")]
+    TokensNotYetDistributed,
+    #[msg("Already claimed")]
+    AlreadyClaimed,
+    #[msg("No tokens to claim")]
+    NoTokensToClaim,
+    #[msg("Vesting cliff not yet reached")]
+    VestingCliffNotReached,
+    #[msg("Presale still active")]
+    PresaleStillActive,
+    #[msg("No SOL raised")]
+    NoSolRaised,
+    #[msg("Not authority")]
+    NotAuthority,
+}

@@ -133,7 +133,7 @@ export function ColosseumSection() {
                     </div>
                     <div className="text-xs text-rd-muted/50">{stat.sub}</div>
                   </div>
-                  <div className="text-2xl font-bold text-rd-red group-hover:text-glow transition-all">{stat.value}</div>
+                  <div className="text-2xl font-bold text-rd-red transition-all group-hover:[text-shadow:0_0_10px_rgba(255,26,26,0.7),0_0_24px_rgba(255,26,26,0.3)] transition-all">{stat.value}</div>
                 </div>
               </motion.div>
             ))}
@@ -166,7 +166,7 @@ export function ColosseumSection() {
             ].map((item, i) => (
               <div key={i} className="text-center group">
                 <div className="text-3xl mb-3 group-hover:drop-shadow-[0_0_10px_rgba(255,26,26,0.5)] transition-all">{item.icon}</div>
-                <div className="text-rd-red text-lg font-bold mb-1 group-hover:text-glow transition-all">{item.step}</div>
+                <div className="text-rd-red text-lg font-bold mb-1 transition-all group-hover:[text-shadow:0_0_10px_rgba(255,26,26,0.7),0_0_24px_rgba(255,26,26,0.3)] transition-all">{item.step}</div>
                 <div className="text-sm font-bold text-rd-text mb-1">{item.title}</div>
                 <div className="text-[10px] text-rd-muted/50">{item.desc}</div>
               </div>

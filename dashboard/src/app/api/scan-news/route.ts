@@ -3,6 +3,43 @@
 
 export const dynamic = 'force-dynamic';
 
+// ── SSRF Protection ──
+function isSafeUrl(input: string): { safe: boolean; reason?: string } {
+  try {
+    const url = new URL(input);
+
+    // Only HTTP/HTTPS
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return { safe: false, reason: 'Only http/https allowed' };
+    }
+
+    const hostname = url.hostname.toLowerCase();
+
+    // Block localhost / loopback
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+      return { safe: false, reason: 'Localhost not allowed' };
+    }
+
+    // Block private IP ranges
+    if (/^10\./.test(hostname) || /^192\.168\./.test(hostname)) {
+      return { safe: false, reason: 'Private IP not allowed' };
+    }
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) {
+      return { safe: false, reason: 'Private IP not allowed' };
+    }
+    if (hostname === '169.254.169.254' || hostname.includes('metadata')) {
+      return { safe: false, reason: 'Cloud metadata not allowed' };
+    }
+    if (hostname.endsWith('.internal') || hostname.endsWith('.local')) {
+      return { safe: false, reason: 'Internal hostname not allowed' };
+    }
+
+    return { safe: true };
+  } catch {
+    return { safe: false, reason: 'Invalid URL' };
+  }
+}
+
 interface NewsFlag {
   flag_type: string;
   description: string;
@@ -64,6 +101,11 @@ export async function GET(request: Request) {
     return Response.json({ error: 'URL parameter required' }, { status: 400 });
   }
 
+  const safety = isSafeUrl(url);
+  if (!safety.safe) {
+    return Response.json({ error: `BLOCKED: ${safety.reason}` }, { status: 403 });
+  }
+
   try {
     // Fetch the article
     const response = await fetch(url, {
@@ -120,8 +162,14 @@ export async function POST(request: Request) {
     return Response.json({ error: 'URL required in request body' }, { status: 400 });
   }
 
-  // Redirect to GET handler
-  return GET(new Request(`${request.url.split('?')[0]}?url=${encodeURIComponent(url)}`));
+  const safety = isSafeUrl(url);
+  if (!safety.safe) {
+    return Response.json({ error: `BLOCKED: ${safety.reason}` }, { status: 403 });
+  }
+
+  const scanUrl = new URL(request.url);
+  scanUrl.searchParams.set('url', url);
+  return GET(new Request(scanUrl.toString(), { headers: request.headers }))
 }
 
 function analyzeContent(title: string, content: string): NewsFlag[] {

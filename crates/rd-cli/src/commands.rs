@@ -6,7 +6,7 @@ use rd_session::MessageRole;
 pub async fn handle_slash_command<P: Provider>(cmd: &str, orch: &mut Orchestrator<P>) -> Result<String> {
     let parts: Vec<&str> = cmd.split_whitespace().collect();
     match *parts.first().unwrap_or(&"") {
-        "/help" => Ok("/help /status /model [name] /permission [level] /clear /cost /compact /telegram [msg] /config /version".into()),
+        "/help" => Ok("/help /status /model [name] /permission [level] /clear /cost /compact /ralph <task> /telegram [msg] /config /version".into()),
         "/status" => Ok(format!("Session: {}\nModel: {}\nMessages: {}\nEst. tokens: {}", orch.session.id, orch.session.model, orch.session.messages.len(), orch.session.estimated_tokens())),
         "/model" => { if let Some(m) = parts.get(1) { orch.session.model = m.to_string(); } Ok(format!("Model: {}", orch.session.model)) }
         "/permission" | "/perm" => {
@@ -24,6 +24,12 @@ pub async fn handle_slash_command<P: Provider>(cmd: &str, orch: &mut Orchestrato
         }
         "/cost" => Ok(format!("Tokens: {} in, {} out, {} total", orch.session.total_usage.input_tokens, orch.session.total_usage.output_tokens, orch.session.total_usage.total())),
         "/compact" => { let before = orch.session.messages.len(); orch.session.compact(20); Ok(format!("Compacted: {} -> {}", before, orch.session.messages.len())) }
+        "/ralph" => {
+            let task = parts.get(1).map(|s| s.to_string())
+                .ok_or_else(|| anyhow::anyhow!("Usage: /ralph <task description>"))?;
+            let max_cycles = parts.get(2).and_then(|s| s.parse::<u32>().ok()).unwrap_or(5);
+            Ok(format!("Ralph mode: '{}' (max {} cycles) — use `rd ralph '{}'` from CLI for full output", task, max_cycles, task))
+        }
         "/telegram" | "/tg" => {
             let msg = parts.get(1).map(|s| s.to_string()).unwrap_or_else(|| "\u{1F534} Redacted Protocol Agent\n\nThe file is breathing.\n\n#RedactedProtocol".into());
             let bot = rd_tools::telegram::TelegramBot::from_env()

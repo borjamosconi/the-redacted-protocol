@@ -9,6 +9,8 @@ rd-types = { path = "../rd-types" }
 rd-session = { path = "../rd-session" }
 rd-providers = { path = "../rd-providers" }
 rd-tools = { path = "../rd-tools" }
+rd-muapi = { path = "../rd-muapi" }
+rd-arweave = { path = "../rd-arweave" }
 rd-hooks = { path = "../rd-hooks" }
 rd-config = { path = "../rd-config" }
 serde.workspace = true
@@ -19,3 +21,6 @@ tokio.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
+regex = "1.11"
+sha2.workspace = true
+hex.workspace = true

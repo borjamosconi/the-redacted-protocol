@@ -1,73 +1,19 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { useState, useEffect } from 'react'
-
-function FloatingDoc({ delay = 0, x = 0, rotation = 0, scale = 1 }: { delay?: number; x?: number; rotation?: number; scale?: number }) {
-  return (
-    <motion.div
-      className="absolute pointer-events-none select-none hidden md:block"
-      style={{ left: `${x}%`, top: '15%', transform: `scale(${scale}) rotate(${rotation}deg)` }}
-      initial={{ opacity: 0 }}
-      animate={{
-        y: [0, -25, 0],
-        rotate: [rotation - 3, rotation + 3, rotation - 3],
-        opacity: [0.03, 0.06, 0.03],
-      }}
-      transition={{ duration: 10, delay, repeat: Infinity, ease: 'easeInOut' }}
-    >
-      <div className="bg-rd-text/10 p-3 w-24 h-32 relative">
-        <div className="space-y-1.5">
-          <div className="h-1 bg-rd-red/20 w-full" />
-          <div className="h-1 bg-rd-red/20 w-4/5" />
-          <div className="h-1 bg-rd-red/20 w-full" />
-          <div className="h-1 bg-rd-red/20 w-3/4" />
-        </div>
-        <div className="mt-3 space-y-1">
-          <div className="h-0.5 bg-rd-text/5 w-full" />
-          <div className="h-0.5 bg-rd-text/5 w-full" />
-          <div className="h-0.5 bg-rd-text/5 w-4/5" />
-          <div className="h-0.5 bg-rd-text/5 w-3/4" />
-        </div>
-        <div className="absolute bottom-2 left-2 right-2">
-          <div className="h-2 bg-rd-red/30 w-full" />
-        </div>
-      </div>
-    </motion.div>
-  )
-}
-
-function Drip({ left, delay = 0 }: { left: string; delay?: number }) {
-  return (
-    <motion.div
-      className="absolute w-px bg-gradient-to-b from-rd-red to-transparent"
-      style={{ left }}
-      initial={{ height: 0, top: '40%' }}
-      animate={{ height: [0, 25, 0], opacity: [0.6, 0.2, 0] }}
-      transition={{ duration: 2.5, delay, repeat: Infinity, repeatDelay: 4 }}
-    />
-  )
-}
+import { motion, useScroll, useTransform } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
 
 function GlitchText({ text, className = '' }: { text: string; className?: string }) {
   const [display, setDisplay] = useState(text)
 
   useEffect(() => {
-    const chars = '\u{2588}\u{2593}\u{2592}\u{2591}\u{2554}\u{2557}\u{255A}\u{255D}\u{2551}\u{2550}\u{2560}\u{2563}\u{256C}\u{2566}\u{2567}\u{2564}\u{256A}\u{256B}'
+    const chars = '█▓▒░'
     let i = 0
     const interval = setInterval(() => {
-      if (i >= text.length) {
-        setDisplay(text)
-        clearInterval(interval)
-        return
-      }
-      const glitched = text
-        .split('')
-        .map((c, idx) => (idx < i ? c : chars[Math.floor(Math.random() * chars.length)]))
-        .join('')
-      setDisplay(glitched)
+      if (i >= text.length) { setDisplay(text); clearInterval(interval); return }
+      setDisplay(text.split('').map((c, idx) => idx < i ? c : chars[Math.floor(Math.random() * chars.length)]).join(''))
       i += Math.floor(Math.random() * 3) + 1
-    }, 40)
+    }, 50)
     return () => clearInterval(interval)
   }, [text])
 
@@ -75,238 +21,309 @@ function GlitchText({ text, className = '' }: { text: string; className?: string
 }
 
 function MatrixColumns() {
-  const columns = Array.from({ length: 20 }, (_, i) => ({
-    left: `${(i * 5) + Math.random() * 5}%`,
-    duration: `${8 + Math.random() * 12}s`,
-    opacity: 0.03 + Math.random() * 0.05,
-  }))
-
+  const [columns, setColumns] = useState<{ left: string; duration: string; opacity: number }[]>([])
+  useEffect(() => {
+    setColumns(Array.from({ length: 18 }, (_, i) => ({
+      left: `${(i * 5.5) + Math.random() * 4}%`,
+      duration: `${12 + Math.random() * 16}s`,
+      opacity: 0.012 + Math.random() * 0.025,
+    })))
+  }, [])
   return (
     <div className="matrix-rain">
       {columns.map((col, i) => (
-        <div
-          key={i}
-          className="matrix-column"
-          style={{
-            left: col.left,
-            animationDuration: col.duration,
-            opacity: col.opacity,
-          }}
-        />
+        <div key={i} className="matrix-column" style={{ left: col.left, animationDuration: col.duration, opacity: col.opacity }} />
       ))}
     </div>
   )
 }
 
+const ARTWORK = [
+  { src: '/images/art-1.png', alt: 'ACCESS DENIED', label: 'FILE #0001' },
+  { src: '/images/art-2.jpg', alt: 'REDACTED AGENT', label: 'FILE #0002' },
+  { src: '/images/art-3.jpg', alt: 'CLASSIFIED', label: 'FILE #0003' },
+  { src: '/images/art-4.jpg', alt: 'HACKATHON 2026', label: 'FILE #0004' },
+  { src: '/images/art-5.jpg', alt: 'ARCHIVO 0', label: 'FILE #0005' },
+]
+
 export function Hero() {
+  const ref = useRef<HTMLElement>(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
+  const yBg = useTransform(scrollYProgress, [0, 1], ['0%', '25%'])
+  const opacityContent = useTransform(scrollYProgress, [0, 0.7], [1, 0])
+  const [activeArt, setActiveArt] = useState(0)
+
+  useEffect(() => {
+    const t = setInterval(() => setActiveArt(a => (a + 1) % ARTWORK.length), 4000)
+    return () => clearInterval(t)
+  }, [])
+
   return (
-    <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
-      {/* Matrix rain background */}
+    <section ref={ref} className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
+      {/* Parallax ambient */}
+      <motion.div className="absolute inset-0 pointer-events-none" style={{ y: yBg }}>
+        <div className="absolute top-1/4 left-1/4 w-[700px] h-[700px] bg-red-600/5 rounded-full blur-[200px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-600/4 rounded-full blur-[180px]" />
+      </motion.div>
+
       <MatrixColumns />
 
-      {/* Floating documents (desktop only) */}
-      <FloatingDoc delay={0} x={3} rotation={-12} scale={0.8} />
-      <FloatingDoc delay={3} x={78} rotation={8} scale={1.1} />
-      <FloatingDoc delay={6} x={12} rotation={5} scale={0.6} />
-      <FloatingDoc delay={9} x={85} rotation={-18} scale={0.7} />
-      <FloatingDoc delay={2} x={50} rotation={15} scale={0.5} />
+      {/* Scan lines */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,26,26,0.005) 3px, rgba(255,26,26,0.005) 4px)',
+      }} />
 
-      {/* Red drips */}
-      <Drip left="15%" delay={0} />
-      <Drip left="40%" delay={1} />
-      <Drip left="65%" delay={2} />
-      <Drip left="85%" delay={0.5} />
+      {/* Corner brackets */}
+      {[
+        'top-24 left-4 sm:left-8 border-l border-t',
+        'top-24 right-4 sm:right-8 border-r border-t',
+        'bottom-24 left-4 sm:left-8 border-l border-b',
+        'bottom-24 right-4 sm:right-8 border-r border-b',
+      ].map((cls, i) => (
+        <div key={i} className={`absolute ${cls} border-red-900/25 w-10 h-10 pointer-events-none`} />
+      ))}
 
-      {/* Ambient glow */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-rd-red/5 rounded-full blur-[200px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-rd-purple/5 rounded-full blur-[150px]" />
-      </div>
+      <motion.div
+        className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6"
+        style={{ opacity: opacityContent }}
+      >
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[calc(100vh-4rem)] py-16">
 
-      {/* Content */}
-      <div className="relative z-10 text-center max-w-5xl mx-auto px-4">
-        {/* Status badge */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="inline-flex items-center gap-3 mb-10 px-4 py-2 border border-rd-red/20 bg-rd-red/5"
-        >
-          <div className="w-2 h-2 rounded-full bg-rd-red animate-pulse shadow-[0_0_6px_#ff1a1a]" />
-          <span className="text-[10px] md:text-xs tracking-[0.4em] text-rd-muted">
-            SYSTEM ACTIVE — FILE #0000 — DECLASSIFIED
-          </span>
-        </motion.div>
+          {/* LEFT — text content */}
+          <div className="text-center lg:text-left order-2 lg:order-1">
 
-        {/* Main title */}
-        <motion.h1
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mb-4"
-        >
-          <span className="text-xs md:text-sm text-rd-muted/40 tracking-[0.6em] block mb-2">
-            AUTONOMOUS INTELLIGENCE AGENT
-          </span>
-          <GlitchText
-            text="$RDX"
-            className="text-6xl sm:text-8xl md:text-9xl font-bold neon-red block"
-          />
-        </motion.h1>
-
-        {/* Censor bar */}
-        <div className="flex items-center justify-center gap-4 mb-8">
-          <div className="h-px w-12 md:w-32 bg-gradient-to-r from-transparent to-rd-red/40" />
-          <motion.div
-            className="w-24 md:w-48 h-3 censor-bar"
-            animate={{ x: [-2, 2, -1, 1, 0] }}
-            transition={{ duration: 0.4, repeat: Infinity, repeatDelay: 4 }}
-          />
-          <div className="h-px w-12 md:w-32 bg-gradient-to-l from-transparent to-rd-red/40" />
-        </div>
-
-        {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="text-base md:text-xl text-rd-muted tracking-[0.3em] mb-3"
-        >
-          REDACTED PROTOCOL
-        </motion.p>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="text-xs md:text-sm text-rd-muted/40 tracking-widest mb-12"
-        >
-          DETECT · RECONSTRUCT · VERIFY · DECLASSIFY — ON SOLANA
-        </motion.p>
-
-        {/* CTA Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6"
-        >
-          <a
-            href="#airdrop"
-            className="btn-premium"
-          >
-            &#x2588; CLAIM AIRDROP &#x2588;
-          </a>
-          <a
-            href="https://t.me/theredacted_bot"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-redacted min-w-[200px] text-center"
-          >
-            TELEGRAM BOT
-          </a>
-          <a
-            href="https://github.com/whalesconspiracy-33/the-redacted-protocol"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-ghost min-w-[200px] text-center flex items-center justify-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            GITHUB REPO
-          </a>
-        </motion.div>
-
-        {/* Social Links */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.2 }}
-          className="flex items-center justify-center gap-8 mb-12"
-        >
-          <a
-            href="https://github.com/whalesconspiracy-33/the-redacted-protocol"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-rd-muted/50 hover:text-rd-red transition-all duration-300 group"
-          >
-            <svg className="w-5 h-5 group-hover:drop-shadow-[0_0_8px_#ff1a1a]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            <span className="text-[10px] tracking-[0.3em] group-hover:text-glow transition-all">GITHUB</span>
-          </a>
-          <a
-            href="https://x.com/theprotocol_sol"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-rd-muted/50 hover:text-rd-red transition-all duration-300 group"
-          >
-            <span className="text-base font-bold group-hover:drop-shadow-[0_0_8px_#ff1a1a]">&#x1D54F;</span>
-            <span className="text-[10px] tracking-[0.3em] group-hover:text-glow transition-all">X / TWITTER</span>
-          </a>
-          <a
-            href="https://t.me/theredacted_bot"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-rd-muted/50 hover:text-rd-red transition-all duration-300 group"
-          >
-            <svg className="w-5 h-5 group-hover:drop-shadow-[0_0_8px_#ff1a1a]" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-            <span className="text-[10px] tracking-[0.3em] group-hover:text-glow transition-all">TELEGRAM</span>
-          </a>
-        </motion.div>
-
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.4 }}
-          className="grid grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 max-w-3xl mx-auto"
-        >
-          {[
-            { label: 'SUPPLY', value: '1B', icon: '💰' },
-            { label: 'AIRDROP', value: '40%', icon: '🎁' },
-            { label: 'STAKING', value: '50%', icon: '⚡' },
-            { label: 'CRATES', value: '8', icon: '📦' },
-            { label: 'SMART CTTS', value: '6', icon: '⛓️' },
-            { label: 'LLM PROVIDERS', value: '5', icon: '🤖' },
-            { label: 'LINES OF RUST', value: '12K', icon: '🔧' },
-            { label: 'COST TO RUN', value: '$0', icon: '🆓' },
-            { label: 'TG COMMANDS', value: '7', icon: '💬' },
-            { label: 'XP ACTIONS', value: '12', icon: '🎮' },
-            { label: 'LEVELS', value: '7', icon: '🏆' },
-            { label: 'QUESTS', value: '8', icon: '🎯' },
-            { label: 'GALLERY', value: '22', icon: '🖼️' },
-            { label: 'LICENSE', value: 'MIT', icon: '📜' },
-            { label: 'LANGUAGES', value: '2', icon: '💻' },
-          ].map((stat, i) => (
+            {/* Status row */}
             <motion.div
-              key={i}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 1.4 + i * 0.04 }}
-              className="group p-2 md:p-3 border border-rd-border/50 bg-rd-black/50 backdrop-blur-sm hover:border-rd-red/30 hover:bg-rd-red/5 transition-all duration-300"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mb-8"
             >
-              <div className="text-sm md:text-lg mb-0.5">{stat.icon}</div>
-              <div className="text-sm md:text-lg font-bold text-rd-red group-hover:text-glow transition-all">{stat.value}</div>
-              <div className="text-[8px] md:text-[10px] text-rd-muted/40 tracking-widest">{stat.label}</div>
+              <span className="badge badge-active text-[10px]">System Live</span>
+              <span className="badge badge-purple text-[10px]">Colosseum 2026</span>
+              <span className="badge badge-declassified text-[10px]">Solana</span>
             </motion.div>
-          ))}
-        </motion.div>
+
+            {/* Eyebrow */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="text-xs text-gray-500 tracking-[0.5em] uppercase mb-4 font-mono"
+            >
+              Autonomous Intelligence Agent
+            </motion.p>
+
+            {/* Giant $RDX */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.93 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="relative mb-4"
+            >
+              <GlitchText
+                text="$RDX"
+                className="text-[clamp(4.5rem,14vw,8rem)] font-black leading-none block neon-red"
+              />
+              {/* Glitch offset */}
+              <div className="absolute inset-0 flex items-center pointer-events-none select-none overflow-hidden"
+                style={{ clipPath: 'polygon(0 35%, 100% 35%, 100% 52%, 0 52%)', transform: 'translate(4px, 0)', opacity: 0.1 }}>
+                <span className="text-[clamp(4.5rem,14vw,8rem)] font-black leading-none text-cyan-400">$RDX</span>
+              </div>
+            </motion.div>
+
+            {/* Censor bar */}
+            <motion.div
+              initial={{ opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 1, scaleX: 1 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+              className="flex items-center gap-4 justify-center lg:justify-start mb-6"
+            >
+              <motion.div
+                className="w-32 sm:w-48 h-2.5 censor-bar"
+                animate={{ x: [-1, 1, -1, 1, 0] }}
+                transition={{ duration: 0.4, repeat: Infinity, repeatDelay: 5 }}
+              />
+              <span className="text-[8px] font-mono text-red-900/40 tracking-[0.3em]">CLASSIFIED</span>
+            </motion.div>
+
+            {/* Subtitle */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7, duration: 0.5 }}
+            >
+              <p className="text-lg sm:text-xl font-semibold text-gray-200 tracking-[0.12em] mb-2 font-mono">
+                REDACTED PROTOCOL
+              </p>
+              <p className="text-sm text-gray-500 tracking-wider mb-10">
+                Detect — Reconstruct — Verify — Declassify on Solana
+              </p>
+            </motion.div>
+
+            {/* CTAs */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8, duration: 0.5 }}
+              className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-10"
+            >
+              <a href="#airdrop" className="btn-premium min-w-[200px] text-center">
+                Claim Airdrop
+              </a>
+              <a href="https://t.me/theredacted_bot" target="_blank" rel="noopener noreferrer" className="btn-redacted min-w-[170px] text-center">
+                Telegram Bot
+              </a>
+              <a href="https://github.com/whalesconspiracy-33/the-redacted-protocol" target="_blank" rel="noopener noreferrer" className="btn-ghost min-w-[140px] text-center">
+                GitHub
+              </a>
+            </motion.div>
+
+            {/* Social links */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.0, duration: 0.5 }}
+              className="flex items-center justify-center lg:justify-start gap-6 mb-12"
+            >
+              {[
+                { href: 'https://x.com/theprotocol_sol', label: 'X / Twitter', icon: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> },
+                { href: 'https://t.me/theredacted_bot', label: 'Telegram', icon: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> },
+                { href: 'https://github.com/whalesconspiracy-33/the-redacted-protocol', label: 'GitHub', icon: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg> },
+              ].map(link => (
+                <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-gray-500 hover:text-red-400 transition-all duration-300 group">
+                  <span className="group-hover:[filter:drop-shadow(0_0_6px_rgba(255,26,26,0.7))] transition-all">{link.icon}</span>
+                  <span className="text-xs tracking-wider">{link.label}</span>
+                </a>
+              ))}
+            </motion.div>
+
+            {/* Stats grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.1, duration: 0.6 }}
+              className="grid grid-cols-3 sm:grid-cols-6 gap-2"
+            >
+              {[
+                { label: 'Supply', value: '1B', suffix: 'RDX' },
+                { label: 'Airdrop', value: '40%', suffix: '400M' },
+                { label: 'APY', value: '50%', suffix: 'STAKE' },
+                { label: 'Rust', value: '12K', suffix: 'LOC' },
+                { label: 'Contracts', value: '6', suffix: 'SC' },
+                { label: 'Users', value: '2.4K', suffix: 'LIVE' },
+              ].map((stat, i) => (
+                <motion.div key={i}
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.1 + i * 0.05, duration: 0.4 }}
+                  className="rd-card text-center py-3 px-1 group cursor-default"
+                >
+                  <div className="text-lg sm:text-xl font-black text-red-500 leading-none group-hover:[text-shadow:0_0_16px_rgba(255,26,26,0.9),0_0_32px_rgba(255,26,26,0.4)] transition-all duration-300">{stat.value}</div>
+                  <div className="text-[7px] text-red-900/50 tracking-widest uppercase font-mono">{stat.suffix}</div>
+                  <div className="text-[7px] text-gray-600 tracking-wider uppercase mt-0.5">{stat.label}</div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* RIGHT — artwork showcase */}
+          <div className="order-1 lg:order-2 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, x: 30 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              transition={{ delay: 0.3, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-sm lg:max-w-md"
+            >
+              {/* Glow behind image */}
+              <div className="absolute inset-0 bg-red-600/10 blur-3xl rounded-full scale-110 pointer-events-none" />
+
+              {/* Main image frame */}
+              <div className="relative border border-red-900/30 overflow-hidden"
+                style={{ boxShadow: '0 0 80px rgba(255,26,26,0.12), 0 0 160px rgba(255,26,26,0.05), inset 0 0 60px rgba(0,0,0,0.6)' }}
+              >
+                {/* Corner brackets */}
+                <div className="absolute top-0 left-0 w-6 h-6 border-l-2 border-t-2 border-red-500/50 z-20" />
+                <div className="absolute top-0 right-0 w-6 h-6 border-r-2 border-t-2 border-red-500/50 z-20" />
+                <div className="absolute bottom-0 left-0 w-6 h-6 border-l-2 border-b-2 border-red-500/50 z-20" />
+                <div className="absolute bottom-0 right-0 w-6 h-6 border-r-2 border-b-2 border-red-500/50 z-20" />
+
+                {/* Scan line overlay */}
+                <div className="absolute inset-0 z-10 pointer-events-none"
+                  style={{ background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.15) 3px, rgba(0,0,0,0.15) 4px)' }}
+                />
+
+                {/* Status bar top */}
+                <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-3 py-2 bg-black/70 border-b border-red-900/20 backdrop-blur-sm">
+                  <span className="text-[9px] font-mono text-red-500/80 tracking-widest">{ARTWORK[activeArt].label}</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_4px_#ff1a1a]" />
+                    <span className="text-[9px] font-mono text-gray-500 tracking-wider">CLASSIFIED</span>
+                  </div>
+                </div>
+
+                {/* Images with crossfade */}
+                <div className="relative aspect-square overflow-hidden bg-black">
+                  {ARTWORK.map((art, i) => (
+                    <motion.img
+                      key={art.src}
+                      src={art.src}
+                      alt={art.alt}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      animate={{ opacity: i === activeArt ? 1 : 0 }}
+                      transition={{ duration: 1.2, ease: 'easeInOut' }}
+                    />
+                  ))}
+                  {/* Red tint overlay */}
+                  <div className="absolute inset-0 bg-red-950/10 mix-blend-multiply pointer-events-none z-10" />
+                </div>
+
+                {/* Status bar bottom */}
+                <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-between px-3 py-2 bg-black/70 border-t border-red-900/20 backdrop-blur-sm">
+                  <span className="text-[9px] font-mono text-gray-600 tracking-wider">{ARTWORK[activeArt].alt}</span>
+                  {/* Dot indicators */}
+                  <div className="flex gap-1.5">
+                    {ARTWORK.map((_, i) => (
+                      <button key={i} onClick={() => setActiveArt(i)}
+                        className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === activeArt ? 'bg-red-500 shadow-[0_0_4px_#ff1a1a]' : 'bg-gray-700 hover:bg-gray-500'}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Thumbnail strip below */}
+              <div className="flex gap-2 mt-3">
+                {ARTWORK.map((art, i) => (
+                  <button key={i} onClick={() => setActiveArt(i)}
+                    className={`flex-1 aspect-square overflow-hidden border transition-all duration-300 ${i === activeArt ? 'border-red-500/60 shadow-[0_0_10px_rgba(255,26,26,0.3)]' : 'border-gray-800/60 hover:border-gray-600/60'}`}
+                  >
+                    <img src={art.src} alt={art.alt} className="w-full h-full object-cover opacity-70 hover:opacity-100 transition-opacity" />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
 
         {/* Scroll indicator */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 2.5 }}
-          className="mt-12 flex flex-col items-center gap-2"
+          transition={{ delay: 1.5, duration: 0.6 }}
+          className="flex flex-col items-center gap-2 pb-8"
         >
-          <span className="text-[10px] text-rd-muted/30 tracking-[0.5em]">SCROLL TO EXPLORE</span>
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="w-px h-6 bg-gradient-to-b from-rd-red/50 to-transparent"
-          />
+          <span className="text-[10px] text-gray-700 tracking-[0.4em] uppercase font-mono">Scroll to explore</span>
+          <motion.div animate={{ y: [0, 6, 0], opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2, repeat: Infinity }}>
+            <svg className="w-4 h-4 text-red-900/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+            </svg>
+          </motion.div>
         </motion.div>
-      </div>
+      </motion.div>
 
-      {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-rd-black to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none" />
     </section>
   )
 }

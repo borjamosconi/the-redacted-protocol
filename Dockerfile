@@ -36,7 +36,6 @@ WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /app/target/release/rd /usr/local/bin/rd
-COPY .env.example .env
 
 # Create data directory for sessions
 RUN mkdir -p /app/data/sessions && chown -R rd-agent:rd-agent /app/data

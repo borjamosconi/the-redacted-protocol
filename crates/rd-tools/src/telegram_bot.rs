@@ -60,6 +60,8 @@ pub struct TgMessage {
     /// Whether this is a callback query from inline keyboard
     pub is_callback: bool,
     pub callback_data: Option<String>,
+    /// Required to answer the callback query via answerCallbackQuery
+    pub callback_query_id: Option<String>,
 }
 
 impl TgMessage {
@@ -149,18 +151,22 @@ impl TelegramBot {
         text: &str,
         keyboard: Option<&InlineKeyboard>,
     ) -> Result<(), String> {
-        let mut body = json!({
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "MarkdownV2",
-            "disable_web_page_preview": true,
-        });
-
-        if let Some(kb) = keyboard {
-            body.as_object_mut().unwrap().insert("reply_markup".into(), json!({
-                "inline_keyboard": kb.to_json(),
-            }));
-        }
+        let body = if let Some(kb) = keyboard {
+            json!({
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "MarkdownV2",
+                "disable_web_page_preview": true,
+                "reply_markup": { "inline_keyboard": kb.to_json() },
+            })
+        } else {
+            json!({
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "MarkdownV2",
+                "disable_web_page_preview": true,
+            })
+        };
 
         self.api_post("sendMessage", body).await.map(|_| ())
     }
@@ -184,6 +190,26 @@ impl TelegramBot {
             "parse_mode": "MarkdownV2",
         });
         self.api_post("sendPhoto", body).await.map(|_| ())
+    }
+
+    /// Send a photo from a URL (no caption formatting).
+    pub async fn send_photo_simple(&self, chat_id: i64, photo_url: &str) -> Result<(), String> {
+        let body = json!({
+            "chat_id": chat_id,
+            "photo": photo_url,
+        });
+        self.api_post("sendPhoto", body).await.map(|_| ())
+    }
+
+    /// Generate a Pollinations.ai image URL from a prompt (free, no API key needed).
+    pub fn pollinations_image_url(prompt: &str, width: u32, height: u32, seed: u32) -> String {
+        format!(
+            "https://image.pollinations.ai/prompt/{}?width={}&height={}&seed={}&nologo=true&model=flux",
+            urlencoding::encode(prompt),
+            width,
+            height,
+            seed
+        )
     }
 
     /// Send a photo with inline keyboard.
@@ -246,8 +272,17 @@ impl TelegramBot {
         result
     }
 
+    /// Escape a URL for use as a link target in MarkdownV2.
+    /// Telegram MarkdownV2 requires escaping of certain characters even inside URL parentheses.
+    pub fn escape_md_url(url: &str) -> String {
+        url.replace('\\', "\\\\")
+            .replace('.', "\\.")
+            .replace('-', "\\-")
+            .replace('!', "\\!")
+    }
+
     pub async fn poll_messages(&mut self) -> Result<Vec<TgMessage>, String> {
-        let url = format!("{}/{}/getUpdates", TELEGRAM_API, self.token);
+        let url = format!("{}/bot{}/getUpdates", TELEGRAM_API, self.token);
         let resp = self.client.get(&url)
             .query(&[("offset", (self.last_update_id + 1).to_string()), ("timeout", "10".to_string())])
             .timeout(Duration::from_secs(15))
@@ -268,12 +303,14 @@ impl TelegramBot {
                     let uname = cb.get("from").and_then(|f| f.get("username")).and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
                     let data = cb.get("data").and_then(|v| v.as_str()).unwrap_or("").to_string();
                     let mid = cb.get("message").and_then(|m| m.get("message_id")).and_then(|v| v.as_i64()).unwrap_or(0);
+                    let cb_id = cb.get("id").and_then(|v| v.as_str()).map(|s| s.to_string());
                     if let (Some(c), Some(u)) = (cid, uid2) {
                         msgs.push(TgMessage {
                             chat_id: c, user_id: u, username: uname,
                             text: format!("callback:{}", data), message_id: mid,
                             urls: Vec::new(), is_callback: true,
                             callback_data: Some(data),
+                            callback_query_id: cb_id,
                         });
                     }
                     continue;
@@ -294,6 +331,7 @@ impl TelegramBot {
                                 chat_id: c, user_id: u, username: uname,
                                 text: txt.to_string(), message_id: mid,
                                 urls, is_callback: false, callback_data: None,
+                                callback_query_id: None,
                             });
                         }
                     }
@@ -358,7 +396,7 @@ I detect what has been hidden\\.
 I reconstruct what was redacted\\.
 I preserve what they tried to erase\\.
 
-\u{1F381} *\\$RDX AIRDROP* — `1,000 RDX`
+\u{1F381} *\\$RDX AIRDROP* — `500 RDX`
 Register: [redacted\\-protocol\\.vercel\\.app](https://redacted-protocol.vercel.app)
 
 Paste any news URL and I'll scan it automatically\\.
@@ -374,7 +412,8 @@ _The file is breathing\\._";
         let threat_icon = result.threat_level.icon();
         let threat_label = format!("{:?}", result.threat_level);
         let escaped_title = Self::escape_md(&result.title);
-        let escaped_url = Self::escape_md(url);
+        let escaped_url_text = Self::escape_md(url);
+        let escaped_url_link = Self::escape_md_url(url);
 
         let mut text = format!(
             "{threat_icon} *NEWS ANALYSIS COMPLETE*
@@ -384,7 +423,7 @@ _The file is breathing\\._";
 *Threat:* `{}`
 *Flags:* `{}`
 *Content:* `{}` chars",
-            escaped_url, url, escaped_title, threat_label, result.flags.len(), result.content_length
+            escaped_url_text, escaped_url_link, escaped_title, threat_label, result.flags.len(), result.content_length
         );
 
         if !result.flags.is_empty() {
@@ -488,7 +527,7 @@ CONFIDENCE: `94\\.7%`
 The \u{2588}\u{2588}\u{2588}\u{2588} was moved to \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588} on \u{2588}\u{2588}/\u{2588}\u{2588}/2024
 under operation \u{2588}\u{2588}\u{2588} ECLIPSE\\.
 
-\u{1F381} *\\$RDX AIRDROP* — `1,000 RDX`
+\u{1F381} *\\$RDX AIRDROP* — `500 RDX`
 [redacted\\-protocol\\.vercel\\.app](https://redacted-protocol.vercel.app)
 
 ACCESS GRANTED\\.
