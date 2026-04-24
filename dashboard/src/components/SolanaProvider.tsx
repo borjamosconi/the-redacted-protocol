@@ -8,7 +8,9 @@ import '@solana/wallet-adapter-react-ui/styles.css'
 
 export function SolanaProvider({ children }: { children: React.ReactNode }) {
   const [rpcUrl] = useState(
-    process.env.NEXT_PUBLIC_SOLANA_RPC || 'https://api.devnet.solana.com'
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+    process.env.NEXT_PUBLIC_SOLANA_RPC ||
+    'https://api.mainnet-beta.solana.com'
   )
 
   const [wallets, setWallets] = useState<any[]>([])

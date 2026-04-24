@@ -8,6 +8,8 @@ import { Header } from '@/components/Header'
 import { useWalletReady } from '@/components/Providers'
 import { GovernancePanel } from '@/components/GovernancePanel'
 import { LaunchpadPanel } from '@/components/LaunchpadPanel'
+import { PresalePanel } from '@/components/PresalePanel'
+import { CinemaPanel } from '@/components/CinemaPanel'
 
 interface UserProfile {
   walletAddress: string
@@ -170,7 +172,7 @@ function DashboardContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [stats, setStats] = useState<GlobalStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'quests' | 'referrals' | 'governance' | 'launchpad'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'quests' | 'referrals' | 'presale' | 'governance' | 'launchpad' | 'cinema'>('overview')
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -303,7 +305,7 @@ function DashboardContent() {
   return (
     <>
       <Header />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-28 pb-20">
+      <main className="max-w-6xl mx-auto px-3 sm:px-6 pt-24 sm:pt-28 pb-20">
 
         {/* Welcome card */}
         <motion.div
@@ -317,11 +319,11 @@ function DashboardContent() {
             style={{ background: levelStyle.glow }}
           />
 
-          <div className="relative flex flex-col md:flex-row items-start md:items-center gap-6">
+          <div className="relative flex flex-row items-center gap-4">
 
             {/* Avatar block */}
             <div
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center flex-shrink-0 border"
+              className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center flex-shrink-0 border"
               style={{
                 background: levelStyle.bg,
                 borderColor: levelStyle.border,
@@ -353,9 +355,9 @@ function DashboardContent() {
               <p className="text-gray-500 font-mono text-xs mb-3">
                 {publicKey?.toString().slice(0, 8)}...{publicKey?.toString().slice(-6)}
               </p>
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-4 gap-y-2">
                 <StatChip label="XP" value={profile?.xp?.toLocaleString() || '—'} accent="text-purple-400" />
-                <StatChip label="Streak" value={`${profile?.streak || 0} days`} accent="text-orange-400" />
+                <StatChip label="Streak" value={`${profile?.streak || 0}d`} accent="text-orange-400" />
                 <StatChip label="Airdrop" value={`${profile?.airdropFormatted || '0'} RDX`} accent="text-green-400" />
                 <StatChip label="Rank" value="#—" accent="text-blue-400" />
               </div>
@@ -365,7 +367,7 @@ function DashboardContent() {
             <button
               onClick={handleDailyCheckin}
               disabled={claiming || claimed}
-              className={`flex-shrink-0 flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-mono font-bold transition-all ${
+              className={`flex-shrink-0 flex items-center gap-2 px-3 sm:px-5 py-2.5 sm:py-3 rounded-lg text-xs sm:text-sm font-mono font-bold transition-all ${
                 claimed
                   ? 'bg-green-950/40 text-green-400 border border-green-900/30'
                   : 'bg-red-950/40 text-red-400 border border-red-900/30 hover:bg-red-900/30'
@@ -422,8 +424,10 @@ function DashboardContent() {
               { id: 'overview',    label: 'Overview',    icon: '◈' },
               { id: 'quests',      label: 'Quests',      icon: '◎' },
               { id: 'referrals',   label: 'Referrals',   icon: '⌁' },
+              { id: 'presale',     label: 'Presale',     icon: '◉' },
               { id: 'governance',  label: 'Governance',  icon: '⬡' },
               { id: 'launchpad',   label: 'Launchpad',   icon: '⊕' },
+              { id: 'cinema',      label: 'Cinema',      icon: '🎬' },
             ].map((tab) => {
               const isActive = activeTab === tab.id
               return (
@@ -478,7 +482,7 @@ function DashboardContent() {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
                   <StatCard
                     label="Total XP"
                     value={(profile?.xp ?? 0).toLocaleString()}
@@ -678,6 +682,18 @@ function DashboardContent() {
               </div>
             </motion.div>
           )}
+          {activeTab === 'presale' && (
+            <motion.div
+              key="presale"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <PresalePanel />
+            </motion.div>
+          )}
+
           {activeTab === 'governance' && (
             <motion.div
               key="governance"
@@ -699,6 +715,18 @@ function DashboardContent() {
               transition={{ duration: 0.2 }}
             >
                <LaunchpadPanel />
+            </motion.div>
+          )}
+
+          {activeTab === 'cinema' && (
+            <motion.div
+              key="cinema"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <CinemaPanel />
             </motion.div>
           )}
         </AnimatePresence>

@@ -23,9 +23,11 @@ import Image from 'next/image'
 import { RDX_PUBLIC_KEYS } from '@/lib/rdx-public-config'
 
 // ─── Wallet Config ────────────────────────────────────────────────────────────
-const TREASURY_WALLET = RDX_PUBLIC_KEYS.treasuryWallet
-const AIRDROP_WALLET = RDX_PUBLIC_KEYS.airdropWallet
-const MAIN_AUTHORITY = RDX_PUBLIC_KEYS.mainAuthority
+// If treasury/airdrop wallets aren't configured, fall back to main authority
+// so the admin can still deploy and manage distributions manually later.
+const MAIN_AUTHORITY  = RDX_PUBLIC_KEYS.mainAuthority
+const TREASURY_WALLET = RDX_PUBLIC_KEYS.treasuryWallet  ?? MAIN_AUTHORITY
+const AIRDROP_WALLET  = RDX_PUBLIC_KEYS.airdropWallet   ?? MAIN_AUTHORITY
 
 // ─── Official Token Config (read-only) ───────────────────────────────────────
 const TOKEN_CONFIG = {
@@ -73,35 +75,32 @@ export function TokenLaunchPanel() {
     if (!publicKey) return
     setLoading(true)
     setStatus('Running security audit...')
-    
+
     try {
+      // 1. Verify authority is configured
       if (!MAIN_AUTHORITY) {
-        throw new Error('CONFIG ERROR: Missing NEXT_PUBLIC_RDX_MAIN_AUTHORITY.')
+        throw new Error('Add NEXT_PUBLIC_RDX_MAIN_AUTHORITY to Vercel env vars.')
       }
 
-      // 1. Verify Wallet Identity
+      // 2. Verify wallet identity
       if (!publicKey.equals(MAIN_AUTHORITY)) {
-        throw new Error('UNAUTHORIZED WALLET: Deployment locked to Master Authority.')
+        throw new Error('Connected wallet is not the Main Authority.')
       }
 
-      // 2. Verify wallet addresses are configured
-      if (!TREASURY_WALLET || !AIRDROP_WALLET) {
-        throw new Error('CONFIG ERROR: Treasury or airdrop wallet is missing/invalid.')
-      }
-
-      // 3. Verify SOL Balance
-      const balance = await connection.getBalance(publicKey)
-      const required = 0.05 * LAMPORTS_PER_SOL // 0.02 fee + rent + buffers
+      // 3. Verify SOL balance on mainnet
+      setStatus('Checking mainnet SOL balance...')
+      const balance  = await connection.getBalance(publicKey)
+      const required = Math.floor(0.04 * LAMPORTS_PER_SOL) // fee + mint rent + ATAs
       if (balance < required) {
         setCheckBalance(false)
-        throw new Error(`INSUFFICIENT FUNDS: Need ~0.05 SOL for protocol deployment.`)
+        const has  = (balance / LAMPORTS_PER_SOL).toFixed(4)
+        throw new Error(`Need ~0.04 SOL, wallet has ${has} SOL. Add SOL to your wallet.`)
       }
       setCheckBalance(true)
-      
       setStatus(null)
       setShowConfirm(true)
     } catch (e: any) {
-      setStatus(`SECURITY ALERT: ${e.message}`)
+      setStatus(`ERROR: ${e.message}`)
     } finally {
       setLoading(false)
     }
@@ -112,60 +111,83 @@ export function TokenLaunchPanel() {
     setLoading(true)
 
     try {
-      if (!publicKey) return
-      if (!TREASURY_WALLET || !AIRDROP_WALLET || !MAIN_AUTHORITY) {
-        throw new Error('CONFIG ERROR: Missing or invalid RDX wallet environment variables.')
+      if (!publicKey || !MAIN_AUTHORITY) throw new Error('Not configured.')
+
+      const wallet   = publicKey
+      const treasury = TREASURY_WALLET ?? wallet
+      const airdrop  = AIRDROP_WALLET  ?? wallet
+
+      // ── Merge amounts per unique wallet to avoid duplicate ATAs ──────────────
+      const amountMap = new Map<string, bigint>()
+      const walletMap = new Map<string, typeof wallet>()
+      const add = (w: typeof wallet, amt: bigint) => {
+        const k = w.toBase58()
+        amountMap.set(k, (amountMap.get(k) ?? BigInt(0)) + amt)
+        walletMap.set(k, w)
       }
+      add(airdrop,  DIST.AIRDROP)                     // 40%
+      add(treasury, DIST.TEAM + DIST.DAO)             // 30%
+      add(wallet,   DIST.LIQUIDITY + DIST.STAKING)    // 30%
 
+      const uniqueWallets = [...walletMap.entries()]  // [ [key, pubkey], ... ]
+
+      // ── Step 1 / 3 — Create Mint ────────────────────────────────────────────
+      setStatus('Step 1/3 — Approve: Create Mint Account')
       const mintKeypair = Keypair.generate()
-      const lamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE)
+      const rentLamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE)
+      const { blockhash: bh1 } = await connection.getLatestBlockhash()
 
-      const wallet = publicKey
-
-      setStatus('Building transaction...')
-      const tx1 = new Transaction().add(
-        // Pay fee to treasury
-        SystemProgram.transfer({ fromPubkey: wallet, toPubkey: TREASURY_WALLET, lamports: Math.floor(0.02 * LAMPORTS_PER_SOL) }),
-        SystemProgram.createAccount({ fromPubkey: wallet, newAccountPubkey: mintKeypair.publicKey, space: MINT_SIZE, lamports, programId: TOKEN_PROGRAM_ID }),
+      const tx1 = new Transaction({ recentBlockhash: bh1, feePayer: wallet }).add(
+        SystemProgram.createAccount({
+          fromPubkey: wallet,
+          newAccountPubkey: mintKeypair.publicKey,
+          space: MINT_SIZE,
+          lamports: rentLamports,
+          programId: TOKEN_PROGRAM_ID,
+        }),
         createInitializeMintInstruction(mintKeypair.publicKey, DECIMALS, wallet, wallet)
       )
 
-      setStatus('Waiting for wallet approval (1/3)...')
       const sig1 = await sendTransaction(tx1, connection, { signers: [mintKeypair] })
       await connection.confirmTransaction(sig1, 'confirmed')
-      setStatus('✓ Mint created. Distributing per tokenomics (2/3)...')
+      setStatus('✓ Mint created.')
 
-      // Distribute per tokenomics
-      const dists = [
-        { wallet: AIRDROP_WALLET,  amount: DIST.AIRDROP,   label: 'Airdrop 40%'   },
-        { wallet: TREASURY_WALLET, amount: DIST.TEAM,      label: 'Team 20%'      },
-        { wallet: wallet,          amount: DIST.LIQUIDITY, label: 'Liquidity 20%' },
-        { wallet: wallet,          amount: DIST.STAKING,   label: 'Staking 10%'   },
-        { wallet: TREASURY_WALLET, amount: DIST.DAO,       label: 'DAO 10%'       },
-      ]
-      for (const d of dists) {
-        const ata = await getAssociatedTokenAddress(mintKeypair.publicKey, d.wallet)
-        const tx = new Transaction().add(
-          createAssociatedTokenAccountInstruction(wallet, ata, d.wallet, mintKeypair.publicKey),
-          createMintToInstruction(mintKeypair.publicKey, ata, wallet, d.amount * MULT)
-        )
-        const s = await sendTransaction(tx, connection)
-        await connection.confirmTransaction(s, 'confirmed')
-        setStatus(`✓ ${d.label} distributed...`)
+      // ── Step 2 / 3 — Create ATAs + Mint all tokens in one tx ───────────────
+      setStatus('Step 2/3 — Approve: Create Token Accounts & Distribute')
+      const { blockhash: bh2 } = await connection.getLatestBlockhash()
+      const tx2 = new Transaction({ recentBlockhash: bh2, feePayer: wallet })
+
+      const ataInstrs: ReturnType<typeof createAssociatedTokenAccountInstruction>[] = []
+      const mintInstrs: ReturnType<typeof createMintToInstruction>[] = []
+
+      for (const [, owner] of uniqueWallets) {
+        const ata = await getAssociatedTokenAddress(mintKeypair.publicKey, owner)
+        ataInstrs.push(createAssociatedTokenAccountInstruction(wallet, ata, owner, mintKeypair.publicKey))
+        const amt = amountMap.get(owner.toBase58())!
+        mintInstrs.push(createMintToInstruction(mintKeypair.publicKey, ata, wallet, amt * MULT))
       }
 
-      setStatus('Revoking mint authority (3/3)...')
-      const tx3 = new Transaction().add(
+      // ATAs first, then mints
+      for (const ix of [...ataInstrs, ...mintInstrs]) tx2.add(ix)
+
+      const sig2 = await sendTransaction(tx2, connection)
+      await connection.confirmTransaction(sig2, 'confirmed')
+      setStatus('✓ 1,000,000,000 RDX distributed.')
+
+      // ── Step 3 / 3 — Revoke mint authority ─────────────────────────────────
+      setStatus('Step 3/3 — Approve: Revoke Mint Authority (makes supply fixed)')
+      const { blockhash: bh3 } = await connection.getLatestBlockhash()
+      const tx3 = new Transaction({ recentBlockhash: bh3, feePayer: wallet }).add(
         createSetAuthorityInstruction(mintKeypair.publicKey, wallet, AuthorityType.MintTokens, null)
       )
       const sig3 = await sendTransaction(tx3, connection)
       await connection.confirmTransaction(sig3, 'confirmed')
 
       setMintAddress(mintKeypair.publicKey.toBase58())
-      setStatus('🔴 $RDX IS LIVE. Protocol launched.')
+      setStatus('🔴 $RDX IS LIVE.')
     } catch (e: any) {
-      console.error(e)
-      setStatus(`Error: ${e.message}`)
+      console.error('[TokenLaunch]', e)
+      setStatus(`Error: ${e.message ?? String(e)}`)
     } finally {
       setLoading(false)
     }
@@ -183,6 +205,26 @@ export function TokenLaunchPanel() {
           <span className="text-[10px] font-black tracking-[0.4em] text-rd-muted uppercase">Admin — Official Token Deployment</span>
         </div>
         <span className="text-[9px] font-mono bg-red-500/10 border border-red-500/20 px-3 py-1 text-red-500 tracking-widest">OWNER ONLY</span>
+      </div>
+
+      {/* Config status */}
+      <div className="px-8 pt-5 pb-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[9px] font-mono">
+          {[
+            { label: 'MAIN AUTHORITY', ok: !!MAIN_AUTHORITY },
+            { label: 'TREASURY WALLET', ok: !!RDX_PUBLIC_KEYS.treasuryWallet, fallback: !RDX_PUBLIC_KEYS.treasuryWallet && !!MAIN_AUTHORITY },
+            { label: 'AIRDROP WALLET',  ok: !!RDX_PUBLIC_KEYS.airdropWallet,  fallback: !RDX_PUBLIC_KEYS.airdropWallet  && !!MAIN_AUTHORITY },
+          ].map(({ label, ok, fallback }) => (
+            <div key={label} className={`flex items-center gap-2 px-3 py-2 rounded border ${ok ? 'border-green-900/30 bg-green-950/10' : fallback ? 'border-yellow-900/30 bg-yellow-950/10' : 'border-red-900/30 bg-red-950/10'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ok ? 'bg-green-500' : fallback ? 'bg-yellow-500' : 'bg-red-500'}`} />
+              <span className={ok ? 'text-green-600' : fallback ? 'text-yellow-600' : 'text-red-600'}>{label}</span>
+              <span className="ml-auto">{ok ? '✓' : fallback ? 'FALLBACK' : '✗ MISSING'}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[8px] text-gray-700 mt-2 mb-1">
+          Missing vars → go to <span className="text-gray-500">Vercel → Project Settings → Environment Variables</span>. Fallback = uses Main Authority wallet.
+        </p>
       </div>
 
       <div className="p-8 grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-10">

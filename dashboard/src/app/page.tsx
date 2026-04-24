@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Header } from '@/components/Header'
 import { Hero } from '@/components/Hero'
+import { ScrollVideoSection } from '@/components/ScrollVideoSection'
 import { ColosseumSection } from '@/components/ColosseumSection'
 import { AirdropSection } from '@/components/AirdropSection'
 import { PresalePanel } from '@/components/PresalePanel'
@@ -36,6 +37,7 @@ function HomeContent() {
       <Header />
       <main>
         <Hero />
+        <ScrollVideoSection />
         <ColosseumSection />
         <AirdropSection />
         <div className="max-w-6xl mx-auto px-4 py-12">

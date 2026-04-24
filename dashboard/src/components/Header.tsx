@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: '#images', label: 'Images' },
   { href: '#news', label: 'News' },
   { href: '#token', label: 'Token' },
+  { href: '/terminal', label: 'Terminal' },
 ]
 
 export function Header() {
@@ -116,7 +117,8 @@ export function Header() {
           {pathname !== '/dashboard' && (
             <nav className="hidden xl:flex items-center gap-1 px-4 py-2 rounded-full border border-white/5 bg-white/[0.02] backdrop-blur-md shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
               {NAV_LINKS.map(link => {
-                const isActive = activeSection === link.href
+                const isPage   = link.href.startsWith('/')
+                const isActive = isPage ? pathname === link.href : activeSection === link.href
                 return (
                   <a
                     key={link.href}
@@ -141,12 +143,12 @@ export function Header() {
           )}
 
           {/* Right side - Controls */}
-          <div className="flex items-center gap-4">
-            {/* Dashboard link when connected */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Dashboard link — visible md+ */}
             {walletReady && connected && (
               <Link
                 href="/dashboard"
-                className={`hidden md:flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-mono uppercase tracking-wider transition-all duration-300 border ${
+                className={`hidden md:flex items-center gap-2 px-4 lg:px-6 py-2.5 rounded-full text-xs font-mono uppercase tracking-wider transition-all duration-300 border ${
                   pathname === '/dashboard'
                     ? 'border-red-500/50 bg-red-500/10 text-white shadow-[0_0_20px_rgba(255,26,26,0.2)]'
                     : 'border-white/10 bg-white/5 text-gray-300 hover:border-red-500/30 hover:text-white hover:bg-red-500/5'
@@ -157,7 +159,22 @@ export function Header() {
               </Link>
             )}
 
-            {/* Wallet */}
+            {/* Mobile: Dashboard icon button when connected */}
+            {walletReady && connected && (
+              <Link
+                href="/dashboard"
+                className={`md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-mono uppercase tracking-wider border transition-all ${
+                  pathname === '/dashboard'
+                    ? 'border-red-500/50 bg-red-500/10 text-red-400'
+                    : 'border-white/10 bg-white/5 text-gray-400'
+                }`}
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_4px_#22c55e]" />
+                App
+              </Link>
+            )}
+
+            {/* Wallet — desktop */}
             {walletReady && (
               <div className="hidden md:block">
                 <WalletMultiButton
@@ -176,7 +193,6 @@ export function Header() {
                     textTransform: 'uppercase',
                     boxShadow: '0 0 20px rgba(255,26,26,0.1), inset 0 0 10px rgba(255,26,26,0.05)',
                   }}
-                  className="hover:shadow-[0_0_30px_rgba(255,26,26,0.3)] hover:border-red-500 hover:bg-red-500/10"
                 />
               </div>
             )}
@@ -184,7 +200,7 @@ export function Header() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="xl:hidden p-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 hover:border-red-500/50 transition-all duration-300 relative group"
+              className="xl:hidden p-2.5 sm:p-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 hover:border-red-500/50 transition-all duration-300 relative group"
               aria-label="Toggle menu"
             >
               <div className="absolute inset-0 bg-red-500/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -229,33 +245,49 @@ export function Header() {
               )
             })}
             
-            <div className="mt-6 pt-6 border-t border-red-500/20 flex flex-col gap-4">
+            <div className="mt-6 pt-6 border-t border-red-500/20 flex flex-col gap-3">
+              {/* Wallet button — full width in mobile menu */}
               {walletReady && (
-                <div className="md:hidden flex justify-center mb-4">
-                  <WalletMultiButton
-                    style={{
-                      background: 'rgba(255,26,26,0.1)',
-                      border: '1px solid rgba(255, 26, 26, 0.3)',
-                      color: '#ff1a1a',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.8rem',
-                      letterSpacing: '0.15em',
-                      height: '44px',
-                      width: '100%',
-                      justifyContent: 'center',
-                      borderRadius: '12px',
-                      textTransform: 'uppercase',
-                    }}
-                  />
-                </div>
+                <WalletMultiButton
+                  style={{
+                    background: 'rgba(255,26,26,0.1)',
+                    border: '1px solid rgba(255,26,26,0.3)',
+                    color: '#ff1a1a',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.75rem',
+                    letterSpacing: '0.15em',
+                    height: '52px',
+                    width: '100%',
+                    justifyContent: 'center',
+                    borderRadius: '12px',
+                    textTransform: 'uppercase',
+                  }}
+                />
               )}
+
+              {/* Dashboard link — only when connected */}
+              {walletReady && connected && (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center justify-center gap-3 py-4 px-6 rounded-xl border font-mono text-sm uppercase tracking-widest transition-all ${
+                    pathname === '/dashboard'
+                      ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                      : 'bg-white/5 border-white/10 text-gray-300 hover:text-white hover:border-red-500/20'
+                  }`}
+                >
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_6px_#22c55e]" />
+                  Agent Dashboard
+                </Link>
+              )}
+
               <a
                 href="https://t.me/theredacted_bot"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-3 py-4 px-6 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 rounded-xl transition-all font-mono text-sm uppercase tracking-widest"
               >
-                Launch Protocol Bot
+                Telegram Bot
               </a>
             </div>
           </nav>
