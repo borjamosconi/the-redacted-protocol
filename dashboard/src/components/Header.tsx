@@ -94,7 +94,7 @@ export function Header() {
             <div className="relative flex-shrink-0">
               <div className="absolute -inset-2 bg-gradient-to-r from-red-500/0 via-red-500/20 to-red-500/0 rounded-full animate-spin-slow opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <img
-                src="/logo.svg"
+                src="/logo.png"
                 alt="Redacted Protocol"
                 className="w-12 h-12 relative z-10 transition-all duration-500 group-hover:drop-shadow-[0_0_15px_#ff1a1a] group-hover:scale-110 object-contain"
               />

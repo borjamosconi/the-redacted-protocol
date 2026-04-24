@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     description: 'The file is breathing. Register for 700 RDX.',
     type: 'website',
     url: 'https://redacted.bond',
-    images: ['/logo.svg'],
+    images: ['/logo.png'],
     siteName: 'Redacted Protocol',
   },
   twitter: {
@@ -49,7 +49,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${spaceMono.variable}`}>
       <head>
-        <link rel="icon" href="/logo.svg" />
+        <link rel="icon" href="/logo.png" />
         <meta name="theme-color" content="#0a0a0a" />
       </head>
       <body className="antialiased font-grotesk">

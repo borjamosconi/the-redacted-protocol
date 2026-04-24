@@ -6,6 +6,8 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Header } from '@/components/Header'
 import { useWalletReady } from '@/components/Providers'
+import { GovernancePanel } from '@/components/GovernancePanel'
+import { LaunchpadPanel } from '@/components/LaunchpadPanel'
 
 interface UserProfile {
   walletAddress: string
@@ -168,7 +170,7 @@ function DashboardContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [stats, setStats] = useState<GlobalStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'quests' | 'referrals'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'quests' | 'referrals' | 'governance' | 'launchpad'>('overview')
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -411,20 +413,48 @@ function DashboardContent() {
         </motion.div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-white/[0.02] p-1 rounded-xl border border-white/[0.04] w-fit">
-          {(['overview', 'quests', 'referrals'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-all capitalize ${
-                activeTab === tab
-                  ? 'bg-red-950/60 text-red-400 border border-red-900/30 shadow-[0_0_20px_rgba(255,26,26,0.08)]'
-                  : 'text-gray-500 hover:text-white hover:bg-white/[0.03]'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+        <div className="mb-8 relative">
+          {/* Decorative line */}
+          <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-red-900/30 to-transparent" />
+
+          <div className="flex items-stretch gap-0 overflow-x-auto scrollbar-none">
+            {[
+              { id: 'overview',    label: 'Overview',    icon: '◈' },
+              { id: 'quests',      label: 'Quests',      icon: '◎' },
+              { id: 'referrals',   label: 'Referrals',   icon: '⌁' },
+              { id: 'governance',  label: 'Governance',  icon: '⬡' },
+              { id: 'launchpad',   label: 'Launchpad',   icon: '⊕' },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`relative flex items-center gap-2.5 px-6 py-4 text-[10px] font-black uppercase tracking-[0.25em] whitespace-nowrap transition-all duration-300 border-b-2 ${
+                    isActive
+                      ? 'text-white border-red-500 bg-gradient-to-b from-red-500/5 to-transparent'
+                      : 'text-rd-muted/50 border-transparent hover:text-white/70 hover:border-red-900/40 hover:bg-white/[0.02]'
+                  }`}
+                >
+                  {/* Icon */}
+                  <span className={`text-base leading-none transition-all duration-300 ${
+                    isActive ? 'text-red-500 drop-shadow-[0_0_8px_rgba(255,26,26,0.8)]' : 'text-rd-muted/30'
+                  }`}>
+                    {tab.icon}
+                  </span>
+                  {tab.label}
+                  {/* Active glow dot */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="tabIndicator"
+                      className="absolute bottom-[-2px] left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_12px_#ff1a1a]"
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                    />
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Tab Content */}
@@ -646,6 +676,29 @@ function DashboardContent() {
                   </div>
                 </div>
               </div>
+            </motion.div>
+          )}
+          {activeTab === 'governance' && (
+            <motion.div
+              key="governance"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+               <GovernancePanel rdxBalance={profile?.xp || 0} />
+            </motion.div>
+          )}
+
+          {activeTab === 'launchpad' && (
+            <motion.div
+              key="launchpad"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+               <LaunchpadPanel />
             </motion.div>
           )}
         </AnimatePresence>

@@ -1,10 +1,12 @@
 'use client'
+import { useState, useEffect } from 'react'
 
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Header } from '@/components/Header'
 import { Hero } from '@/components/Hero'
 import { ColosseumSection } from '@/components/ColosseumSection'
 import { AirdropSection } from '@/components/AirdropSection'
+import { PresalePanel } from '@/components/PresalePanel'
 import { GamificationPanel } from '@/components/GamificationPanel'
 import { OcrSection } from '@/components/OcrSection'
 import { ImageGenSection } from '@/components/ImageGenSection'
@@ -36,6 +38,9 @@ function HomeContent() {
         <Hero />
         <ColosseumSection />
         <AirdropSection />
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <PresalePanel />
+        </div>
         <GamificationPanel walletAddress={publicKey?.toString()} />
         <OcrSection />
         <ImageGenSection />

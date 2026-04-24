@@ -1,7 +1,10 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: { unoptimized: true },
-  webpack: (config, { isServer }) => {
+  outputFileTracingRoot: path.join(__dirname),
+  webpack: (config) => {
     // Fix pino-pretty missing dependency from WalletConnect
     config.resolve.fallback = {
       ...config.resolve.fallback,

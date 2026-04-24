@@ -174,9 +174,16 @@ pub mod rd_presale {
     /// Claim RDX tokens after presale ends and tokens are distributed.
     pub fn claim(ctx: Context<Claim>) -> Result<()> {
         let presale = &ctx.accounts.presale;
-        let buyer = &mut ctx.accounts.buyer;
+        let buyer = &mut ctx.accounts.buyer_stats;
         
-        require!(presale.is_launched, PresaleError::TokensNotYetDistributed);
+        let now = Clock::get()?.unix_timestamp;
+        
+        // Autonomous check: Allow claim if launched OR if presale ended 7 days ago (failsafe)
+        require!(
+            presale.is_launched || now > presale.end_time + (7 * 24 * 3600), 
+            PresaleError::TokensNotYetDistributed
+        );
+        
         require!(!buyer.claimed, PresaleError::AlreadyClaimed);
         require!(buyer.rdx_allocated > 0, PresaleError::NoTokensToClaim);
         

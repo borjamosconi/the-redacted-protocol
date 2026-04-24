@@ -9,7 +9,7 @@ export function Footer() {
           {/* Logo + Tagline */}
           <div className="flex flex-col items-center md:items-start gap-3">
             <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="Redacted Protocol" className="w-7 h-7 drop-shadow-[0_0_6px_rgba(255,26,26,0.4)]" />
+              <img src="/logo.png" alt="Redacted Protocol" className="w-7 h-7 drop-shadow-[0_0_6px_rgba(255,26,26,0.4)]" />
               <span className="text-[10px] tracking-[0.4em] text-rd-muted">
                 REDACTED PROTOCOL
               </span>
