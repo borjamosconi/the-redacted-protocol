@@ -7,6 +7,8 @@ members = [
     "programs/rd-treasury",
     "programs/rd-token",
     "programs/rd-presale",
+    "programs/rd-governance",
+    "programs/rd-bondingcurve",
 ]
 resolver = "2"
 

@@ -8,4 +8,4 @@ crate-type = ["cdylib", "lib"]
 name = "rd_fragment"
 
 [dependencies]
-anchor-lang = "0.30"
+anchor-lang = "0.30.1"

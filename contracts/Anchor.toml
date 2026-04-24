@@ -7,30 +7,43 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-rd_fragment = "RDfrag11111111111111111111111111111111111111"
-rd_archive = "RDarch11111111111111111111111111111111111111"
-rd_staking = "RDstk111111111111111111111111111111111111111"
-rd_rewards = "RDrew111111111111111111111111111111111111111"
-rd_treasury = "RDtr11111111111111111111111111111111111111"
-rd_token = "RDtok1111111111111111111111111111111111111"
-rd_presale = "RDpre111111111111111111111111111111111111111"
-rd_governance = "RDgov111111111111111111111111111111111111111"
+rd_fragment = "5CLiUA3yqHNoKAdPeHjeNkipDjjYFPwTpnEFfuR9JxWd"
+rd_archive = "6azG6eVkmNxsPAntuK5LzwX2VXaMqsbdTkCpFyHoSJ22"
+rd_staking = "B6exebxV6gLVy2J4djeNmULi56uniV9gkogeJfTEo6N9"
+rd_rewards = "XhodEAbfkn1GJ37pimGBdUJwgM5aXqfDZ9FAMBPxecg"
+rd_treasury = "HpvmQtmxyPeeYKGvKHqEdcnsYUzAQrdynoCX452s2xLz"
+rd_token = "CPLCsPQJrfWQgacJEq1QcbwoMcJocbEhjGVmJLPhs38Z"
+rd_presale = "HACK1L8hdDN1wuhV5mEbNYGeMXjhFzvz3HNvDTCdFP2a"
+rd_governance = "8JJd3isBeCkYtsdwTFFLNRCJJXQbABMRgX67vnVzDvSN"
+rd_bondingcurve = "BCurve1111111111111111111111111111111111111"
 
 [programs.devnet]
-rd_fragment = "RDfrag11111111111111111111111111111111111111"
-rd_archive = "RDarch11111111111111111111111111111111111111"
-rd_staking = "RDstk111111111111111111111111111111111111111"
-rd_rewards = "RDrew111111111111111111111111111111111111111"
-rd_treasury = "RDtr11111111111111111111111111111111111111"
-rd_token = "RDtok1111111111111111111111111111111111111"
-rd_presale = "RDpre111111111111111111111111111111111111111"
-rd_governance = "RDgov111111111111111111111111111111111111111"
+rd_fragment = "5CLiUA3yqHNoKAdPeHjeNkipDjjYFPwTpnEFfuR9JxWd"
+rd_archive = "6azG6eVkmNxsPAntuK5LzwX2VXaMqsbdTkCpFyHoSJ22"
+rd_staking = "B6exebxV6gLVy2J4djeNmULi56uniV9gkogeJfTEo6N9"
+rd_rewards = "XhodEAbfkn1GJ37pimGBdUJwgM5aXqfDZ9FAMBPxecg"
+rd_treasury = "HpvmQtmxyPeeYKGvKHqEdcnsYUzAQrdynoCX452s2xLz"
+rd_token = "CPLCsPQJrfWQgacJEq1QcbwoMcJocbEhjGVmJLPhs38Z"
+rd_presale = "HACK1L8hdDN1wuhV5mEbNYGeMXjhFzvz3HNvDTCdFP2a"
+rd_governance = "8JJd3isBeCkYtsdwTFFLNRCJJXQbABMRgX67vnVzDvSN"
+rd_bondingcurve = "BCurve1111111111111111111111111111111111111"
+
+[programs.mainnet]
+rd_fragment = "5CLiUA3yqHNoKAdPeHjeNkipDjjYFPwTpnEFfuR9JxWd"
+rd_archive = "6azG6eVkmNxsPAntuK5LzwX2VXaMqsbdTkCpFyHoSJ22"
+rd_staking = "B6exebxV6gLVy2J4djeNmULi56uniV9gkogeJfTEo6N9"
+rd_rewards = "XhodEAbfkn1GJ37pimGBdUJwgM5aXqfDZ9FAMBPxecg"
+rd_treasury = "HpvmQtmxyPeeYKGvKHqEdcnsYUzAQrdynoCX452s2xLz"
+rd_token = "CPLCsPQJrfWQgacJEq1QcbwoMcJocbEhjGVmJLPhs38Z"
+rd_presale = "HACK1L8hdDN1wuhV5mEbNYGeMXjhFzvz3HNvDTCdFP2a"
+rd_governance = "8JJd3isBeCkYtsdwTFFLNRCJJXQbABMRgX67vnVzDvSN"
+rd_bondingcurve = "BCurve1111111111111111111111111111111111111"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "mainnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

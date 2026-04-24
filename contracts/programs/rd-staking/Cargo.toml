@@ -8,5 +8,5 @@ crate-type = ["cdylib", "lib"]
 name = "rd_staking"
 
 [dependencies]
-anchor-lang = "0.30"
-anchor-spl = "0.30"
+anchor-lang = "0.30.1"
+anchor-spl = "0.30.1"

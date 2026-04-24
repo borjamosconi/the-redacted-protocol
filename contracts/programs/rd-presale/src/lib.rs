@@ -41,7 +41,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, Mint, Transfer as TokenTransfer, transfer as token_transfer};
 
-declare_id!("RDpres11111111111111111111111111111111111111");
+declare_id!("HACK1L8hdDN1wuhV5mEbNYGeMXjhFzvz3HNvDTCdFP2a");
 
 // ───────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -94,7 +94,7 @@ pub mod rd_presale {
         presale.is_launched = false;
         presale.rdx_per_sol_early = rdx_per_sol;
         presale.rdx_per_sol_public = rdx_per_sol / 2; // Public gets half the RDX per SOL
-        presale.bump = *ctx.bumps.get("presale").unwrap();
+        presale.bump = ctx.bumps.presale;
         
         emit!(PresaleInitialized {
             authority: presale.authority,
@@ -122,7 +122,7 @@ pub mod rd_presale {
         let is_early_bird = time_in_presale < EARLY_BIRD_DURATION_SECS;
         
         // Anti-whale: check max purchase
-        let buyer = &mut ctx.accounts.buyer;
+        let buyer = &mut ctx.accounts.buyer_stats;
         let max_allowed = if is_early_bird { EARLY_BIRD_MAX_SOL } else { PUBLIC_MAX_SOL };
         require!(
             buyer.total_sol_contributed.saturating_add(sol_amount) <= max_allowed,
@@ -205,8 +205,19 @@ pub mod rd_presale {
             rdx_amount: buyer.rdx_allocated,
         });
 
-        // Note: Actual token transfer would be done via CPI to token program
-        // This is a simplified version. In production, implement full token transfer.
+        // Transfer RDX tokens to buyer
+        let presale_bump = ctx.accounts.presale.bump;
+        let seeds = &[b"presale".as_ref(), &[presale_bump]];
+        let signer = &[&seeds[..]];
+        
+        let cpi_accounts = TokenTransfer {
+            from: ctx.accounts.presale_token_vault.to_account_info(),
+            to: ctx.accounts.buyer_token_account.to_account_info(),
+            authority: ctx.accounts.presale.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token_transfer(cpi_ctx, buyer.rdx_allocated)?;
 
         Ok(())
     }
@@ -239,10 +250,43 @@ pub mod rd_presale {
             total_participants: presale.total_participants,
         });
 
-        // In production: transfer SOL to respective accounts
-        // - liquidity_sol → Raydium LP creation
-        // - burn_sol → buyback RDX and burn
-        // - treasury_sol → community treasury
+        // Transfer SOL to respective accounts
+        let presale_bump = ctx.accounts.presale.bump;
+        let seeds = &[b"presale_vault".as_ref(), &[ctx.bumps.presale_vault]];
+        let signer = &[&seeds[..]];
+
+        // Transfer to liquidity
+        let liquidity_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.presale_vault.to_account_info(),
+                to: ctx.accounts.liquidity_recipient.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(liquidity_ctx, liquidity_sol)?;
+
+        // Transfer to burn
+        let burn_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.presale_vault.to_account_info(),
+                to: ctx.accounts.burn_wallet.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(burn_ctx, burn_sol)?;
+
+        // Transfer to treasury
+        let treasury_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.presale_vault.to_account_info(),
+                to: ctx.accounts.treasury_recipient.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(treasury_ctx, treasury_sol)?;
 
         Ok(())
     }
@@ -324,9 +368,10 @@ pub struct Claim<'info> {
         bump
     )]
     pub buyer_stats: Account<'info, BuyerStats>,
-    /// CHECK: RDX token account for buyer
     #[account(mut)]
-    pub buyer_token_account: AccountInfo<'info>,
+    pub presale_token_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub buyer_token_account: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
 

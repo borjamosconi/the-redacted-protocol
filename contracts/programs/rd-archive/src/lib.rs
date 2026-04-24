@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("RDarch11111111111111111111111111111111111111");
+declare_id!("6azG6eVkmNxsPAntuK5LzwX2VXaMqsbdTkCpFyHoSJ22");
 
 #[program]
 pub mod rd_archive {

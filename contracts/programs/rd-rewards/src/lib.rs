@@ -7,7 +7,7 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("RDrew111111111111111111111111111111111111111");
+declare_id!("XhodEAbfkn1GJ37pimGBdUJwgM5aXqfDZ9FAMBPxecg");
 
 #[program]
 pub mod rd_rewards {
@@ -41,7 +41,22 @@ pub mod rd_rewards {
 
     pub fn reward_document(ctx: Context<DistributeReward>, fragment_hash: [u8; 32]) -> Result<()> {
         let amount = ctx.accounts.reward_config.document_reward;
-        distribute(ctx.accounts.signer.key(), amount, &mut ctx.accounts.reward_config)?;
+        
+        // Transfer from reward vault to user token account
+        let config_bump = ctx.accounts.reward_config.bump;
+        let seeds = &[b"reward_config".as_ref(), &[config_bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = anchor_spl::token::Transfer {
+            from: ctx.accounts.reward_vault.to_account_info(),
+            to: ctx.accounts.user_reward_account.to_account_info(),
+            authority: ctx.accounts.reward_config.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        anchor_spl::token::transfer(cpi_ctx, amount)?;
+
+        let config = &mut ctx.accounts.reward_config;
+        config.total_distributed = config.total_distributed.checked_add(amount).unwrap();
         emit!(DocumentRewarded {
             user: ctx.accounts.signer.key(),
             fragment_hash,
@@ -52,7 +67,22 @@ pub mod rd_rewards {
 
     pub fn reward_verify(ctx: Context<DistributeReward>, fragment_hash: [u8; 32]) -> Result<()> {
         let amount = ctx.accounts.reward_config.verify_reward;
-        distribute(ctx.accounts.signer.key(), amount, &mut ctx.accounts.reward_config)?;
+
+        // Transfer from reward vault to user token account
+        let config_bump = ctx.accounts.reward_config.bump;
+        let seeds = &[b"reward_config".as_ref(), &[config_bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = anchor_spl::token::Transfer {
+            from: ctx.accounts.reward_vault.to_account_info(),
+            to: ctx.accounts.user_reward_account.to_account_info(),
+            authority: ctx.accounts.reward_config.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        anchor_spl::token::transfer(cpi_ctx, amount)?;
+
+        let config = &mut ctx.accounts.reward_config;
+        config.total_distributed = config.total_distributed.checked_add(amount).unwrap();
         emit!(VerifyRewarded {
             user: ctx.accounts.signer.key(),
             fragment_hash,
@@ -63,7 +93,22 @@ pub mod rd_rewards {
 
     pub fn reward_publish(ctx: Context<DistributeReward>, fragment_hash: [u8; 32]) -> Result<()> {
         let amount = ctx.accounts.reward_config.publish_reward;
-        distribute(ctx.accounts.signer.key(), amount, &mut ctx.accounts.reward_config)?;
+
+        // Transfer from reward vault to user token account
+        let config_bump = ctx.accounts.reward_config.bump;
+        let seeds = &[b"reward_config".as_ref(), &[config_bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = anchor_spl::token::Transfer {
+            from: ctx.accounts.reward_vault.to_account_info(),
+            to: ctx.accounts.user_reward_account.to_account_info(),
+            authority: ctx.accounts.reward_config.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        anchor_spl::token::transfer(cpi_ctx, amount)?;
+
+        let config = &mut ctx.accounts.reward_config;
+        config.total_distributed = config.total_distributed.checked_add(amount).unwrap();
         emit!(PublishRewarded {
             user: ctx.accounts.signer.key(),
             fragment_hash,
@@ -73,11 +118,7 @@ pub mod rd_rewards {
     }
 }
 
-fn distribute(user: Pubkey, amount: u64, config: &mut RewardConfig) -> Result<()> {
-    config.total_distributed = config.total_distributed.checked_add(amount).unwrap();
-    // In production: transfer from reward vault to user token account
-    Ok(())
-}
+
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -108,6 +149,11 @@ pub struct DistributeReward<'info> {
     pub reward_config: Account<'info, RewardConfig>,
     #[account(mut)]
     pub signer: Signer<'info>,
+    #[account(mut)]
+    pub reward_vault: Account<'info, anchor_spl::token::TokenAccount>,
+    #[account(mut)]
+    pub user_reward_account: Account<'info, anchor_spl::token::TokenAccount>,
+    pub token_program: Program<'info, anchor_spl::token::Token>,
 }
 
 #[account]

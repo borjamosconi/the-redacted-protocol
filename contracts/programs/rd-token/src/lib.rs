@@ -10,10 +10,16 @@
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount, Burn as TokenBurn, MintTo, Transfer, burn, mint_to, transfer};
+use anchor_spl::metadata::{
+    Metadata,
+    CreateMetadataAccountsV3,
+    create_metadata_accounts_v3,
+    mpl_token_metadata::types::DataV2,
+};
 
 mod token_config;
 
-declare_id!("RDtok1111111111111111111111111111111111111");
+declare_id!("CPLCsPQJrfWQgacJEq1QcbwoMcJocbEhjGVmJLPhs38Z");
 
 #[program]
 pub mod rd_token {
@@ -118,6 +124,7 @@ pub mod rd_token {
 
         let vesting = &mut ctx.accounts.vesting_schedule;
         vesting.beneficiary = beneficiary;
+        vesting.authority = ctx.accounts.authority.key();
         vesting.token_mint = ctx.accounts.mint.key();
         vesting.vault = ctx.accounts.vesting_vault.key();
         vesting.total_amount = total_amount;
@@ -140,32 +147,31 @@ pub mod rd_token {
 
     /// Release vested tokens to beneficiary (after cliff).
     pub fn release_vested(ctx: Context<ReleaseVested>) -> Result<()> {
-        let vesting = &mut ctx.accounts.vesting_schedule;
-        require!(!vesting.cancelled, TokenError::VestingCancelled);
-
         let now = Clock::get()?.unix_timestamp;
-        let cliff_end = vesting.start_time + vesting.cliff_duration;
+
+        // Read immutables first so we can release the borrow before CPI.
+        let (beneficiary_key, bump, cancelled, cliff_end, total_duration, cliff_duration,
+             start_time, total_amount, released_amount) = {
+            let v = &ctx.accounts.vesting_schedule;
+            (v.beneficiary, v.bump, v.cancelled, v.start_time + v.cliff_duration,
+             v.vesting_duration, v.cliff_duration, v.start_time, v.total_amount, v.released_amount)
+        };
+        require!(!cancelled, TokenError::VestingCancelled);
         require!(now >= cliff_end, TokenError::CliffNotReached);
 
-        let total_duration = vesting.vesting_duration;
-        let elapsed = now - vesting.start_time;
-        let vested_amount = if elapsed >= total_duration + vesting.cliff_duration {
-            vesting.total_amount
+        let elapsed = now - start_time;
+        let vested_amount = if elapsed >= total_duration + cliff_duration {
+            total_amount
         } else {
-            let elapsed_vesting = elapsed - vesting.cliff_duration;
-            vesting.total_amount * elapsed_vesting as u64 / total_duration as u64
+            let elapsed_vesting = elapsed - cliff_duration;
+            total_amount * elapsed_vesting as u64 / total_duration as u64
         };
 
-        let releasable = vested_amount.checked_sub(vesting.released_amount).unwrap();
+        let releasable = vested_amount.checked_sub(released_amount).unwrap();
         require!(releasable > 0, TokenError::NothingToRelease);
 
-        // Transfer from vault to beneficiary
-        let seeds = &[
-            b"vesting".as_ref(),
-            vesting.beneficiary.as_ref(),
-            &[vesting.bump],
-        ];
-        let signer = &[&seeds[..]];
+        let seeds: &[&[u8]] = &[b"vesting", beneficiary_key.as_ref(), &[bump]];
+        let signer = &[seeds];
 
         transfer(
             CpiContext::new_with_signer(
@@ -180,6 +186,7 @@ pub mod rd_token {
             releasable,
         )?;
 
+        let vesting = &mut ctx.accounts.vesting_schedule;
         vesting.released_amount = vesting.released_amount.checked_add(releasable).unwrap();
 
         emit!(VestingReleased {
@@ -188,6 +195,66 @@ pub mod rd_token {
             total_released: vesting.released_amount,
         });
 
+        Ok(())
+    }
+
+    /// Create Metaplex on-chain metadata for the RDX mint (v3). Must be
+    /// called by the current mint authority exactly once.
+    pub fn create_metadata(
+        ctx: Context<CreateMetadata>,
+        name: String,
+        symbol: String,
+        uri: String,
+    ) -> Result<()> {
+        require!(name.len() <= 32, TokenError::NameTooLong);
+        require!(symbol.len() <= 10, TokenError::SymbolTooLong);
+        require!(uri.len() <= 200, TokenError::UriTooLong);
+
+        let data = DataV2 {
+            name,
+            symbol,
+            uri,
+            seller_fee_basis_points: 0,
+            creators: None,
+            collection: None,
+            uses: None,
+        };
+
+        create_metadata_accounts_v3(
+            CpiContext::new(
+                ctx.accounts.token_metadata_program.to_account_info(),
+                CreateMetadataAccountsV3 {
+                    metadata: ctx.accounts.metadata.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
+                    mint_authority: ctx.accounts.authority.to_account_info(),
+                    update_authority: ctx.accounts.authority.to_account_info(),
+                    payer: ctx.accounts.authority.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info(),
+                },
+            ),
+            data,
+            true,
+            true,
+            None,
+        )?;
+        Ok(())
+    }
+
+    /// Revoke mint authority permanently — call after full distribution is
+    /// complete so supply can never grow again.
+    pub fn revoke_mint_authority(ctx: Context<SetAuthority>) -> Result<()> {
+        anchor_spl::token::set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::SetAuthority {
+                    current_authority: ctx.accounts.authority.to_account_info(),
+                    account_or_mint: ctx.accounts.mint.to_account_info(),
+                },
+            ),
+            anchor_spl::token::spl_token::instruction::AuthorityType::MintTokens,
+            None,
+        )?;
         Ok(())
     }
 
@@ -299,6 +366,28 @@ pub struct ReleaseVested<'info> {
 }
 
 #[derive(Accounts)]
+pub struct CreateMetadata<'info> {
+    /// CHECK: Metaplex PDA derived and validated by CPI
+    #[account(mut)]
+    pub metadata: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub token_metadata_program: Program<'info, Metadata>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct SetAuthority<'info> {
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+    pub authority: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 pub struct CancelVesting<'info> {
     #[account(
         mut,
@@ -330,6 +419,7 @@ impl TokenMetadata {
 #[account]
 pub struct VestingSchedule {
     pub beneficiary: Pubkey,
+    pub authority: Pubkey,
     pub token_mint: Pubkey,
     pub vault: Pubkey,
     pub total_amount: u64,
@@ -342,7 +432,7 @@ pub struct VestingSchedule {
 }
 
 impl VestingSchedule {
-    pub const SPACE: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1 + 1;
+    pub const SPACE: usize = 32 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1 + 1;
 }
 
 // ── Events ───────────────────────────────────────────────────────

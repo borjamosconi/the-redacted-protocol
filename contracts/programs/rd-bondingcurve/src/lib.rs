@@ -1,0 +1,842 @@
+//! # RDX Bonding Curve — pump.fun-style launchpad
+//!
+//! Virtual constant-product (x*y=k) bonding curve. Each launched token gets
+//! its own pool with virtual SOL reserves + virtual token reserves plus the
+//! real tokens locked in a vault. As people buy, the token reserve shrinks
+//! and the SOL reserve grows, so price rises on the curve.
+//!
+//! ┌────────────────────────────────────────────────────────────────────┐
+//! │  CONFIG (matches pump.fun economics)                              │
+//! │  ───────────────────────────────────────────────────────────────  │
+//! │  decimals                      : 6                                │
+//! │  total_supply                  : 1_000_000_000 tokens             │
+//! │  curve_supply                  : 800_000_000 tokens (sold on BC)  │
+//! │  lp_reserve_supply             : 200_000_000 tokens (LP at grad)  │
+//! │  initial_virtual_token_reserves: 1_073_000_000 * 10^6             │
+//! │  initial_virtual_sol_reserves  : 30 SOL in lamports               │
+//! │  initial_real_token_reserves   : 793_100_000 * 10^6               │
+//! │  graduation_sol_threshold      : 85 SOL raised                    │
+//! │  fee_basis_points              : 100 (1%) → treasury              │
+//! │  creator_fee_basis_points      : 50 (0.5%) → creator              │
+//! │  vault_basis_points            : 9850 (98.5%) into the pool       │
+//! └────────────────────────────────────────────────────────────────────┘
+//!
+//! On graduation (>= 85 SOL raised) the pool freezes, the authority calls
+//! `graduate` which withdraws the real SOL + the 200M LP tokens to a
+//! designated migration signer (off-chain Raydium/Meteora LP creator).
+
+use anchor_lang::prelude::*;
+use anchor_lang::system_program;
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token::{
+    self, Burn, Mint, MintTo, Token, TokenAccount, Transfer as TokenTransfer,
+};
+
+declare_id!("BCurve1111111111111111111111111111111111111");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS — pump.fun parity
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub const TOKEN_DECIMALS: u8 = 6;
+pub const TOKEN_MULT: u64 = 1_000_000; // 10^6
+
+pub const TOTAL_SUPPLY: u64 = 1_000_000_000 * TOKEN_MULT;
+pub const CURVE_SUPPLY: u64 = 800_000_000 * TOKEN_MULT;
+pub const LP_RESERVE_SUPPLY: u64 = 200_000_000 * TOKEN_MULT;
+
+pub const INITIAL_VIRTUAL_TOKEN_RESERVES: u64 = 1_073_000_000 * TOKEN_MULT;
+pub const INITIAL_VIRTUAL_SOL_RESERVES: u64 = 30_000_000_000; // 30 SOL (lamports)
+pub const INITIAL_REAL_TOKEN_RESERVES: u64 = 793_100_000 * TOKEN_MULT;
+
+pub const GRADUATION_SOL_THRESHOLD: u64 = 85_000_000_000; // 85 SOL in lamports
+pub const MIN_BUY_LAMPORTS: u64 = 1_000_000; // 0.001 SOL
+pub const BASIS_POINTS_DIVISOR: u64 = 10_000;
+
+pub const TREASURY_FEE_BPS: u64 = 100; // 1%
+pub const CREATOR_FEE_BPS: u64 = 50;   // 0.5%
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROGRAM
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[program]
+pub mod rd_bondingcurve {
+    use super::*;
+
+    /// Initialize the global configuration (admin-owned). Called once.
+    pub fn initialize_global(
+        ctx: Context<InitializeGlobal>,
+        treasury: Pubkey,
+        migration_authority: Pubkey,
+    ) -> Result<()> {
+        let g = &mut ctx.accounts.global;
+        g.authority = ctx.accounts.authority.key();
+        g.treasury = treasury;
+        g.migration_authority = migration_authority;
+        g.fee_bps = TREASURY_FEE_BPS;
+        g.creator_fee_bps = CREATOR_FEE_BPS;
+        g.total_pools = 0;
+        g.paused = false;
+        g.bump = ctx.bumps.global;
+
+        emit!(GlobalInitialized {
+            authority: g.authority,
+            treasury,
+            migration_authority,
+        });
+        Ok(())
+    }
+
+    /// Create a new pool for a freshly-minted SPL token. The caller's wallet
+    /// must already be the mint authority for `mint`. After this call the
+    /// mint authority is transferred to the pool PDA so the curve controls
+    /// supply; `INITIAL_REAL_TOKEN_RESERVES` tokens are minted into the pool
+    /// token vault.
+    pub fn create_pool(
+        ctx: Context<CreatePool>,
+        name: String,
+        symbol: String,
+        uri: String,
+    ) -> Result<()> {
+        require!(!ctx.accounts.global.paused, BondingCurveError::Paused);
+        require!(name.len() <= 32, BondingCurveError::NameTooLong);
+        require!(symbol.len() <= 10, BondingCurveError::SymbolTooLong);
+        require!(uri.len() <= 200, BondingCurveError::UriTooLong);
+        require!(ctx.accounts.mint.decimals == TOKEN_DECIMALS, BondingCurveError::BadDecimals);
+
+        let pool = &mut ctx.accounts.pool;
+        pool.mint = ctx.accounts.mint.key();
+        pool.creator = ctx.accounts.creator.key();
+        pool.token_vault = ctx.accounts.token_vault.key();
+        pool.sol_vault = ctx.accounts.sol_vault.key();
+        pool.virtual_token_reserves = INITIAL_VIRTUAL_TOKEN_RESERVES;
+        pool.virtual_sol_reserves = INITIAL_VIRTUAL_SOL_RESERVES;
+        pool.real_token_reserves = INITIAL_REAL_TOKEN_RESERVES;
+        pool.real_sol_reserves = 0;
+        pool.token_total_supply = TOTAL_SUPPLY;
+        pool.graduation_threshold = GRADUATION_SOL_THRESHOLD;
+        pool.complete = false;
+        pool.created_at = Clock::get()?.unix_timestamp;
+        pool.name = name.clone();
+        pool.symbol = symbol.clone();
+        pool.uri = uri.clone();
+        pool.bump = ctx.bumps.pool;
+
+        // Mint initial real token reserves into the pool's token vault.
+        let mint_key = ctx.accounts.mint.key();
+        let seeds: &[&[u8]] = &[b"pool", mint_key.as_ref(), &[pool.bump]];
+        let signer = &[seeds];
+
+        // Mint authority is the creator right now (Phantom side). We need the
+        // creator to sign this mint-to, then transfer mint authority to pool.
+        token::mint_to(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                MintTo {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: ctx.accounts.token_vault.to_account_info(),
+                    authority: ctx.accounts.creator.to_account_info(),
+                },
+            ),
+            INITIAL_REAL_TOKEN_RESERVES,
+        )?;
+
+        // Transfer mint authority to the pool PDA so only the curve can mint
+        // (needed for the 200M LP reserve at graduation).
+        let pool_key = pool.key();
+        token::set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                token::SetAuthority {
+                    current_authority: ctx.accounts.creator.to_account_info(),
+                    account_or_mint: ctx.accounts.mint.to_account_info(),
+                },
+            ),
+            anchor_spl::token::spl_token::instruction::AuthorityType::MintTokens,
+            Some(pool_key),
+        )?;
+
+        // Remove freeze authority permanently to mirror pump.fun guarantees.
+        token::set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                token::SetAuthority {
+                    current_authority: ctx.accounts.creator.to_account_info(),
+                    account_or_mint: ctx.accounts.mint.to_account_info(),
+                },
+            ),
+            anchor_spl::token::spl_token::instruction::AuthorityType::FreezeAccount,
+            None,
+        )?;
+
+        let _ = signer; // seeds reserved for future CPI signing
+
+        let g = &mut ctx.accounts.global;
+        g.total_pools = g.total_pools.saturating_add(1);
+
+        emit!(PoolCreated {
+            mint: pool.mint,
+            creator: pool.creator,
+            name,
+            symbol,
+            uri,
+            timestamp: pool.created_at,
+        });
+        Ok(())
+    }
+
+    /// Buy `tokens_out` (minimum) for `sol_in` lamports. 98.5% of `sol_in`
+    /// enters the pool reserves, 1% goes to treasury, 0.5% to creator.
+    pub fn buy(
+        ctx: Context<Trade>,
+        sol_in: u64,
+        min_tokens_out: u64,
+    ) -> Result<()> {
+        require!(!ctx.accounts.global.paused, BondingCurveError::Paused);
+        require!(sol_in >= MIN_BUY_LAMPORTS, BondingCurveError::AmountTooSmall);
+
+        let pool = &mut ctx.accounts.pool;
+        require!(!pool.complete, BondingCurveError::PoolComplete);
+
+        // Fees
+        let treasury_fee = sol_in
+            .checked_mul(ctx.accounts.global.fee_bps)
+            .ok_or(BondingCurveError::MathOverflow)?
+            / BASIS_POINTS_DIVISOR;
+        let creator_fee = sol_in
+            .checked_mul(ctx.accounts.global.creator_fee_bps)
+            .ok_or(BondingCurveError::MathOverflow)?
+            / BASIS_POINTS_DIVISOR;
+        let pool_amount = sol_in
+            .checked_sub(treasury_fee)
+            .and_then(|v| v.checked_sub(creator_fee))
+            .ok_or(BondingCurveError::MathOverflow)?;
+
+        // Compute tokens out using constant product:
+        //   (x + dx) * (y - dy) = x * y   =>   dy = y - (x*y)/(x+dx)
+        // where x = virtual_sol_reserves, y = virtual_token_reserves
+        let new_virtual_sol = (pool.virtual_sol_reserves as u128)
+            .checked_add(pool_amount as u128)
+            .ok_or(BondingCurveError::MathOverflow)?;
+        let k = (pool.virtual_sol_reserves as u128)
+            .checked_mul(pool.virtual_token_reserves as u128)
+            .ok_or(BondingCurveError::MathOverflow)?;
+        let new_virtual_tokens = k.checked_div(new_virtual_sol).ok_or(BondingCurveError::MathOverflow)?;
+        let mut tokens_out = (pool.virtual_token_reserves as u128)
+            .checked_sub(new_virtual_tokens)
+            .ok_or(BondingCurveError::MathOverflow)? as u64;
+
+        // Cap tokens_out at the real reserves (can't dispense more than we have).
+        if tokens_out > pool.real_token_reserves {
+            tokens_out = pool.real_token_reserves;
+        }
+        require!(tokens_out > 0, BondingCurveError::ZeroOutput);
+        require!(tokens_out >= min_tokens_out, BondingCurveError::SlippageExceeded);
+
+        // Transfer SOL: buyer → treasury, buyer → creator, buyer → sol_vault
+        if treasury_fee > 0 {
+            system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    system_program::Transfer {
+                        from: ctx.accounts.buyer.to_account_info(),
+                        to: ctx.accounts.treasury.to_account_info(),
+                    },
+                ),
+                treasury_fee,
+            )?;
+        }
+        if creator_fee > 0 {
+            system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    system_program::Transfer {
+                        from: ctx.accounts.buyer.to_account_info(),
+                        to: ctx.accounts.creator_wallet.to_account_info(),
+                    },
+                ),
+                creator_fee,
+            )?;
+        }
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.sol_vault.to_account_info(),
+                },
+            ),
+            pool_amount,
+        )?;
+
+        // Transfer tokens: pool token vault → buyer ATA (PDA signs)
+        let mint_key = pool.mint;
+        let pool_bump = pool.bump;
+        let seeds: &[&[u8]] = &[b"pool", mint_key.as_ref(), &[pool_bump]];
+        let signer = &[seeds];
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TokenTransfer {
+                    from: ctx.accounts.token_vault.to_account_info(),
+                    to: ctx.accounts.buyer_token_account.to_account_info(),
+                    authority: pool.to_account_info(),
+                },
+                signer,
+            ),
+            tokens_out,
+        )?;
+
+        // Update pool state
+        pool.real_sol_reserves = pool.real_sol_reserves.saturating_add(pool_amount);
+        pool.real_token_reserves = pool.real_token_reserves.saturating_sub(tokens_out);
+        pool.virtual_sol_reserves = pool.virtual_sol_reserves.saturating_add(pool_amount);
+        pool.virtual_token_reserves = pool.virtual_token_reserves.saturating_sub(tokens_out);
+
+        // Graduate?
+        let graduated = pool.real_sol_reserves >= pool.graduation_threshold;
+        if graduated {
+            pool.complete = true;
+            emit!(PoolGraduated {
+                mint: pool.mint,
+                real_sol_reserves: pool.real_sol_reserves,
+                real_token_reserves: pool.real_token_reserves,
+                timestamp: Clock::get()?.unix_timestamp,
+            });
+        }
+
+        emit!(TradeEvent {
+            mint: pool.mint,
+            is_buy: true,
+            user: ctx.accounts.buyer.key(),
+            sol_amount: sol_in,
+            token_amount: tokens_out,
+            virtual_sol_reserves: pool.virtual_sol_reserves,
+            virtual_token_reserves: pool.virtual_token_reserves,
+            real_sol_reserves: pool.real_sol_reserves,
+            real_token_reserves: pool.real_token_reserves,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Sell `tokens_in` tokens for at least `min_sol_out` lamports.
+    pub fn sell(
+        ctx: Context<Trade>,
+        tokens_in: u64,
+        min_sol_out: u64,
+    ) -> Result<()> {
+        require!(!ctx.accounts.global.paused, BondingCurveError::Paused);
+        require!(tokens_in > 0, BondingCurveError::AmountTooSmall);
+
+        let pool = &mut ctx.accounts.pool;
+        require!(!pool.complete, BondingCurveError::PoolComplete);
+
+        // (x - dx_sol) * (y + dy_tok) = k  =>  dx = x - k/(y+dy)
+        let new_virtual_tokens = (pool.virtual_token_reserves as u128)
+            .checked_add(tokens_in as u128)
+            .ok_or(BondingCurveError::MathOverflow)?;
+        let k = (pool.virtual_sol_reserves as u128)
+            .checked_mul(pool.virtual_token_reserves as u128)
+            .ok_or(BondingCurveError::MathOverflow)?;
+        let new_virtual_sol = k.checked_div(new_virtual_tokens).ok_or(BondingCurveError::MathOverflow)?;
+        let mut gross_sol_out = (pool.virtual_sol_reserves as u128)
+            .checked_sub(new_virtual_sol)
+            .ok_or(BondingCurveError::MathOverflow)? as u64;
+
+        if gross_sol_out > pool.real_sol_reserves {
+            gross_sol_out = pool.real_sol_reserves;
+        }
+
+        let treasury_fee = gross_sol_out
+            .checked_mul(ctx.accounts.global.fee_bps)
+            .ok_or(BondingCurveError::MathOverflow)?
+            / BASIS_POINTS_DIVISOR;
+        let creator_fee = gross_sol_out
+            .checked_mul(ctx.accounts.global.creator_fee_bps)
+            .ok_or(BondingCurveError::MathOverflow)?
+            / BASIS_POINTS_DIVISOR;
+        let net_sol_out = gross_sol_out
+            .checked_sub(treasury_fee)
+            .and_then(|v| v.checked_sub(creator_fee))
+            .ok_or(BondingCurveError::MathOverflow)?;
+
+        require!(net_sol_out >= min_sol_out, BondingCurveError::SlippageExceeded);
+        require!(net_sol_out > 0, BondingCurveError::ZeroOutput);
+
+        // Seller → pool token vault
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                TokenTransfer {
+                    from: ctx.accounts.buyer_token_account.to_account_info(),
+                    to: ctx.accounts.token_vault.to_account_info(),
+                    authority: ctx.accounts.buyer.to_account_info(),
+                },
+            ),
+            tokens_in,
+        )?;
+
+        // sol_vault → seller / treasury / creator (PDA signer)
+        let sol_vault_bump = ctx.bumps.sol_vault;
+        let mint_key = pool.mint;
+        let sv_seeds: &[&[u8]] = &[b"sol_vault", mint_key.as_ref(), &[sol_vault_bump]];
+        let sv_signer = &[sv_seeds];
+
+        system_program::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.sol_vault.to_account_info(),
+                    to: ctx.accounts.buyer.to_account_info(),
+                },
+                sv_signer,
+            ),
+            net_sol_out,
+        )?;
+        if treasury_fee > 0 {
+            system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    system_program::Transfer {
+                        from: ctx.accounts.sol_vault.to_account_info(),
+                        to: ctx.accounts.treasury.to_account_info(),
+                    },
+                    sv_signer,
+                ),
+                treasury_fee,
+            )?;
+        }
+        if creator_fee > 0 {
+            system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    system_program::Transfer {
+                        from: ctx.accounts.sol_vault.to_account_info(),
+                        to: ctx.accounts.creator_wallet.to_account_info(),
+                    },
+                    sv_signer,
+                ),
+                creator_fee,
+            )?;
+        }
+
+        pool.real_sol_reserves = pool.real_sol_reserves.saturating_sub(gross_sol_out);
+        pool.real_token_reserves = pool.real_token_reserves.saturating_add(tokens_in);
+        pool.virtual_sol_reserves = pool.virtual_sol_reserves.saturating_sub(gross_sol_out);
+        pool.virtual_token_reserves = pool.virtual_token_reserves.saturating_add(tokens_in);
+
+        emit!(TradeEvent {
+            mint: pool.mint,
+            is_buy: false,
+            user: ctx.accounts.buyer.key(),
+            sol_amount: net_sol_out,
+            token_amount: tokens_in,
+            virtual_sol_reserves: pool.virtual_sol_reserves,
+            virtual_token_reserves: pool.virtual_token_reserves,
+            real_sol_reserves: pool.real_sol_reserves,
+            real_token_reserves: pool.real_token_reserves,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Graduate: mint the 200M LP reserve + withdraw real SOL reserves to
+    /// the migration authority (off-chain LP creator). Only callable once
+    /// `pool.complete == true` and only by `global.migration_authority`.
+    pub fn graduate(ctx: Context<Graduate>) -> Result<()> {
+        let pool = &mut ctx.accounts.pool;
+        require!(pool.complete, BondingCurveError::NotGraduated);
+        require!(
+            ctx.accounts.migration_authority.key() == ctx.accounts.global.migration_authority,
+            BondingCurveError::NotMigrationAuthority
+        );
+        require!(!pool.migrated, BondingCurveError::AlreadyMigrated);
+
+        // Mint LP_RESERVE_SUPPLY to the migration token account (PDA signs).
+        let mint_key = pool.mint;
+        let pool_bump = pool.bump;
+        let seeds: &[&[u8]] = &[b"pool", mint_key.as_ref(), &[pool_bump]];
+        let signer = &[seeds];
+        token::mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                MintTo {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: ctx.accounts.migration_token_account.to_account_info(),
+                    authority: pool.to_account_info(),
+                },
+                signer,
+            ),
+            LP_RESERVE_SUPPLY,
+        )?;
+
+        // Drain real SOL reserves to migration authority.
+        let sol_vault_bump = ctx.bumps.sol_vault;
+        let sv_seeds: &[&[u8]] = &[b"sol_vault", mint_key.as_ref(), &[sol_vault_bump]];
+        let sv_signer = &[sv_seeds];
+        let amount = pool.real_sol_reserves;
+        system_program::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.sol_vault.to_account_info(),
+                    to: ctx.accounts.migration_authority.to_account_info(),
+                },
+                sv_signer,
+            ),
+            amount,
+        )?;
+
+        // Optionally burn any tokens left in the curve vault (pump.fun burns
+        // leftover curve supply so the market isn't flooded post-migration).
+        let leftover = ctx.accounts.token_vault.amount;
+        if leftover > 0 {
+            token::burn(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Burn {
+                        mint: ctx.accounts.mint.to_account_info(),
+                        from: ctx.accounts.token_vault.to_account_info(),
+                        authority: pool.to_account_info(),
+                    },
+                    signer,
+                ),
+                leftover,
+            )?;
+        }
+
+        pool.migrated = true;
+        pool.real_sol_reserves = 0;
+        pool.real_token_reserves = 0;
+
+        emit!(PoolMigrated {
+            mint: pool.mint,
+            sol_migrated: amount,
+            lp_tokens_minted: LP_RESERVE_SUPPLY,
+            leftover_burned: leftover,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Emergency pause (admin).
+    pub fn set_paused(ctx: Context<AdminAction>, paused: bool) -> Result<()> {
+        ctx.accounts.global.paused = paused;
+        Ok(())
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACCOUNTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Accounts)]
+pub struct InitializeGlobal<'info> {
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + GlobalState::SPACE,
+        seeds = [b"global"],
+        bump
+    )]
+    pub global: Account<'info, GlobalState>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(name: String, symbol: String, uri: String)]
+pub struct CreatePool<'info> {
+    #[account(mut, seeds = [b"global"], bump = global.bump)]
+    pub global: Account<'info, GlobalState>,
+
+    #[account(
+        init,
+        payer = creator,
+        space = 8 + PoolState::SPACE,
+        seeds = [b"pool", mint.key().as_ref()],
+        bump
+    )]
+    pub pool: Account<'info, PoolState>,
+
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+
+    /// Pool-owned token vault (ATA of the pool PDA)
+    #[account(
+        init,
+        payer = creator,
+        associated_token::mint = mint,
+        associated_token::authority = pool,
+    )]
+    pub token_vault: Account<'info, TokenAccount>,
+
+    /// CHECK: PDA that holds real SOL reserves for this pool
+    #[account(
+        mut,
+        seeds = [b"sol_vault", mint.key().as_ref()],
+        bump
+    )]
+    pub sol_vault: SystemAccount<'info>,
+
+    #[account(mut)]
+    pub creator: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct Trade<'info> {
+    #[account(seeds = [b"global"], bump = global.bump)]
+    pub global: Account<'info, GlobalState>,
+
+    #[account(
+        mut,
+        seeds = [b"pool", mint.key().as_ref()],
+        bump = pool.bump,
+        has_one = mint,
+    )]
+    pub pool: Account<'info, PoolState>,
+
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = pool,
+    )]
+    pub token_vault: Account<'info, TokenAccount>,
+
+    /// CHECK: SOL vault PDA
+    #[account(
+        mut,
+        seeds = [b"sol_vault", mint.key().as_ref()],
+        bump
+    )]
+    pub sol_vault: SystemAccount<'info>,
+
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        associated_token::mint = mint,
+        associated_token::authority = buyer,
+    )]
+    pub buyer_token_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+
+    /// CHECK: must equal global.treasury
+    #[account(mut, address = global.treasury)]
+    pub treasury: SystemAccount<'info>,
+
+    /// CHECK: must equal pool.creator
+    #[account(mut, address = pool.creator)]
+    pub creator_wallet: SystemAccount<'info>,
+
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct Graduate<'info> {
+    #[account(seeds = [b"global"], bump = global.bump)]
+    pub global: Account<'info, GlobalState>,
+
+    #[account(
+        mut,
+        seeds = [b"pool", mint.key().as_ref()],
+        bump = pool.bump,
+        has_one = mint,
+    )]
+    pub pool: Account<'info, PoolState>,
+
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = pool,
+    )]
+    pub token_vault: Account<'info, TokenAccount>,
+
+    /// CHECK: SOL vault PDA
+    #[account(
+        mut,
+        seeds = [b"sol_vault", mint.key().as_ref()],
+        bump
+    )]
+    pub sol_vault: SystemAccount<'info>,
+
+    #[account(mut)]
+    pub migration_authority: Signer<'info>,
+
+    #[account(
+        init_if_needed,
+        payer = migration_authority,
+        associated_token::mint = mint,
+        associated_token::authority = migration_authority,
+    )]
+    pub migration_token_account: Account<'info, TokenAccount>,
+
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct AdminAction<'info> {
+    #[account(mut, seeds = [b"global"], bump = global.bump, has_one = authority)]
+    pub global: Account<'info, GlobalState>,
+    pub authority: Signer<'info>,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[account]
+pub struct GlobalState {
+    pub authority: Pubkey,
+    pub treasury: Pubkey,
+    pub migration_authority: Pubkey,
+    pub fee_bps: u64,
+    pub creator_fee_bps: u64,
+    pub total_pools: u64,
+    pub paused: bool,
+    pub bump: u8,
+}
+
+impl GlobalState {
+    pub const SPACE: usize = 32 + 32 + 32 + 8 + 8 + 8 + 1 + 1 + 16;
+}
+
+#[account]
+pub struct PoolState {
+    pub mint: Pubkey,
+    pub creator: Pubkey,
+    pub token_vault: Pubkey,
+    pub sol_vault: Pubkey,
+    pub virtual_token_reserves: u64,
+    pub virtual_sol_reserves: u64,
+    pub real_token_reserves: u64,
+    pub real_sol_reserves: u64,
+    pub token_total_supply: u64,
+    pub graduation_threshold: u64,
+    pub complete: bool,
+    pub migrated: bool,
+    pub created_at: i64,
+    pub name: String,    // max 32
+    pub symbol: String,  // max 10
+    pub uri: String,     // max 200
+    pub bump: u8,
+}
+
+impl PoolState {
+    pub const SPACE: usize =
+        32 + 32 + 32 + 32
+        + 8 + 8 + 8 + 8 + 8 + 8
+        + 1 + 1
+        + 8
+        + 4 + 32 + 4 + 10 + 4 + 200
+        + 1
+        + 32; // padding
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[event]
+pub struct GlobalInitialized {
+    pub authority: Pubkey,
+    pub treasury: Pubkey,
+    pub migration_authority: Pubkey,
+}
+
+#[event]
+pub struct PoolCreated {
+    pub mint: Pubkey,
+    pub creator: Pubkey,
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct TradeEvent {
+    pub mint: Pubkey,
+    pub is_buy: bool,
+    pub user: Pubkey,
+    pub sol_amount: u64,
+    pub token_amount: u64,
+    pub virtual_sol_reserves: u64,
+    pub virtual_token_reserves: u64,
+    pub real_sol_reserves: u64,
+    pub real_token_reserves: u64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct PoolGraduated {
+    pub mint: Pubkey,
+    pub real_sol_reserves: u64,
+    pub real_token_reserves: u64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct PoolMigrated {
+    pub mint: Pubkey,
+    pub sol_migrated: u64,
+    pub lp_tokens_minted: u64,
+    pub leftover_burned: u64,
+    pub timestamp: i64,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ERRORS
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[error_code]
+pub enum BondingCurveError {
+    #[msg("Protocol is paused")]
+    Paused,
+    #[msg("Amount is too small")]
+    AmountTooSmall,
+    #[msg("Name too long (max 32)")]
+    NameTooLong,
+    #[msg("Symbol too long (max 10)")]
+    SymbolTooLong,
+    #[msg("URI too long (max 200)")]
+    UriTooLong,
+    #[msg("Mint decimals must be 6")]
+    BadDecimals,
+    #[msg("Pool is complete / graduated")]
+    PoolComplete,
+    #[msg("Math overflow")]
+    MathOverflow,
+    #[msg("Zero output")]
+    ZeroOutput,
+    #[msg("Slippage exceeded")]
+    SlippageExceeded,
+    #[msg("Pool has not graduated")]
+    NotGraduated,
+    #[msg("Caller is not the migration authority")]
+    NotMigrationAuthority,
+    #[msg("Pool already migrated")]
+    AlreadyMigrated,
+}

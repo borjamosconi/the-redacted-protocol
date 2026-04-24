@@ -8,4 +8,4 @@ crate-type = ["cdylib", "lib"]
 name = "rd_archive"
 
 [dependencies]
-anchor-lang = "0.30"
+anchor-lang = "0.30.1"

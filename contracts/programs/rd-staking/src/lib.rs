@@ -6,7 +6,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, transfer, Transfer};
 
-declare_id!("RDstk111111111111111111111111111111111111111");
+declare_id!("B6exebxV6gLVy2J4djeNmULi56uniV9gkogeJfTEo6N9");
 
 #[program]
 pub mod rd_staking {
@@ -78,7 +78,17 @@ pub mod rd_staking {
         // Claim pending rewards first
         let pending = calculate_reward(stake, &ctx.accounts.staking_pool, now)?;
         if pending > 0 {
-            distribute_reward(ctx.accounts.signer.key(), pending)?;
+            let pool_bump = ctx.accounts.staking_pool.bump;
+            let seeds = &[b"staking_pool".as_ref(), &[pool_bump]];
+            let signer = &[&seeds[..]];
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.reward_vault.to_account_info(),
+                to: ctx.accounts.user_reward_account.to_account_info(),
+                authority: ctx.accounts.staking_pool.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            transfer(cpi_ctx, pending)?;
         }
 
         // Transfer tokens back to user
@@ -113,7 +123,17 @@ pub mod rd_staking {
         let pending = calculate_reward(&ctx.accounts.stake_account, &ctx.accounts.staking_pool, now)?;
         require!(pending > 0, StakingError::NoRewards);
 
-        distribute_reward(ctx.accounts.signer.key(), pending)?;
+        let pool_bump = ctx.accounts.staking_pool.bump;
+        let seeds = &[b"staking_pool".as_ref(), &[pool_bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.reward_vault.to_account_info(),
+            to: ctx.accounts.user_reward_account.to_account_info(),
+            authority: ctx.accounts.staking_pool.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        transfer(cpi_ctx, pending)?;
 
         let stake = &mut ctx.accounts.stake_account;
         stake.last_claim = now;
@@ -140,11 +160,7 @@ fn calculate_reward(stake: &StakeAccount, pool: &StakingPool, now: i64) -> Resul
     Ok(reward)
 }
 
-fn distribute_reward(_user: Pubkey, _amount: u64) -> Result<()> {
-    // In production: transfer from reward vault to user
-    // For now: tracked via events
-    Ok(())
-}
+
 
 // ── Accounts ─────────────────────────────────────────────────────
 
@@ -179,10 +195,7 @@ pub struct StakeTokens<'info> {
     pub staking_pool: Account<'info, StakingPool>,
     #[account(mut)]
     pub user_token_account: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        constraint = staking_vault.key() == staking_stake_token_vault::id()
-    )]
+    #[account(mut)]
     pub staking_vault: Account<'info, TokenAccount>,
     pub staking_token_mint: AccountInfo<'info>,
     #[account(mut)]
@@ -207,6 +220,10 @@ pub struct UnstakeTokens<'info> {
     #[account(mut)]
     pub staking_vault: Account<'info, TokenAccount>,
     #[account(mut)]
+    pub reward_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub user_reward_account: Account<'info, TokenAccount>,
+    #[account(mut)]
     pub signer: Signer<'info>,
     pub token_program: Program<'info, Token>,
 }
@@ -224,6 +241,11 @@ pub struct ClaimRewards<'info> {
     pub staking_pool: Account<'info, StakingPool>,
     #[account(mut)]
     pub signer: Signer<'info>,
+    #[account(mut)]
+    pub reward_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub user_reward_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
 }
 
 // ── Data Structures ──────────────────────────────────────────────
