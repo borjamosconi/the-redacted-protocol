@@ -11,11 +11,17 @@ use anchor_lang::system_program;
 
 declare_id!("HpvmQtmxyPeeYKGvKHqEdcnsYUzAQrdynoCX452s2xLz");
 
+/// Hard cap on the number of allow-listed withdraw recipients. Bounded to
+/// keep the account size deterministic and the linear contains() scan cheap.
+pub const MAX_ALLOWED_RECIPIENTS: usize = 10;
+
 #[program]
 pub mod rd_treasury {
     use super::*;
 
-    /// Create the treasury + its SOL vault PDA.
+    /// Create the treasury + its SOL vault PDA. The recipient whitelist
+    /// starts empty; authority must explicitly add destinations via
+    /// `add_allowed_recipient` before any `withdraw_sol` can succeed.
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let t = &mut ctx.accounts.treasury;
         t.authority = ctx.accounts.authority.key();
@@ -29,6 +35,39 @@ pub mod rd_treasury {
         t.burn_pct = 1000;
         t.bump = ctx.bumps.treasury;
         t.vault_bump = ctx.bumps.fee_vault;
+        t.allowed_recipients = Vec::new();
+        Ok(())
+    }
+
+    /// Add `recipient` to the withdraw whitelist (authority only). Bounded by
+    /// `MAX_ALLOWED_RECIPIENTS`; duplicate adds are no-ops.
+    pub fn add_allowed_recipient(
+        ctx: Context<UpdateTreasury>,
+        recipient: Pubkey,
+    ) -> Result<()> {
+        let t = &mut ctx.accounts.treasury;
+        require!(
+            t.allowed_recipients.len() < MAX_ALLOWED_RECIPIENTS,
+            TreasuryError::RecipientListFull
+        );
+        if !t.allowed_recipients.contains(&recipient) {
+            t.allowed_recipients.push(recipient);
+            emit!(RecipientAdded { recipient });
+        }
+        Ok(())
+    }
+
+    /// Remove `recipient` from the withdraw whitelist (authority only).
+    pub fn remove_allowed_recipient(
+        ctx: Context<UpdateTreasury>,
+        recipient: Pubkey,
+    ) -> Result<()> {
+        let t = &mut ctx.accounts.treasury;
+        let before = t.allowed_recipients.len();
+        t.allowed_recipients.retain(|k| k != &recipient);
+        if t.allowed_recipients.len() != before {
+            emit!(RecipientRemoved { recipient });
+        }
         Ok(())
     }
 
@@ -77,10 +116,23 @@ pub mod rd_treasury {
 
     /// Authority-only withdrawal from the vault PDA. Moves `amount` lamports
     /// to `destination`. Use this to fund stakers-pool, burn-buyback, etc.
+    ///
+    /// Defense-in-depth: even though `authority` already gates this
+    /// instruction, the destination MUST be on `allowed_recipients`. If an
+    /// authority key is ever compromised, the attacker can only move funds
+    /// to wallets that were pre-blessed by a previous (clean) authority sig.
     pub fn withdraw_sol(ctx: Context<WithdrawSol>, amount: u64) -> Result<()> {
         require!(amount > 0, TreasuryError::ZeroAmount);
         let vault_lamports = ctx.accounts.fee_vault.to_account_info().lamports();
         require!(amount <= vault_lamports, TreasuryError::InsufficientFunds);
+
+        require!(
+            ctx.accounts
+                .treasury
+                .allowed_recipients
+                .contains(&ctx.accounts.destination.key()),
+            TreasuryError::RecipientNotWhitelisted
+        );
 
         let vault_bump = ctx.accounts.treasury.vault_bump;
         let seeds: &[&[u8]] = &[b"fee_vault", &[vault_bump]];
@@ -187,10 +239,19 @@ pub struct Treasury {
     pub burn_pct: u64,
     pub bump: u8,
     pub vault_bump: u8,
+    /// Withdraw destination whitelist. Mutated only by
+    /// `add_allowed_recipient` / `remove_allowed_recipient`, bounded to
+    /// `MAX_ALLOWED_RECIPIENTS` entries.
+    pub allowed_recipients: Vec<Pubkey>,
 }
 
 impl Treasury {
-    pub const SPACE: usize = 32 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 16;
+    // Original fixed fields (32+32+8*7+1+1) = 122 bytes, plus 16 historical
+    // padding bytes. Append the bounded Vec<Pubkey>: 4-byte length prefix +
+    // 32 * MAX_ALLOWED_RECIPIENTS for the elements.
+    pub const SPACE: usize =
+        32 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 16
+        + 4 + 32 * MAX_ALLOWED_RECIPIENTS;
 }
 
 #[event]
@@ -213,6 +274,16 @@ pub struct BurnRecorded {
     pub new_total: u64,
 }
 
+#[event]
+pub struct RecipientAdded {
+    pub recipient: Pubkey,
+}
+
+#[event]
+pub struct RecipientRemoved {
+    pub recipient: Pubkey,
+}
+
 #[error_code]
 pub enum TreasuryError {
     #[msg("Insufficient treasury funds")]
@@ -221,4 +292,8 @@ pub enum TreasuryError {
     ZeroAmount,
     #[msg("Distribution must sum to 10000 bps")]
     InvalidDistribution,
+    #[msg("Withdraw destination is not on the allow-list")]
+    RecipientNotWhitelisted,
+    #[msg("Recipient allow-list is full (max 10)")]
+    RecipientListFull,
 }
