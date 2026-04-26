@@ -50,7 +50,6 @@ out/
 
 # Misc generated
 crates/rd-tools/test_airdrop.json
-contracts/package.json
 dashboard/$null
 
 # Temporary helper scripts (auto-generated, not part of core project)
