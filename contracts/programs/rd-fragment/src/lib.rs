@@ -2,9 +2,48 @@ use anchor_lang::prelude::*;
 
 declare_id!("5CLiUA3yqHNoKAdPeHjeNkipDjjYFPwTpnEFfuR9JxWd");
 
+/// Maximum number of authorized verifiers stored on-chain.
+pub const MAX_VERIFIERS: usize = 10;
+
 #[program]
 pub mod rd_fragment {
     use super::*;
+
+    /// One-time initializer for the FragmentConfig PDA. The signer becomes admin.
+    /// The verifiers list starts empty — admin must add at least one verifier
+    /// (typically themselves) before any `verify_fragment` call can succeed.
+    pub fn init_fragment_config(ctx: Context<InitFragmentConfig>) -> Result<()> {
+        let cfg = &mut ctx.accounts.config;
+        cfg.admin = ctx.accounts.admin.key();
+        cfg.verifiers = Vec::new();
+        cfg.bump = ctx.bumps.config;
+        emit!(FragmentConfigInitialized {
+            admin: cfg.admin,
+        });
+        Ok(())
+    }
+
+    /// Admin-only: add a verifier pubkey to the whitelist (idempotent).
+    pub fn add_verifier(ctx: Context<AdminConfig>, verifier: Pubkey) -> Result<()> {
+        let cfg = &mut ctx.accounts.config;
+        require!(cfg.verifiers.len() < MAX_VERIFIERS, FragmentError::TooManyVerifiers);
+        if !cfg.verifiers.contains(&verifier) {
+            cfg.verifiers.push(verifier);
+            emit!(VerifierAdded { verifier });
+        }
+        Ok(())
+    }
+
+    /// Admin-only: remove a verifier pubkey from the whitelist.
+    pub fn remove_verifier(ctx: Context<AdminConfig>, verifier: Pubkey) -> Result<()> {
+        let cfg = &mut ctx.accounts.config;
+        let before = cfg.verifiers.len();
+        cfg.verifiers.retain(|k| k != &verifier);
+        if cfg.verifiers.len() != before {
+            emit!(VerifierRemoved { verifier });
+        }
+        Ok(())
+    }
 
     pub fn submit_fragment(
         ctx: Context<SubmitFragment>,
@@ -40,6 +79,14 @@ pub mod rd_fragment {
     }
 
     pub fn verify_fragment(ctx: Context<VerifyFragment>, proof_hash: [u8; 32]) -> Result<()> {
+        // Whitelist enforcement: only pubkeys explicitly authorized by the
+        // admin in `FragmentConfig.verifiers` may mark a fragment verified.
+        let cfg = &ctx.accounts.config;
+        require!(
+            cfg.verifiers.contains(&ctx.accounts.verifier.key()),
+            FragmentError::NotVerifier
+        );
+
         let f = &mut ctx.accounts.fragment;
         f.is_verified = true;
         f.zk_proof_hash = proof_hash;
@@ -62,6 +109,19 @@ pub struct FragmentAccount {
     pub bump: u8,
 }
 
+/// Singleton admin / verifier-whitelist config.
+#[account]
+pub struct FragmentConfig {
+    pub admin: Pubkey,
+    pub verifiers: Vec<Pubkey>,
+    pub bump: u8,
+}
+
+impl FragmentConfig {
+    // 8 disc + 32 admin + 4 vec_len + 32*MAX_VERIFIERS + 1 bump
+    pub const SPACE: usize = 32 + 4 + 32 * MAX_VERIFIERS + 1;
+}
+
 #[derive(Accounts)]
 #[instruction(content_hash: [u8; 32])]
 pub struct SubmitFragment<'info> {
@@ -82,7 +142,36 @@ pub struct SubmitFragment<'info> {
 pub struct VerifyFragment<'info> {
     #[account(mut)]
     pub fragment: Account<'info, FragmentAccount>,
+    #[account(seeds = [b"fragment_config"], bump = config.bump)]
+    pub config: Account<'info, FragmentConfig>,
     pub verifier: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct InitFragmentConfig<'info> {
+    #[account(
+        init,
+        payer = admin,
+        space = 8 + FragmentConfig::SPACE,
+        seeds = [b"fragment_config"],
+        bump
+    )]
+    pub config: Account<'info, FragmentConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AdminConfig<'info> {
+    #[account(
+        mut,
+        seeds = [b"fragment_config"],
+        bump = config.bump,
+        has_one = admin @ FragmentError::NotAdmin,
+    )]
+    pub config: Account<'info, FragmentConfig>,
+    pub admin: Signer<'info>,
 }
 
 #[event]
@@ -99,6 +188,21 @@ pub struct FragmentVerified {
     pub proof_hash: [u8; 32],
 }
 
+#[event]
+pub struct FragmentConfigInitialized {
+    pub admin: Pubkey,
+}
+
+#[event]
+pub struct VerifierAdded {
+    pub verifier: Pubkey,
+}
+
+#[event]
+pub struct VerifierRemoved {
+    pub verifier: Pubkey,
+}
+
 #[error_code]
 pub enum FragmentError {
     #[msg("Confidence must be 0-100")]
@@ -107,4 +211,10 @@ pub enum FragmentError {
     TooManyTags,
     #[msg("Arweave TX ID too long (max 43)")]
     ArweaveIdTooLong,
+    #[msg("Signer is not on the verifier whitelist")]
+    NotVerifier,
+    #[msg("Signer is not the FragmentConfig admin")]
+    NotAdmin,
+    #[msg("Verifier whitelist is full")]
+    TooManyVerifiers,
 }
