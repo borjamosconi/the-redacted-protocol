@@ -258,17 +258,59 @@ pub mod rd_token {
         Ok(())
     }
 
-    /// Cancel a vesting schedule (authority only, before cliff).
+    /// Cancel a vesting schedule (authority only, before cliff). Sweeps the
+    /// remaining vault balance back to `authority_token_account` so the
+    /// tokens are not stranded in the PDA-controlled vault forever. The
+    /// `cancelled = true` flag is preserved for audit trail / dashboard.
     pub fn cancel_vesting(ctx: Context<CancelVesting>) -> Result<()> {
-        let vesting = &mut ctx.accounts.vesting_schedule;
         let now = Clock::get()?.unix_timestamp;
-        require!(now < vesting.start_time + vesting.cliff_duration, TokenError::CliffAlreadyPassed);
 
+        // Snapshot immutable state before the mutable borrow for the CPI.
+        let (beneficiary_key, bump, cancelled, cliff_end, total_amount, released_amount) = {
+            let v = &ctx.accounts.vesting_schedule;
+            (v.beneficiary, v.bump, v.cancelled,
+             v.start_time + v.cliff_duration,
+             v.total_amount, v.released_amount)
+        };
+        require!(!cancelled, TokenError::VestingCancelled);
+        require!(now < cliff_end, TokenError::CliffAlreadyPassed);
+
+        // The "remaining" we intend to claw back is whatever the vault still
+        // physically holds. Using vault balance (rather than
+        // total_amount - released) is the safer source of truth: it tolerates
+        // partial pre-funding and avoids over-transferring if the vault
+        // somehow holds less.
+        let vault_balance = ctx.accounts.vesting_vault.amount;
+
+        if vault_balance > 0 {
+            let seeds: &[&[u8]] = &[b"vesting", beneficiary_key.as_ref(), &[bump]];
+            let signer = &[seeds];
+
+            transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.vesting_vault.to_account_info(),
+                        to: ctx.accounts.authority_token_account.to_account_info(),
+                        authority: ctx.accounts.vesting_schedule.to_account_info(),
+                    },
+                    signer,
+                ),
+                vault_balance,
+            )?;
+        }
+
+        let vesting = &mut ctx.accounts.vesting_schedule;
         vesting.cancelled = true;
 
         emit!(VestingCancelled {
             beneficiary: vesting.beneficiary,
-            remaining: vesting.total_amount.checked_sub(vesting.released_amount).unwrap(),
+            remaining: total_amount.checked_sub(released_amount).unwrap_or(0),
+        });
+        emit!(VestingFundsRecovered {
+            beneficiary: beneficiary_key,
+            authority: ctx.accounts.authority.key(),
+            amount: vault_balance,
         });
 
         Ok(())
@@ -391,10 +433,30 @@ pub struct SetAuthority<'info> {
 pub struct CancelVesting<'info> {
     #[account(
         mut,
-        has_one = authority
+        has_one = authority,
+        seeds = [b"vesting", vesting_schedule.beneficiary.as_ref()],
+        bump = vesting_schedule.bump,
     )]
     pub vesting_schedule: Account<'info, VestingSchedule>,
     pub authority: Signer<'info>,
+    /// Vesting vault holding the locked tokens. On cancel the residual
+    /// balance is swept back to `authority_token_account` (CPI signed by
+    /// the `vesting_schedule` PDA).
+    #[account(
+        mut,
+        constraint = vesting_vault.key() == vesting_schedule.vault
+    )]
+    pub vesting_vault: Account<'info, TokenAccount>,
+    /// Destination ATA owned by the authority that receives the recovered
+    /// (un-released) tokens.
+    #[account(
+        mut,
+        constraint = authority_token_account.mint == vesting_schedule.token_mint,
+        constraint = authority_token_account.owner == authority.key()
+            @ TokenError::InvalidRecoveryRecipient,
+    )]
+    pub authority_token_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
 }
 
 // ── Data Structures ──────────────────────────────────────────────
@@ -481,6 +543,13 @@ pub struct VestingCancelled {
     pub remaining: u64,
 }
 
+#[event]
+pub struct VestingFundsRecovered {
+    pub beneficiary: Pubkey,
+    pub authority: Pubkey,
+    pub amount: u64,
+}
+
 // ── Errors ───────────────────────────────────────────────────────
 
 #[error_code]
@@ -503,4 +572,6 @@ pub enum TokenError {
     VestingCancelled,
     #[msg("Nothing to release")]
     NothingToRelease,
+    #[msg("Recovery recipient must be owned by the vesting authority")]
+    InvalidRecoveryRecipient,
 }
