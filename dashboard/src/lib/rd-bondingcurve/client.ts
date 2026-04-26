@@ -44,7 +44,8 @@ export interface AnchorWalletLike {
 
 export function getProgram(connection: Connection, wallet: AnchorWalletLike): Program<BondingCurveIDL> {
   const provider = new AnchorProvider(connection, wallet as any, { commitment: 'confirmed' })
-  return new Program<BondingCurveIDL>(BONDING_CURVE_IDL, BONDING_CURVE_PROGRAM_ID, provider)
+  // Anchor >=0.30: programId comes from IDL.address; constructor is (idl, provider).
+  return new Program<BondingCurveIDL>(BONDING_CURVE_IDL as any, provider as any) as any
 }
 
 // ── Pool state ─────────────────────────────────────────────────────────────

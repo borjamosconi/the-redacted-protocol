@@ -99,8 +99,7 @@ export function ScrollVideoSection() {
           autoPlay={useAutoplay}
           loop={useAutoplay}
           // iOS hints for smoother inline playback
-          // @ts-expect-error non-standard but respected by webkit
-          webkit-playsinline="true"
+          {...({ 'webkit-playsinline': 'true' } as Record<string, string>)}
           disableRemotePlayback
         />
 
