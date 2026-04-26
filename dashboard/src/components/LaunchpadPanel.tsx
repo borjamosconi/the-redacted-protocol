@@ -111,15 +111,44 @@ export function LaunchpadPanel() {
         }
       } catch { /* non-fatal — pool can launch without metadata URI */ }
 
-      setLaunchStatus('Deploying pool on rd-bondingcurve...')
-      const { tx, mint } = await buildCreatePoolTx(connection, anchorWallet, {
-        mintKeypair,
-        name:   tokenData.name.trim(),
-        symbol: tokenData.symbol.trim().toUpperCase(),
-        uri,
-      })
-      const sig = await sendTransaction(tx, connection, { signers: [mintKeypair] })
-      await connection.confirmTransaction(sig, 'confirmed')
+      // Off-chain launch path. The on-chain rd-bondingcurve program is not
+      // deployed (Anchor build is blocked by an upstream toml_datetime
+      // edition2024 regression in the Solana toolchain). The terminal
+      // simulates the bonding curve in the backend (Mongo + Redis) — this
+      // matches pump.fun's earliest model and lets users launch / trade
+      // immediately. When Solana 2.3+ ships and we deploy the program for
+      // real, we'll flip NEXT_PUBLIC_LAUNCH_MODE to "onchain" and re-enable
+      // the buildCreatePoolTx path below.
+      const LAUNCH_MODE = process.env.NEXT_PUBLIC_LAUNCH_MODE ?? 'offchain'
+      const mint = mintKeypair.publicKey
+      let sig = ''
+
+      if (LAUNCH_MODE === 'onchain') {
+        setLaunchStatus('Deploying pool on rd-bondingcurve...')
+        const { tx } = await buildCreatePoolTx(connection, anchorWallet, {
+          mintKeypair,
+          name:   tokenData.name.trim(),
+          symbol: tokenData.symbol.trim().toUpperCase(),
+          uri,
+        })
+        sig = await sendTransaction(tx, connection, { signers: [mintKeypair] })
+        await connection.confirmTransaction(sig, 'confirmed')
+      } else {
+        // Off-chain: charge a small creation fee in SOL to the treasury so the
+        // launch feels real and signals creator intent. Mint pubkey is the
+        // randomly-generated keypair's pubkey (never lands on-chain).
+        setLaunchStatus('Sending creation fee to treasury...')
+        const feeLamports = 0.02 * LAMPORTS_PER_SOL  // 0.02 SOL — pump.fun parity
+        const tx = new Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey:   TREASURY_PUBKEY,
+            lamports:   feeLamports,
+          }),
+        )
+        sig = await sendTransaction(tx, connection)
+        await connection.confirmTransaction(sig, 'confirmed')
+      }
 
       setLaunchStatus('Registering with terminal...')
       await fetch(`${BACKEND_URL}/api/tokens`, {
