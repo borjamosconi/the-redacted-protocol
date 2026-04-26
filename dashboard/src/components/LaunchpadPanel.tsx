@@ -1,358 +1,323 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+/**
+ * LaunchpadPanel — single-flow, minimal token launch UX.
+ *
+ * Product decisions:
+ *   - One vertical step-by-step form, no tabs / no AI styles / no extra prompts
+ *   - 4 inputs only: name, symbol, description, logo (upload OR single AI generate)
+ *   - Twitter / Website tucked into a collapsible "Optional links"
+ *   - Single big LAUNCH TOKEN button
+ *   - Single inline progress indicator (no modals)
+ *   - On success: immediate redirect to /terminal/<MINT>
+ *   - Off-chain mode by default (NEXT_PUBLIC_LAUNCH_MODE=offchain)
+ *     — on-chain rd-bondingcurve client is dynamically imported only when
+ *       LAUNCH_MODE === 'onchain' so the off-chain bundle stays lean.
+ */
+
+import { useState, useRef } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import {
   PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair,
 } from '@solana/web3.js'
 import { useRouter } from 'next/navigation'
-import BN from 'bn.js'
-import {
-  buildCreatePoolTx, buildBuyTx, quoteBuy, fetchPoolState,
-  BONDING_CURVE_PROGRAM_ID, TOKEN_MULT, TREASURY_PUBKEY,
-  AnchorWalletLike,
-} from '@/lib/rd-bondingcurve/client'
 
-// ── AI Style prompts ────────────────────────────────────────────────────────
-const AI_STYLES = [
-  { id: 'censored',   label: 'CENSORED',   prompt: 'dark dystopian crypto token logo, holographic rainbow censor bars, red iridescent interference, cyberpunk, highly detailed, black background' },
-  { id: 'classified', label: 'CLASSIFIED', prompt: 'classified document crypto token logo, black redaction bars, TOP SECRET stamp, dark moody lighting, grid background, mysterious' },
-  { id: 'glitch',     label: 'GLITCH',     prompt: 'digital glitch token logo, holographic rainbow distortion, red orange tones, VHS tracking error, dark background, cyberpunk, 1024px' },
-  { id: 'void',       label: 'VOID',       prompt: 'cosmic void crypto token logo, deep black hole, red energy rings, dark matter, minimalist, cinematic lighting' },
-  { id: 'neon',       label: 'NEON',       prompt: 'neon red crypto token logo, cyberpunk city, glowing circuits, dark background, high contrast, futuristic, holographic' },
-  { id: 'blood',      label: 'BLOOD',      prompt: 'blood moon crypto token logo, crimson red, dark atmosphere, gothic, highly detailed, dramatic lighting' },
-]
+const BACKEND_URL  = process.env.NEXT_PUBLIC_BACKEND_URL || ''
+const LAUNCH_MODE  = process.env.NEXT_PUBLIC_LAUNCH_MODE ?? 'offchain'
+// Off-chain treasury (mirrors TREASURY_PUBKEY from rd-bondingcurve client).
+// Hard-coded here so we don't pull in the on-chain client in off-chain mode.
+const TREASURY_OFFCHAIN = new PublicKey('BWhHF85ZNoR3x7GhoxhXEK6C4bBZvCyMFDZfMWNRXiME')
+const LAUNCH_FEE_SOL = 0.02
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || ''
+// Single AI prompt — the on-brand look. No more 6-style picker.
+const AI_PROMPT_BASE =
+  'minimal crypto token logo, dark dystopian, deep red and black palette, holographic interference, ' +
+  'cyberpunk classified document aesthetic, high contrast, square 1024x1024, no text'
 
 export function LaunchpadPanel() {
-  const { connection }                       = useConnection()
+  const { connection } = useConnection()
   const { publicKey, signTransaction, signAllTransactions, sendTransaction } = useWallet()
   const router = useRouter()
 
-  // ── AI token builder state ─────────────────────────────────────────────────
-  const [tokenData, setTokenData]     = useState({ name: '', symbol: '', description: '', twitterUrl: '', websiteUrl: '' })
-  const [imageMode, setImageMode]     = useState<'ai' | 'upload'>('ai')
-  const [selectedStyle, setSelectedStyle] = useState(0)
-  const [extraPrompt, setExtraPrompt] = useState('')
-  const [uploadedImg, setUploadedImg] = useState<string | null>(null)
-  const [aiImg, setAiImg]             = useState<string | null>(null)
+  const [name, setName]               = useState('')
+  const [symbol, setSymbol]           = useState('')
+  const [description, setDescription] = useState('')
+  const [twitter, setTwitter]         = useState('')
+  const [website, setWebsite]         = useState('')
+  const [showOptional, setShowOptional] = useState(false)
+
+  const [logo, setLogo]               = useState<string | null>(null)
   const [generating, setGenerating]   = useState(false)
-  const [genError, setGenError]       = useState('')
-  const [launching, setLaunching]     = useState(false)
-  const [launchStatus, setLaunchStatus] = useState<string>('')
-  const [launchedMint, setLaunchedMint] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const activeImg = imageMode === 'upload' ? uploadedImg : aiImg
+  const [launching, setLaunching]     = useState(false)
+  const [step, setStep]               = useState<string>('')
+  const [error, setError]             = useState<string>('')
 
-  // Build an AnchorWalletLike from wallet-adapter context (null-safe).
-  const anchorWallet: AnchorWalletLike | null =
-    publicKey && signTransaction && signAllTransactions
-      ? { publicKey, signTransaction: signTransaction as any, signAllTransactions: signAllTransactions as any }
-      : null
+  // ── helpers ──────────────────────────────────────────────────────────────
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (!f) return
+    const r = new FileReader()
+    r.onload = ev => setLogo(ev.target?.result as string)
+    r.readAsDataURL(f)
+  }
 
-  // ── AI generate ─────────────────────────────────────────────────────────
   const generateAI = () => {
-    setGenerating(true); setGenError('')
-    const base  = AI_STYLES[selectedStyle].prompt
-    const name  = tokenData.name ? `, named "${tokenData.name}"` : ''
-    const extra = extraPrompt.trim() ? `, ${extraPrompt}` : ''
-    const seed  = Math.floor(Math.random() * 999999)
-    const url   = `https://image.pollinations.ai/prompt/${encodeURIComponent(base + name + extra)}?width=1024&height=1024&seed=${seed}&nologo=true`
-    const img   = new Image()
-    img.onload  = () => { setAiImg(url); setGenerating(false) }
-    img.onerror = () => { setGenError('Generation failed — retry'); setGenerating(false) }
+    setGenerating(true)
+    setError('')
+    const named = name ? `${AI_PROMPT_BASE}, named "${name}"` : AI_PROMPT_BASE
+    const seed = Math.floor(Math.random() * 999999)
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(named)}?width=1024&height=1024&seed=${seed}&nologo=true`
+    const img = new Image()
+    img.onload  = () => { setLogo(url); setGenerating(false) }
+    img.onerror = () => { setError('AI generation failed — try again or upload'); setGenerating(false) }
     img.src = url
   }
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]; if (!f) return
-    const reader = new FileReader()
-    reader.onload = ev => setUploadedImg(ev.target?.result as string)
-    reader.readAsDataURL(f)
-  }
-
-  // ── Launch token via rd-bondingcurve on-chain ─────────────────────────────
-  const launchToTerminal = async () => {
-    if (!publicKey || !anchorWallet) { setLaunchStatus('ERROR: Connect wallet first.'); return }
-    if (!tokenData.name.trim() || !tokenData.symbol.trim()) {
-      setLaunchStatus('ERROR: Name and symbol are required.')
-      return
-    }
+  // ── launch ───────────────────────────────────────────────────────────────
+  const launch = async () => {
+    setError('')
+    if (!publicKey)            return setError('Connect your wallet first.')
+    if (!name.trim())          return setError('Name is required.')
+    if (!symbol.trim())        return setError('Symbol is required.')
 
     setLaunching(true)
-    setLaunchStatus('Preparing mint keypair...')
-
     try {
       const mintKeypair = Keypair.generate()
-      const logo = activeImg || ''
+      const mint        = mintKeypair.publicKey
 
-      // Upload metadata JSON + image to IPFS (via backend Pinata proxy).
-      setLaunchStatus('Uploading metadata to IPFS...')
+      // 1) Pin metadata (best-effort — token still launches if Pinata is down)
+      setStep('Uploading metadata…')
       let uri = ''
       try {
         const metaRes = await fetch(`${BACKEND_URL}/api/tokens/metadata/pin`, {
-          method: 'POST',
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name:        tokenData.name.trim(),
-            symbol:      tokenData.symbol.trim().toUpperCase(),
-            description: tokenData.description.trim(),
-            image:       logo,
-            external_url: tokenData.websiteUrl.trim(),
-            twitter:     tokenData.twitterUrl.trim(),
+          body:    JSON.stringify({
+            name:         name.trim(),
+            symbol:       symbol.trim().toUpperCase(),
+            description:  description.trim(),
+            image:        logo ?? '',
+            external_url: website.trim(),
+            twitter:      twitter.trim(),
           }),
         })
         if (metaRes.ok) {
           const d = await metaRes.json()
           uri = d.uri || d.url || ''
         }
-      } catch { /* non-fatal — pool can launch without metadata URI */ }
+      } catch { /* non-fatal */ }
 
-      // Off-chain launch path. The on-chain rd-bondingcurve program is not
-      // deployed (Anchor build is blocked by an upstream toml_datetime
-      // edition2024 regression in the Solana toolchain). The terminal
-      // simulates the bonding curve in the backend (Mongo + Redis) — this
-      // matches pump.fun's earliest model and lets users launch / trade
-      // immediately. When Solana 2.3+ ships and we deploy the program for
-      // real, we'll flip NEXT_PUBLIC_LAUNCH_MODE to "onchain" and re-enable
-      // the buildCreatePoolTx path below.
-      const LAUNCH_MODE = process.env.NEXT_PUBLIC_LAUNCH_MODE ?? 'offchain'
-      const mint = mintKeypair.publicKey
+      // 2) Send creation fee / deploy pool
       let sig = ''
-
       if (LAUNCH_MODE === 'onchain') {
-        setLaunchStatus('Deploying pool on rd-bondingcurve...')
-        const { tx } = await buildCreatePoolTx(connection, anchorWallet, {
-          mintKeypair,
-          name:   tokenData.name.trim(),
-          symbol: tokenData.symbol.trim().toUpperCase(),
-          uri,
-        })
-        sig = await sendTransaction(tx, connection, { signers: [mintKeypair] })
-        await connection.confirmTransaction(sig, 'confirmed')
+        // On-chain mode is currently disabled at build time — the
+        // rd-bondingcurve Anchor client requires @coral-xyz/anchor which is
+        // intentionally not in this dashboard's deps (off-chain bundle stays
+        // small). To re-enable: install @coral-xyz/anchor and dynamic-import
+        // '@/lib/rd-bondingcurve/client' here.
+        throw new Error('On-chain launch mode is not enabled in this build.')
       } else {
-        // Off-chain: charge a small creation fee in SOL to the treasury so the
-        // launch feels real and signals creator intent. Mint pubkey is the
-        // randomly-generated keypair's pubkey (never lands on-chain).
-        setLaunchStatus('Sending creation fee to treasury...')
-        const feeLamports = 0.02 * LAMPORTS_PER_SOL  // 0.02 SOL — pump.fun parity
+        setStep(`Sending ${LAUNCH_FEE_SOL} SOL launch fee…`)
         const tx = new Transaction().add(
           SystemProgram.transfer({
             fromPubkey: publicKey,
-            toPubkey:   TREASURY_PUBKEY,
-            lamports:   feeLamports,
+            toPubkey:   TREASURY_OFFCHAIN,
+            lamports:   LAUNCH_FEE_SOL * LAMPORTS_PER_SOL,
           }),
         )
         sig = await sendTransaction(tx, connection)
         await connection.confirmTransaction(sig, 'confirmed')
       }
 
-      setLaunchStatus('Registering with terminal...')
+      // 3) Register with backend
+      setStep('Registering token…')
+      const payload = {
+        mint:              mint.toBase58(),
+        name:              name.trim(),
+        symbol:            symbol.trim().toUpperCase(),
+        description:       description.trim(),
+        logo:              logo ?? '',
+        creator:           publicKey.toBase58(),
+        twitterUrl:        twitter.trim(),
+        websiteUrl:        website.trim(),
+        launchTxSignature: sig,
+      }
       await fetch(`${BACKEND_URL}/api/tokens`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          mint:              mint.toBase58(),
-          name:              tokenData.name.trim(),
-          symbol:            tokenData.symbol.trim().toUpperCase(),
-          description:       tokenData.description.trim(),
-          logo,
-          creator:           publicKey.toBase58(),
-          twitterUrl:        tokenData.twitterUrl.trim(),
-          websiteUrl:        tokenData.websiteUrl.trim(),
-          launchTxSignature: sig,
-        }),
-      })
+        body:    JSON.stringify(payload),
+      }).catch(() => {})
 
-      // Also mirror in dashboard Redis index (keeps /tokens list working)
-      try {
-        await fetch('/api/tokens', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mint: mint.toBase58(),
-            name: tokenData.name.trim(),
-            symbol: tokenData.symbol.trim().toUpperCase(),
-            description: tokenData.description.trim(),
-            logo,
-            creator: publicKey.toBase58(),
-            twitterUrl: tokenData.twitterUrl.trim(),
-            websiteUrl: tokenData.websiteUrl.trim(),
-            launchTxSignature: sig,
-          }),
-        })
-      } catch { /* ignore */ }
+      // 4) Mirror in dashboard Redis (so /tokens listing works)
+      setStep('Syncing terminal index…')
+      await fetch('/api/tokens', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      }).catch(() => {})
 
-      setLaunchedMint(mint.toBase58())
-      setLaunchStatus(`Token launched! Mint: ${mint.toBase58().slice(0, 8)}...`)
-      setTimeout(() => router.push(`/terminal/${mint.toBase58()}`), 1500)
+      // 5) Redirect — no intermediate "success" screen, no modal.
+      setStep('Redirecting to terminal…')
+      router.push(`/terminal/${mint.toBase58()}`)
     } catch (e: any) {
-      setLaunchStatus(`ERROR: ${e.message ?? String(e)}`)
-    } finally {
+      setError(e?.message ?? String(e))
       setLaunching(false)
+      setStep('')
     }
   }
 
+  const canLaunch = !!publicKey && !!name.trim() && !!symbol.trim() && !launching
+
+  // ── UI ───────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-
-      {/* ── AI TOKEN BUILDER ──────────────────────────────────────────────────── */}
-      <div className="rd-card p-5 sm:p-8 relative overflow-hidden border-red-500/10">
-        <div className="absolute -top-16 -right-16 w-48 h-48 bg-red-600/5 blur-[80px] pointer-events-none" />
-        <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-          <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-            <span className="text-red-500">⊕</span> Launch Token on RDX Terminal
-          </h3>
-          <a href="/terminal" className="text-[9px] text-red-400/70 font-mono hover:text-red-400 transition-colors">
-            View Terminal →
-          </a>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Form */}
-          <div className="space-y-4">
-            {[
-              { label: 'Token Name', key: 'name',   placeholder: 'e.g. Shadow Protocol' },
-              { label: 'Symbol',     key: 'symbol',  placeholder: 'e.g. SHDW' },
-            ].map(f => (
-              <div key={f.key}>
-                <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">{f.label}</label>
-                <input type="text" placeholder={f.placeholder}
-                  value={(tokenData as any)[f.key]}
-                  onChange={e => setTokenData({ ...tokenData, [f.key]: f.key === 'symbol' ? e.target.value.toUpperCase() : e.target.value })}
-                  className="w-full bg-black/50 border border-red-950/30 p-3 text-white font-mono text-sm focus:border-red-500/50 outline-none transition-all rounded-sm" />
-              </div>
-            ))}
-            <div>
-              <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">Description</label>
-              <textarea rows={3} placeholder="Protocol objective..."
-                value={tokenData.description}
-                onChange={e => setTokenData({ ...tokenData, description: e.target.value })}
-                className="w-full bg-black/50 border border-red-950/30 p-3 text-white font-mono text-sm focus:border-red-500/50 outline-none transition-all resize-none rounded-sm" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[
-                { label: 'Twitter URL (optional)', key: 'twitterUrl', placeholder: 'https://x.com/...' },
-                { label: 'Website (optional)',     key: 'websiteUrl', placeholder: 'https://...' },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">{f.label}</label>
-                  <input type="text" placeholder={f.placeholder}
-                    value={(tokenData as any)[f.key]}
-                    onChange={e => setTokenData({ ...tokenData, [f.key]: e.target.value })}
-                    className="w-full bg-black/50 border border-red-950/30 p-2.5 text-white font-mono text-xs focus:border-red-500/50 outline-none transition-all rounded-sm" />
-                </div>
-              ))}
-            </div>
-
-            {/* Fee info box */}
-            <div className="bg-black/40 border border-red-900/10 rounded-sm p-3 text-[9px] font-mono space-y-1.5">
-              <div className="text-gray-500 font-bold uppercase tracking-widest mb-2">Fee Structure — Pump.fun Economics</div>
-              <div className="flex justify-between text-gray-700"><span>Curve supply</span><span className="text-white">800M tokens</span></div>
-              <div className="flex justify-between text-gray-700"><span>LP reserve (at graduation)</span><span className="text-white">200M tokens</span></div>
-              <div className="flex justify-between text-gray-700"><span>Graduation threshold</span><span className="text-white">85 SOL raised</span></div>
-              <div className="flex justify-between text-gray-700"><span>Creator reward</span><span className="text-green-400">0.5% per trade</span></div>
-              <div className="flex justify-between text-gray-700"><span>RDX treasury fee</span><span className="text-red-400/70">1% per trade</span></div>
-              <div className="text-gray-700 pt-1 border-t border-red-900/10">Mint authority handed to pool PDA on launch — fully permissionless.</div>
-            </div>
-
-            {/* Launch button */}
-            {!launchedMint ? (
-              <button
-                onClick={launchToTerminal}
-                disabled={launching || !publicKey || !tokenData.name || !tokenData.symbol}
-                className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black text-[11px] uppercase tracking-[0.4em] transition-all shadow-[0_0_20px_rgba(255,26,26,0.2)] hover:shadow-[0_0_40px_rgba(255,26,26,0.35)] rounded-sm"
-              >
-                {launching ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Launching...
-                  </span>
-                ) : !publicKey ? 'Connect Wallet to Launch' : '⊕ Deploy Pool & List on Terminal'}
-              </button>
-            ) : (
-              <a href={`/terminal/${launchedMint}`}
-                className="w-full py-4 flex items-center justify-center gap-2 bg-green-600/20 border border-green-500/30 text-green-400 font-black text-[11px] uppercase tracking-widest rounded-sm hover:bg-green-600/30 transition-all">
-                ✓ View on Terminal →
-              </a>
-            )}
-
-            {launchStatus && (
-              <p className={`text-[9px] font-mono text-center ${launchStatus.startsWith('ERROR') ? 'text-red-400' : launchStatus.includes('launched') ? 'text-green-400' : 'text-yellow-500'}`}>
-                {launchStatus}
-              </p>
-            )}
-          </div>
-
-          {/* Image generator */}
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-2">
-              {(['ai','upload'] as const).map(m => (
-                <button key={m} onClick={() => setImageMode(m)}
-                  className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest border transition-all rounded-sm ${
-                    imageMode === m ? 'border-red-500 text-red-500 bg-red-500/10' : 'border-red-900/20 text-gray-600 hover:text-white'
-                  }`}>
-                  {m === 'ai' ? '✦ AI Generate' : '📁 Upload'}
-                </button>
-              ))}
-            </div>
-
-            <div className="aspect-square w-full bg-black/80 border-2 border-dashed border-red-900/20 relative flex items-center justify-center overflow-hidden cursor-pointer hover:border-red-500/20 transition-all"
-              onClick={() => imageMode === 'upload' && fileRef.current?.click()}>
-              {activeImg
-                ? <img src={activeImg} alt="Token Logo" className="w-full h-full object-cover" />
-                : <div className="text-center p-4">
-                    <div className="text-red-500/20 text-4xl mb-2">███</div>
-                    <p className="text-[10px] text-gray-700 uppercase tracking-widest">
-                      {imageMode === 'ai' ? 'Select style & generate' : 'Click to upload'}
-                    </p>
-                  </div>
-              }
-              <AnimatePresence>
-                {generating && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center gap-3">
-                    <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-[9px] text-red-400 font-mono uppercase tracking-widest">Generating...</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-
-            {imageMode === 'ai' && (
-              <>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {AI_STYLES.map((s, i) => (
-                    <button key={s.id} onClick={() => setSelectedStyle(i)}
-                      className={`py-2 text-[8px] font-black uppercase tracking-widest border transition-all rounded-sm ${
-                        selectedStyle === i ? 'border-red-500 text-red-500 bg-red-500/10' : 'border-red-900/15 text-gray-700 hover:text-white hover:border-red-900/30'
-                      }`}>{s.label}</button>
-                  ))}
-                </div>
-                <input type="text" value={extraPrompt} onChange={e => setExtraPrompt(e.target.value)}
-                  placeholder="Extra description (optional)..."
-                  className="w-full px-3 py-2.5 bg-black/50 border border-red-950/20 text-white font-mono text-xs outline-none focus:border-red-500/40 transition-all rounded-sm"
-                  onKeyDown={e => e.key === 'Enter' && generateAI()} />
-                {genError && <p className="text-[9px] text-red-500 font-mono">{genError}</p>}
-                <button onClick={generateAI} disabled={generating}
-                  className="w-full py-3 bg-red-500/10 border border-red-500/30 text-red-400 font-mono text-xs tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-50 rounded-sm">
-                  {generating ? 'Generating...' : '█ Generate AI Logo'}
-                </button>
-              </>
-            )}
-            {imageMode === 'upload' && (
-              <button onClick={() => fileRef.current?.click()}
-                className="w-full py-3 border border-red-500/20 text-gray-600 text-[10px] font-bold uppercase tracking-widest hover:text-white hover:border-red-500/30 transition-all rounded-sm">
-                {uploadedImg ? '↺ Change Image' : '+ Select File'}
-              </button>
-            )}
-          </div>
-        </div>
+    <div className="rd-card p-6 sm:p-8 max-w-2xl mx-auto border-red-500/10">
+      <div className="mb-6">
+        <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] flex items-center gap-2">
+          <span className="text-red-500">⊕</span> Launch Token
+        </h2>
+        <p className="text-[10px] text-gray-600 font-mono mt-2">
+          Off-chain bonding curve · 0.02 SOL launch fee · 800M supply on curve · 5% reserved for missions on graduation
+        </p>
       </div>
+
+      {/* 1. NAME */}
+      <Field label="Token name">
+        <input
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="e.g. Shadow Protocol"
+          className="rd-input"
+          disabled={launching}
+        />
+      </Field>
+
+      {/* 2. SYMBOL */}
+      <Field label="Symbol">
+        <input
+          type="text"
+          value={symbol}
+          onChange={e => setSymbol(e.target.value.toUpperCase().slice(0, 10))}
+          placeholder="e.g. SHDW"
+          className="rd-input"
+          disabled={launching}
+        />
+      </Field>
+
+      {/* 3. DESCRIPTION */}
+      <Field label="Description">
+        <textarea
+          rows={3}
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="Protocol objective…"
+          className="rd-input resize-none"
+          disabled={launching}
+        />
+      </Field>
+
+      {/* 4. LOGO */}
+      <Field label="Logo">
+        <div className="flex gap-3 items-start">
+          <div
+            className="w-24 h-24 flex-shrink-0 bg-black/60 border-2 border-dashed border-red-900/30 rounded-sm flex items-center justify-center overflow-hidden"
+            onClick={() => fileRef.current?.click()}
+            role="button"
+          >
+            {logo
+              ? <img src={logo} alt="logo" className="w-full h-full object-cover" />
+              : <span className="text-red-500/30 text-2xl">███</span>}
+          </div>
+          <div className="flex-1 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={launching}
+              className="py-2 px-3 text-[10px] font-mono uppercase tracking-widest border border-red-900/30 text-gray-400 hover:text-white hover:border-red-500/40 rounded-sm transition-all disabled:opacity-40"
+            >
+              {logo ? 'Change image' : 'Upload image'}
+            </button>
+            <button
+              type="button"
+              onClick={generateAI}
+              disabled={launching || generating}
+              className="py-2 px-3 text-[10px] font-mono uppercase tracking-widest border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-sm transition-all disabled:opacity-40"
+            >
+              {generating ? 'Generating…' : 'Generate AI image'}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+          </div>
+        </div>
+      </Field>
+
+      {/* OPTIONAL LINKS — collapsible */}
+      <div className="mb-5">
+        <button
+          type="button"
+          onClick={() => setShowOptional(s => !s)}
+          className="text-[10px] font-mono uppercase tracking-widest text-gray-500 hover:text-red-400 transition-colors"
+        >
+          {showOptional ? '−' : '+'} Optional links (Twitter, Website)
+        </button>
+        {showOptional && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              type="text" value={twitter} onChange={e => setTwitter(e.target.value)}
+              placeholder="https://x.com/…" className="rd-input text-xs" disabled={launching}
+            />
+            <input
+              type="text" value={website} onChange={e => setWebsite(e.target.value)}
+              placeholder="https://…" className="rd-input text-xs" disabled={launching}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* LAUNCH BUTTON */}
+      <button
+        onClick={launch}
+        disabled={!canLaunch}
+        className="w-full py-5 bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-[0.4em] transition-all shadow-[0_0_20px_rgba(255,26,26,0.2)] hover:shadow-[0_0_40px_rgba(255,26,26,0.4)] rounded-sm"
+      >
+        {launching ? (
+          <span className="flex items-center justify-center gap-3">
+            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            {step || 'Launching…'}
+          </span>
+        ) : !publicKey ? 'Connect wallet to launch' : '⊕ Launch token'}
+      </button>
+
+      {error && (
+        <p className="mt-4 text-[10px] font-mono text-red-400 text-center break-all">⚠ {error}</p>
+      )}
+
+      <style jsx>{`
+        .rd-input {
+          width: 100%;
+          background: rgba(0,0,0,0.55);
+          border: 1px solid rgba(127,29,29,0.25);
+          padding: 0.7rem;
+          color: white;
+          font-family: var(--font-mono, ui-monospace, monospace);
+          font-size: 0.85rem;
+          border-radius: 2px;
+          outline: none;
+          transition: border-color 0.15s;
+        }
+        .rd-input:focus { border-color: rgba(239,68,68,0.5); }
+        .rd-input:disabled { opacity: 0.5; }
+      `}</style>
+    </div>
+  )
+}
+
+// Local field wrapper — keeps each row consistent.
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <label className="block text-[9px] text-gray-600 uppercase tracking-[0.25em] mb-2">{label}</label>
+      {children}
     </div>
   )
 }
