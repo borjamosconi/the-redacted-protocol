@@ -67,6 +67,38 @@ router.get('/', async (req: Request, res: Response) => {
   }
 })
 
+// Pin token metadata (image + JSON) to IPFS via Pinata. Returns a URI the
+// frontend can pass into rd_bondingcurve.create_pool. If PINATA_JWT is not
+// configured, falls back to inlining the metadata as a data:URI — works fine
+// for the on-chain mint metadata field but won't render in third-party UIs.
+router.post('/metadata/pin', async (req: Request, res: Response) => {
+  try {
+    const { name, symbol, description = '', image = '', external_url = '', twitter = '' } = req.body || {}
+    if (!name || !symbol) return res.status(400).json({ error: 'name and symbol required' })
+
+    const meta = { name, symbol, description, image, external_url, twitter }
+    const jwt = process.env.PINATA_JWT
+
+    if (!jwt) {
+      // Data-URI fallback (zero cost, works on-chain but not in marketplaces).
+      const dataUri = `data:application/json;base64,${Buffer.from(JSON.stringify(meta)).toString('base64')}`
+      return res.json({ uri: dataUri, ipfs: false })
+    }
+
+    const r = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinataContent: meta, pinataMetadata: { name: `${symbol}-metadata` } }),
+    })
+    if (!r.ok) throw new Error(`pinata ${r.status}: ${await r.text()}`)
+    const j = await r.json() as any
+    const gateway = process.env.PINATA_GATEWAY_URL ?? 'https://gateway.pinata.cloud/ipfs'
+    return res.json({ uri: `${gateway}/${j.IpfsHash}`, ipfs: true })
+  } catch (e) {
+    return res.status(500).json({ error: (e as Error).message })
+  }
+})
+
 router.get('/:mint', async (req: Request, res: Response) => {
   try {
     const { mint } = req.params
