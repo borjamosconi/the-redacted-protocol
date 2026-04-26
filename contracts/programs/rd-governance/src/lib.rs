@@ -20,7 +20,7 @@ pub mod rd_governance {
         dao.voting_period_secs = voting_period_secs;
         dao.proposal_count = 0;
         dao.total_voters = 0;
-        
+
         Ok(())
     }
 
@@ -32,7 +32,7 @@ pub mod rd_governance {
     ) -> Result<()> {
         let dao = &mut ctx.accounts.dao;
         let proposal = &mut ctx.accounts.proposal;
-        
+
         // Ensure user has enough tokens to propose
         require!(
             ctx.accounts.proposer_token_account.amount >= dao.min_tokens_to_propose,
@@ -48,35 +48,47 @@ pub mod rd_governance {
         proposal.votes_for = 0;
         proposal.votes_against = 0;
         proposal.is_executed = false;
-        
+
         dao.proposal_count += 1;
 
         Ok(())
     }
 
-    /// Vote on a proposal
+    /// Vote on a proposal. The VoteRecord PDA is created with `init` so a
+    /// duplicate call by the same voter for the same proposal will fail at
+    /// account creation (the Solana runtime rejects re-init of an existing
+    /// account). We additionally set and check a `has_voted` flag as
+    /// defense-in-depth and surface a clean `AlreadyVoted` error.
     pub fn vote(ctx: Context<VoteAction>, side: bool) -> Result<()> {
         let proposal = &mut ctx.accounts.proposal;
         let vote_record = &mut ctx.accounts.vote_record;
-        
+
         let now = Clock::get()?.unix_timestamp;
         require!(now <= proposal.end_time, GovernanceError::VotingEnded);
         require!(now >= proposal.start_time, GovernanceError::VotingNotStarted);
-        
+
+        // Defense-in-depth: an `init` PDA is freshly zero-initialized so
+        // has_voted is false on the very first call. If the runtime ever
+        // returned a non-fresh account here this guard would trip.
+        require!(!vote_record.has_voted, GovernanceError::AlreadyVoted);
+
         // Voting power = current token balance
         let voting_power = ctx.accounts.voter_token_account.amount;
         require!(voting_power > 0, GovernanceError::NoVotingPower);
+
+        // Mark the record before tallying so a panic between writes can never
+        // result in a tallied-but-unmarked record.
+        vote_record.has_voted = true;
+        vote_record.voter = ctx.accounts.voter.key();
+        vote_record.proposal_id = proposal.id;
+        vote_record.power = voting_power;
+        vote_record.side = side;
 
         if side {
             proposal.votes_for = proposal.votes_for.saturating_add(voting_power);
         } else {
             proposal.votes_against = proposal.votes_against.saturating_add(voting_power);
         }
-
-        vote_record.voter = ctx.accounts.voter.key();
-        vote_record.proposal_id = proposal.id;
-        vote_record.power = voting_power;
-        vote_record.side = side;
 
         Ok(())
     }
@@ -123,10 +135,13 @@ pub struct VoteAction<'info> {
     pub voter: Signer<'info>,
     #[account(mut)]
     pub proposal: Account<'info, Proposal>,
+    /// `init` (not init_if_needed) is what enforces "one VoteRecord per
+    /// (proposal, voter)" — Anchor will fail with AccountAlreadyInUse on a
+    /// second attempt.
     #[account(
         init,
         payer = voter,
-        space = 8 + 64,
+        space = 8 + VoteRecord::SPACE,
         seeds = [b"vote", proposal.key().as_ref(), voter.key().as_ref()],
         bump
     )]
@@ -164,6 +179,12 @@ pub struct VoteRecord {
     pub proposal_id: u64,
     pub power: u64,
     pub side: bool,
+    pub has_voted: bool,
+}
+
+impl VoteRecord {
+    // 32 voter + 8 proposal_id + 8 power + 1 side + 1 has_voted + padding
+    pub const SPACE: usize = 32 + 8 + 8 + 1 + 1 + 16;
 }
 
 #[error_code]
@@ -176,4 +197,6 @@ pub enum GovernanceError {
     VotingNotStarted,
     #[msg("No voting power (RDX balance is 0)")]
     NoVotingPower,
+    #[msg("Voter has already cast a vote on this proposal")]
+    AlreadyVoted,
 }
