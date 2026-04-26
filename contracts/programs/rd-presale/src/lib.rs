@@ -78,9 +78,12 @@ pub mod rd_presale {
     use super::*;
 
     /// Initialize the presale. Authority sets the token mint and start time.
+    /// `soft_cap` (lamports) gates whether buyers can claim refunds if the
+    /// presale ends below target. Pass 0 to disable refund path entirely.
     pub fn initialize(
         ctx: Context<Initialize>,
         rdx_per_sol: u64,
+        soft_cap: u64,
     ) -> Result<()> {
         let presale = &mut ctx.accounts.presale;
         presale.authority = ctx.accounts.authority.key();
@@ -94,6 +97,7 @@ pub mod rd_presale {
         presale.is_launched = false;
         presale.rdx_per_sol_early = rdx_per_sol;
         presale.rdx_per_sol_public = rdx_per_sol / 2; // Public gets half the RDX per SOL
+        presale.soft_cap = soft_cap;
         presale.bump = ctx.bumps.presale;
         
         emit!(PresaleInitialized {
@@ -305,6 +309,66 @@ pub mod rd_presale {
         Ok(())
     }
 
+    /// Claim a refund of the SOL contributed by `buyer` if the presale ended
+    /// without reaching `soft_cap` and was not launched. Idempotent: once a
+    /// buyer has refunded their `total_sol_contributed`, the `refunded` flag
+    /// is set and further calls fail with `AlreadyRefunded`.
+    ///
+    /// Pre-conditions enforced:
+    ///  * `now > presale.end_time`              — presale window has closed.
+    ///  * `presale.total_sol_raised < soft_cap` — soft cap missed.
+    ///  * `!presale.is_launched`                — `launch` has NOT executed
+    ///                                            (mutually exclusive paths).
+    ///  * `buyer_stats.total_sol_contributed > 0` — buyer actually contributed.
+    ///  * `!buyer_stats.refunded`               — no double-refund.
+    pub fn claim_refund(ctx: Context<ClaimRefund>) -> Result<()> {
+        let presale = &ctx.accounts.presale;
+        let buyer_stats = &mut ctx.accounts.buyer_stats;
+
+        let now = Clock::get()?.unix_timestamp;
+        require!(now > presale.end_time, PresaleError::PresaleStillActive);
+        require!(!presale.is_launched, PresaleError::RefundNotAvailable);
+        require!(presale.soft_cap > 0, PresaleError::RefundNotAvailable);
+        require!(
+            presale.total_sol_raised < presale.soft_cap,
+            PresaleError::RefundNotAvailable
+        );
+        require!(!buyer_stats.refunded, PresaleError::AlreadyRefunded);
+        require!(!buyer_stats.claimed, PresaleError::AlreadyClaimed);
+        let refund_lamports = buyer_stats.total_sol_contributed;
+        require!(refund_lamports > 0, PresaleError::NothingToRefund);
+
+        // Vault PDA must hold enough lamports (sanity — should always hold,
+        // since launch path is excluded by !is_launched).
+        let vault_lamports = ctx.accounts.presale_vault.to_account_info().lamports();
+        require!(refund_lamports <= vault_lamports, PresaleError::InsufficientVault);
+
+        // Mark refunded BEFORE the CPI so a re-entrant call (or a logic
+        // error in a future sibling instruction) cannot drain twice.
+        buyer_stats.refunded = true;
+
+        let vault_bump = ctx.bumps.presale_vault;
+        let seeds: &[&[u8]] = &[b"presale_vault".as_ref(), &[vault_bump]];
+        let signer = &[seeds];
+
+        let refund_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.presale_vault.to_account_info(),
+                to: ctx.accounts.buyer.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(refund_ctx, refund_lamports)?;
+
+        emit!(RefundClaimed {
+            buyer: ctx.accounts.buyer.key(),
+            sol_amount: refund_lamports,
+        });
+
+        Ok(())
+    }
+
     /// Emergency pause — only authority can pause the presale.
     pub fn pause(ctx: Context<AdminAction>) -> Result<()> {
         let presale = &mut ctx.accounts.presale;
@@ -416,6 +480,24 @@ pub struct Launch<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ClaimRefund<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    #[account(seeds = [b"presale"], bump = presale.bump)]
+    pub presale: Account<'info, PresaleState>,
+    /// CHECK: Presale SOL vault PDA — drained back to the buyer on refund.
+    #[account(mut, seeds = [b"presale_vault"], bump)]
+    pub presale_vault: SystemAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"presale_buyer", buyer.key().as_ref()],
+        bump
+    )]
+    pub buyer_stats: Account<'info, BuyerStats>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct AdminAction<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -446,6 +528,10 @@ pub struct PresaleState {
     pub rdx_per_sol_early: u64,
     pub rdx_per_sol_public: u64,
     pub bump: u8,
+    /// Soft cap in lamports. If `total_sol_raised < soft_cap` at end_time and
+    /// `is_launched == false`, buyers may invoke `claim_refund` to recover
+    /// their contribution. A value of 0 disables the refund path.
+    pub soft_cap: u64,
 }
 
 #[account]
@@ -457,6 +543,10 @@ pub struct BuyerStats {
     pub claim_time: i64,
     pub claimed_at: i64,
     pub is_early_bird: bool,
+    /// Set to true after a successful `claim_refund`. Mutually exclusive with
+    /// `claimed` (a buyer either claims tokens after launch OR claims refund
+    /// after a failed presale).
+    pub refunded: bool,
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -501,6 +591,12 @@ pub struct PresalePaused {
     pub total_sol_raised: u64,
 }
 
+#[event]
+pub struct RefundClaimed {
+    pub buyer: Pubkey,
+    pub sol_amount: u64,
+}
+
 // ───────────────────────────────────────────────────────────────
 // ERRORS
 // ───────────────────────────────────────────────────────────────
@@ -535,4 +631,12 @@ pub enum PresaleError {
     NoSolRaised,
     #[msg("Not authority")]
     NotAuthority,
+    #[msg("Refund not available (presale launched, soft-cap met, or refund disabled)")]
+    RefundNotAvailable,
+    #[msg("Buyer already refunded")]
+    AlreadyRefunded,
+    #[msg("Nothing to refund (no contribution recorded)")]
+    NothingToRefund,
+    #[msg("Vault has insufficient lamports for refund")]
+    InsufficientVault,
 }
