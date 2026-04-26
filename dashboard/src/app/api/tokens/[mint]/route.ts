@@ -5,18 +5,37 @@ export const dynamic = 'force-dynamic'
 
 const redis = new Redis({ url: process.env.UPSTASH_REDIS_URL!, token: process.env.UPSTASH_REDIS_TOKEN! })
 
-const KEY_TOKEN  = (m: string) => `rdx:token:${m}`
-const KEY_SOLD   = (m: string) => `rdx:bc:${m}:sold`
-const KEY_SOL    = (m: string) => `rdx:bc:${m}:sol`
-const KEY_BUYERS = (m: string) => `rdx:bc:${m}:buyers`
-const KEY_USER   = (m: string, w: string) => `rdx:bc:${m}:user:${w}`
-const KEY_TRADES = (m: string) => `rdx:trades:${m}`
+const KEY_TOKEN     = (m: string) => `rdx:token:${m}`
+const KEY_SOLD      = (m: string) => `rdx:bc:${m}:sold`
+const KEY_SOL       = (m: string) => `rdx:bc:${m}:sol`
+const KEY_BUYERS    = (m: string) => `rdx:bc:${m}:buyers`
+const KEY_USER      = (m: string, w: string) => `rdx:bc:${m}:user:${w}`
+const KEY_TRADES    = (m: string) => `rdx:trades:${m}`
+const KEY_GRADUATED = (m: string) => `rdx:bc:${m}:graduated`
+const KEY_MISSION_RESERVE = (m: string) => `rdx:missions:reserve:${m}`
 
-const CURVE_SCALE   = 100_000_000
-const MAX_SUPPLY_BC = 800_000_000
-const BASE_PRICE    = 0.000000030
+const CURVE_SCALE        = 100_000_000
+const MAX_SUPPLY_BC      = 800_000_000
+const BASE_PRICE         = 0.000000030
+// % of curve supply set aside for gamified missions when token graduates.
+const MISSION_RESERVE_PCT = 0.05
 
 function priceAt(sold: number) { return BASE_PRICE * (1 + sold / CURVE_SCALE) }
+
+// Idempotently mark a token as graduated and seed its mission reserve. Called
+// from the GET handler whenever curve fill ≥ 100%, so any read after the final
+// trade triggers the side-effect once.
+async function ensureGraduated(mint: string, tokensSold: number) {
+  if (tokensSold < MAX_SUPPLY_BC) return false
+  const already = await redis.get(KEY_GRADUATED(mint))
+  if (already) return true
+  const reserve = MAX_SUPPLY_BC * MISSION_RESERVE_PCT
+  const pipe = redis.pipeline()
+  pipe.set(KEY_GRADUATED(mint), 1)
+  pipe.set(KEY_MISSION_RESERVE(mint), reserve)
+  await pipe.exec()
+  return true
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ mint: string }> }) {
   try {
@@ -67,6 +86,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ mint
     const rawTrades = await redis.lrange(KEY_TRADES(mint), 0, 49)
     const trades = rawTrades.map(t => typeof t === 'string' ? JSON.parse(t) : t).reverse()
 
+    // Graduation side-effect (idempotent) — once curve fills, set graduated
+    // flag and seed missions reserve.
+    const graduated = await ensureGraduated(mint, tokensSold)
+
     return NextResponse.json({
       ...(meta as any),
       tokensSold,
@@ -80,6 +103,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ mint
       quote,
       userTokens,
       trades,
+      graduated,
+      missionReservePct: MISSION_RESERVE_PCT,
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
