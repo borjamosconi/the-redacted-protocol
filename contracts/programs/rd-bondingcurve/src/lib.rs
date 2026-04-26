@@ -56,6 +56,10 @@ pub const BASIS_POINTS_DIVISOR: u64 = 10_000;
 pub const TREASURY_FEE_BPS: u64 = 100; // 1%
 pub const CREATOR_FEE_BPS: u64 = 50;   // 0.5%
 
+/// Timelock between an emergency pause and the moment users may extract
+/// SOL via `emergency_withdraw`. 7 days, in seconds.
+pub const EMERGENCY_TIMELOCK_SECS: i64 = 7 * 24 * 3600;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PROGRAM
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,6 +82,11 @@ pub mod rd_bondingcurve {
         g.creator_fee_bps = CREATOR_FEE_BPS;
         g.total_pools = 0;
         g.paused = false;
+        // Emergency admin defaults to the program authority. Can be rotated
+        // via `set_emergency_admin`. paused_at = 0 means "not currently
+        // paused"; it gets stamped on every `set_paused(true)` call.
+        g.emergency_admin = ctx.accounts.authority.key();
+        g.paused_at = 0;
         g.bump = ctx.bumps.global;
 
         emit!(GlobalInitialized {
@@ -523,9 +532,179 @@ pub mod rd_bondingcurve {
         Ok(())
     }
 
-    /// Emergency pause (admin).
+    /// Emergency pause (admin). Timestamps `paused_at` so the 7-day
+    /// timelock for `emergency_withdraw` can start counting.
     pub fn set_paused(ctx: Context<AdminAction>, paused: bool) -> Result<()> {
-        ctx.accounts.global.paused = paused;
+        let g = &mut ctx.accounts.global;
+        g.paused = paused;
+        if paused {
+            g.paused_at = Clock::get()?.unix_timestamp;
+        } else {
+            g.paused_at = 0;
+        }
+        emit!(PauseToggled { paused, paused_at: g.paused_at });
+        Ok(())
+    }
+
+    /// Rotate the emergency admin. Only the main program authority may do
+    /// this — the emergency admin itself cannot rotate the role, by design,
+    /// so a compromised emergency key cannot lock the main authority out.
+    pub fn set_emergency_admin(ctx: Context<AdminAction>, new_admin: Pubkey) -> Result<()> {
+        ctx.accounts.global.emergency_admin = new_admin;
+        emit!(EmergencyAdminRotated { new_admin });
+        Ok(())
+    }
+
+    /// Trip the emergency pause from the dedicated emergency-admin key
+    /// (separate from `set_paused` which is gated by the program authority).
+    /// Useful for ops keys that should be able to halt trading without
+    /// holding the main upgrade authority.
+    pub fn emergency_pause_admin(ctx: Context<EmergencyPauseAdmin>) -> Result<()> {
+        let g = &mut ctx.accounts.global;
+        require!(
+            ctx.accounts.emergency_admin.key() == g.emergency_admin,
+            BondingCurveError::NotEmergencyAdmin,
+        );
+        g.paused = true;
+        g.paused_at = Clock::get()?.unix_timestamp;
+        emit!(PauseToggled { paused: true, paused_at: g.paused_at });
+        Ok(())
+    }
+
+    /// User-recovery path: drains a *pro-rata* portion of the pool's real
+    /// SOL reserves to the caller, scaled by the share of `tokens_in` they
+    /// burn relative to `pool.real_token_reserves`. Only callable when:
+    ///   - global.paused == true
+    ///   - now >= global.paused_at + EMERGENCY_TIMELOCK_SECS
+    /// so that the admin has a window to un-pause if the pause was a false
+    /// alarm. The user must surrender (burn) the curve tokens they hold
+    /// before extracting their SOL share, preserving x*y=k bookkeeping.
+    pub fn emergency_withdraw(
+        ctx: Context<EmergencyWithdraw>,
+        tokens_in: u64,
+    ) -> Result<()> {
+        let g = &ctx.accounts.global;
+        require!(g.paused, BondingCurveError::NotPaused);
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            now >= g.paused_at.saturating_add(EMERGENCY_TIMELOCK_SECS),
+            BondingCurveError::TimelockNotElapsed,
+        );
+        require!(tokens_in > 0, BondingCurveError::AmountTooSmall);
+
+        let pool = &mut ctx.accounts.pool;
+        require!(!pool.migrated, BondingCurveError::AlreadyMigrated);
+
+        // Pro-rata share = real_sol_reserves * tokens_in / real_token_basis,
+        // where the basis is the curve_supply (800M) minus what's currently
+        // sitting in the pool — i.e. the tokens already in circulation.
+        // For a paused-and-broken pool this is the cleanest "everyone gets
+        // their fair share back" formula.
+        let circulating = CURVE_SUPPLY.saturating_sub(pool.real_token_reserves);
+        require!(circulating > 0, BondingCurveError::ZeroOutput);
+        let sol_out = (pool.real_sol_reserves as u128)
+            .checked_mul(tokens_in as u128)
+            .ok_or(BondingCurveError::MathOverflow)?
+            .checked_div(circulating as u128)
+            .ok_or(BondingCurveError::MathOverflow)? as u64;
+        require!(sol_out > 0, BondingCurveError::ZeroOutput);
+        require!(sol_out <= pool.real_sol_reserves, BondingCurveError::ZeroOutput);
+
+        // Burn the user's curve tokens.
+        token::burn(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Burn {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    from: ctx.accounts.user_token_account.to_account_info(),
+                    authority: ctx.accounts.user.to_account_info(),
+                },
+            ),
+            tokens_in,
+        )?;
+
+        // Refund SOL from the pool's sol_vault PDA.
+        let sol_vault_bump = ctx.bumps.sol_vault;
+        let mint_key = pool.mint;
+        let sv_seeds: &[&[u8]] = &[b"sol_vault", mint_key.as_ref(), &[sol_vault_bump]];
+        let sv_signer = &[sv_seeds];
+        system_program::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.sol_vault.to_account_info(),
+                    to: ctx.accounts.user.to_account_info(),
+                },
+                sv_signer,
+            ),
+            sol_out,
+        )?;
+
+        pool.real_sol_reserves = pool.real_sol_reserves.saturating_sub(sol_out);
+        // Don't touch virtual reserves — the pool is dead anyway, and
+        // updating them would let a pause-and-trade race extract more SOL
+        // than the burn justifies once the pause is lifted.
+
+        emit!(EmergencyWithdrawn {
+            user: ctx.accounts.user.key(),
+            mint: pool.mint,
+            tokens_burned: tokens_in,
+            sol_returned: sol_out,
+            timestamp: now,
+        });
+        Ok(())
+    }
+
+    /// Step 2 of graduation: lock all LP tokens that the migration_authority
+    /// holds (minted by step 1 / `graduate`) into a program-owned vault PDA
+    /// `[b"lp_lock", mint]`. There is intentionally NO withdraw instruction
+    /// for this vault — once tokens land here they are permanently
+    /// unreachable, mirroring the pump.fun "burn LP" guarantee.
+    ///
+    /// OFF-CHAIN STEP between graduate and graduate_step2_lock_lp:
+    /// the migration_authority calls Raydium AMM v4 `initialize2`
+    /// (program id 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8) using:
+    ///   - the SOL drained by graduate (held in migration_authority's wallet)
+    ///   - 200M of the project token (held in migration_token_account)
+    ///   - an OpenBook market created off-chain with this token + WSOL
+    /// Raydium then mints LP tokens to the migration_authority's LP ATA;
+    /// THAT is the `lp_token_account` passed here, and `lp_mint` is
+    /// Raydium's LP mint for the new pool. Calling this instruction
+    /// transfers every LP token off the migration_authority and into a
+    /// PDA with no exit, achieving the same end state as a hardcoded
+    /// Raydium CPI but without baking Raydium's IDL into this program.
+    pub fn graduate_step2_lock_lp(
+        ctx: Context<GraduateStep2LockLp>,
+        lp_amount: u64,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.migration_authority.key() == ctx.accounts.global.migration_authority,
+            BondingCurveError::NotMigrationAuthority,
+        );
+        require!(lp_amount > 0, BondingCurveError::AmountTooSmall);
+
+        // Transfer LP tokens migration_authority's ATA → lp_lock_vault PDA.
+        // The PDA itself is the ATA's owner-by-init below; the
+        // migration_authority signs as authority of the source ATA.
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                TokenTransfer {
+                    from: ctx.accounts.lp_token_account.to_account_info(),
+                    to: ctx.accounts.lp_lock_vault.to_account_info(),
+                    authority: ctx.accounts.migration_authority.to_account_info(),
+                },
+            ),
+            lp_amount,
+        )?;
+
+        emit!(LpLocked {
+            mint: ctx.accounts.mint.key(),
+            lp_mint: ctx.accounts.lp_mint.key(),
+            amount: lp_amount,
+            lp_lock_vault: ctx.accounts.lp_lock_vault.key(),
+            timestamp: Clock::get()?.unix_timestamp,
+        });
         Ok(())
     }
 }
@@ -703,6 +882,102 @@ pub struct AdminAction<'info> {
     pub authority: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct EmergencyPauseAdmin<'info> {
+    #[account(mut, seeds = [b"global"], bump = global.bump)]
+    pub global: Account<'info, GlobalState>,
+    pub emergency_admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct EmergencyWithdraw<'info> {
+    #[account(seeds = [b"global"], bump = global.bump)]
+    pub global: Account<'info, GlobalState>,
+
+    #[account(
+        mut,
+        seeds = [b"pool", mint.key().as_ref()],
+        bump = pool.bump,
+        has_one = mint,
+    )]
+    pub pool: Account<'info, PoolState>,
+
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+
+    /// CHECK: SOL vault PDA — same seeds scheme as the trade flow.
+    #[account(
+        mut,
+        seeds = [b"sol_vault", mint.key().as_ref()],
+        bump
+    )]
+    pub sol_vault: SystemAccount<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = user,
+    )]
+    pub user_token_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+}
+
+/// Step 2 of graduation. The `lp_lock_vault` is a fresh ATA owned by the
+/// `lp_lock_authority` PDA — that PDA has no signer-callable instruction
+/// in this program, so once LP tokens land here they cannot be moved.
+#[derive(Accounts)]
+pub struct GraduateStep2LockLp<'info> {
+    #[account(seeds = [b"global"], bump = global.bump)]
+    pub global: Account<'info, GlobalState>,
+
+    /// Project token mint (used to namespace the lock PDA per pool).
+    pub mint: Account<'info, Mint>,
+
+    /// Raydium-issued LP mint for this pool. Off-chain step minted the
+    /// LP supply to `lp_token_account`; this ix sweeps it into the lock.
+    pub lp_mint: Account<'info, Mint>,
+
+    /// Source: migration_authority's ATA holding the LP tokens.
+    #[account(
+        mut,
+        associated_token::mint = lp_mint,
+        associated_token::authority = migration_authority,
+    )]
+    pub lp_token_account: Account<'info, TokenAccount>,
+
+    /// CHECK: Authority PDA over the lock vault. Has no signer path in
+    /// this program — it only ever appears as `associated_token::authority`
+    /// for `lp_lock_vault`. No instruction signs with these seeds.
+    #[account(
+        seeds = [b"lp_lock_authority", mint.key().as_ref()],
+        bump
+    )]
+    pub lp_lock_authority: UncheckedAccount<'info>,
+
+    /// Destination: PDA-owned ATA where LP tokens are locked forever.
+    #[account(
+        init_if_needed,
+        payer = migration_authority,
+        associated_token::mint = lp_mint,
+        associated_token::authority = lp_lock_authority,
+    )]
+    pub lp_lock_vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub migration_authority: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
@@ -716,11 +991,19 @@ pub struct GlobalState {
     pub creator_fee_bps: u64,
     pub total_pools: u64,
     pub paused: bool,
+    /// Dedicated emergency-pause key. Distinct from `authority` so a
+    /// hot ops key can pause without holding upgrade powers.
+    pub emergency_admin: Pubkey,
+    /// Unix ts of the most recent set_paused(true). Zero when not paused.
+    /// Used to gate `emergency_withdraw` behind a 7-day timelock so the
+    /// authority has a window to un-pause if a pause was a false alarm.
+    pub paused_at: i64,
     pub bump: u8,
 }
 
 impl GlobalState {
-    pub const SPACE: usize = 32 + 32 + 32 + 8 + 8 + 8 + 1 + 1 + 16;
+    // 32+32+32 + 8+8+8 + 1 + 32 + 8 + 1 + padding
+    pub const SPACE: usize = 32 + 32 + 32 + 8 + 8 + 8 + 1 + 32 + 8 + 1 + 32;
 }
 
 #[account]
@@ -807,6 +1090,35 @@ pub struct PoolMigrated {
     pub timestamp: i64,
 }
 
+#[event]
+pub struct LpLocked {
+    pub mint: Pubkey,
+    pub lp_mint: Pubkey,
+    pub amount: u64,
+    pub lp_lock_vault: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct PauseToggled {
+    pub paused: bool,
+    pub paused_at: i64,
+}
+
+#[event]
+pub struct EmergencyAdminRotated {
+    pub new_admin: Pubkey,
+}
+
+#[event]
+pub struct EmergencyWithdrawn {
+    pub user: Pubkey,
+    pub mint: Pubkey,
+    pub tokens_burned: u64,
+    pub sol_returned: u64,
+    pub timestamp: i64,
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ERRORS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -839,4 +1151,10 @@ pub enum BondingCurveError {
     NotMigrationAuthority,
     #[msg("Pool already migrated")]
     AlreadyMigrated,
+    #[msg("Caller is not the emergency admin")]
+    NotEmergencyAdmin,
+    #[msg("Pool is not currently paused")]
+    NotPaused,
+    #[msg("Emergency timelock has not elapsed (7 days from pause)")]
+    TimelockNotElapsed,
 }
