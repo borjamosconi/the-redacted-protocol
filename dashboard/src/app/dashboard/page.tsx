@@ -8,7 +8,6 @@ import { Header } from '@/components/Header'
 import { useWalletReady } from '@/components/Providers'
 import { GovernancePanel } from '@/components/GovernancePanel'
 import { LaunchpadPanel } from '@/components/LaunchpadPanel'
-import { PresalePanel } from '@/components/PresalePanel'
 import { CinemaPanel } from '@/components/CinemaPanel'
 
 interface UserProfile {
@@ -172,7 +171,7 @@ function DashboardContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [stats, setStats] = useState<GlobalStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'quests' | 'referrals' | 'presale' | 'governance' | 'launchpad' | 'cinema'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'quests' | 'referrals' | 'missions' | 'governance' | 'launchpad' | 'cinema'>('overview')
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -424,7 +423,7 @@ function DashboardContent() {
               { id: 'overview',    label: 'Overview',    icon: '◈' },
               { id: 'quests',      label: 'Quests',      icon: '◎' },
               { id: 'referrals',   label: 'Referrals',   icon: '⌁' },
-              { id: 'presale',     label: 'Presale',     icon: '◉' },
+              { id: 'missions',    label: 'Missions',    icon: '◉' },
               { id: 'governance',  label: 'Governance',  icon: '⬡' },
               { id: 'launchpad',   label: 'Launchpad',   icon: '⊕' },
               { id: 'cinema',      label: 'Cinema',      icon: '🎬' },
@@ -682,15 +681,19 @@ function DashboardContent() {
               </div>
             </motion.div>
           )}
-          {activeTab === 'presale' && (
+          {activeTab === 'missions' && (
             <motion.div
-              key="presale"
+              key="missions"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2 }}
+              className="rd-card p-8 text-center"
             >
-              <PresalePanel />
+              <p className="text-sm text-gray-400 mb-4">Token-specific missions live on the dedicated missions page.</p>
+              <a href="/missions" className="inline-block px-6 py-3 border border-red-500/40 text-red-400 hover:bg-red-500/10 rounded-sm font-mono text-xs uppercase tracking-widest transition">
+                Open Missions →
+              </a>
             </motion.div>
           )}
 

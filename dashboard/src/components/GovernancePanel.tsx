@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { RDX_PUBLIC_KEYS } from '@/lib/rdx-public-config'
-import { TokenLaunchPanel } from './TokenLaunchPanel'
 
 interface Proposal {
   id: string;
@@ -68,11 +67,6 @@ export function GovernancePanel({ rdxBalance = 0 }: { rdxBalance?: number }) {
 
       {/* Content Area */}
       <div className="flex-1">
-        {isAdmin && (
-          <div className="mb-12">
-            <TokenLaunchPanel />
-          </div>
-        )}
         {activeTab === 'voting' ? (
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-6">

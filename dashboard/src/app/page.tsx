@@ -7,7 +7,6 @@ import { Hero } from '@/components/Hero'
 import { ScrollVideoSection } from '@/components/ScrollVideoSection'
 import { ColosseumSection } from '@/components/ColosseumSection'
 import { AirdropSection } from '@/components/AirdropSection'
-import { PresalePanel } from '@/components/PresalePanel'
 import { GamificationPanel } from '@/components/GamificationPanel'
 import { OcrSection } from '@/components/OcrSection'
 import { ImageGenSection } from '@/components/ImageGenSection'
@@ -40,9 +39,6 @@ function HomeContent() {
         <ScrollVideoSection />
         <ColosseumSection />
         <AirdropSection />
-        <div className="max-w-6xl mx-auto px-4 py-12">
-          <PresalePanel />
-        </div>
         <GamificationPanel walletAddress={publicKey?.toString()} />
         <OcrSection />
         <ImageGenSection />
