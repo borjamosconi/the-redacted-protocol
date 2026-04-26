@@ -29,16 +29,19 @@ const LP_SEED_PREFIX = "LiqudityProvider"
 const PINATA_SECRET_API_KEY = process.env.PINATA_SECRET_API_KEY
 const PINATA_GATEWAY_URL = process.env.PINATA_GATEWAY_URL;
 
+// Use mainnet RPC from env, fallback to public mainnet
+const SOLANA_RPC = process.env.PUBLIC_SOLANA_RPC || 
+                   process.env.NEXT_PUBLIC_SOLANA_RPC || 
+                   'https://solana-rpc.publicnode.com'
 
-export const connection = new Connection(clusterApiUrl('devnet'))
+export const connection = new Connection(SOLANA_RPC)
 
 const privateKey = base58.decode(process.env.PRIVATE_KEY!);
 
 export const adminKeypair = web3.Keypair.fromSecretKey(privateKey);
 const adminWallet = new NodeWallet(adminKeypair);
 
-// const umi = createUmi(process.env.PUBLIC_SOLANA_RPC!);
-const umi = createUmi(clusterApiUrl('devnet'));
+const umi = createUmi(SOLANA_RPC);
 
 const userWallet = umi.eddsa.createKeypairFromSecretKey(privateKey);
 

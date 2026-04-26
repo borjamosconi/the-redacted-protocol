@@ -14,6 +14,7 @@ import tradeRoutes from './routes/trade'
 import candlesRoutes from './routes/candles'
 import tradesRoutes from './routes/trades'
 import chartRoutes from './routes/chart'
+import launchRoutes from './routes/launch'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 5000
@@ -37,6 +38,7 @@ app.use('/user/', userRoutes)
 app.use('/feedback/', feedbackRoutes)
 
 // ── Launchpad API (matches dashboard expectations) ─────────────────────────
+app.use('/api/launch', launchRoutes)                // POST / — on-chain token creation
 app.use('/api/tokens', tokenRoutes)                 // list / create / get
 app.use('/api/tokens', tradeRoutes)                 // POST /:mint/trade
 app.use('/api/tokens', candlesRoutes)               // GET /:mint/candles

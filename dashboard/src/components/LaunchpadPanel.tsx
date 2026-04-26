@@ -83,12 +83,9 @@ export function LaunchpadPanel() {
 
     setLaunching(true)
     try {
-      const mintKeypair = Keypair.generate()
-      const mint        = mintKeypair.publicKey
-
       // 1) Pin metadata (best-effort — token still launches if Pinata is down)
       setStep('Uploading metadata…')
-      let uri = ''
+      let imageUrl = logo ?? ''
       try {
         const metaRes = await fetch(`${BACKEND_URL}/api/tokens/metadata/pin`, {
           method:  'POST',
@@ -104,40 +101,65 @@ export function LaunchpadPanel() {
         })
         if (metaRes.ok) {
           const d = await metaRes.json()
-          uri = d.uri || d.url || ''
+          imageUrl = d.uri || d.url || imageUrl
         }
       } catch { /* non-fatal */ }
 
-      // 2) Send creation fee / deploy pool
-      let sig = ''
-      if (LAUNCH_MODE === 'onchain') {
-        // On-chain mode is currently disabled at build time — the
-        // rd-bondingcurve Anchor client requires @coral-xyz/anchor which is
-        // intentionally not in this dashboard's deps (off-chain bundle stays
-        // small). To re-enable: install @coral-xyz/anchor and dynamic-import
-        // '@/lib/rd-bondingcurve/client' here.
-        throw new Error('On-chain launch mode is not enabled in this build.')
-      } else {
-        setStep(`Sending ${LAUNCH_FEE_SOL} SOL launch fee…`)
-        const tx = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey:   TREASURY_OFFCHAIN,
-            lamports:   LAUNCH_FEE_SOL * LAMPORTS_PER_SOL,
-          }),
-        )
-        sig = await sendTransaction(tx, connection)
-        await connection.confirmTransaction(sig, 'confirmed')
+      // 2) Create token on-chain via backend endpoint
+      // The backend will:
+      //   - Generate SPL mint
+      //   - Create token via Metaplex
+      //   - Create liquidity pool
+      //   - Register in MongoDB
+      //   - Return mint address
+      setStep('Creating token on mainnet…')
+      const launchRes = await fetch(`${BACKEND_URL}/api/launch`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          name:        name.trim(),
+          symbol:      symbol.trim().toUpperCase(),
+          description: description.trim(),
+          imageUrl:    imageUrl,
+          creator:     publicKey.toBase58(),
+          twitterUrl:  twitter.trim(),
+          websiteUrl:  website.trim(),
+        }),
+      })
+      
+      if (!launchRes.ok) {
+        const err = await launchRes.json()
+        throw new Error(err.error || `Launch failed: ${launchRes.status}`)
+      }
+      
+      const launchData = await launchRes.json()
+      const mint = launchData.mint
+      const sig = launchData.txSignature || ''
+      
+      if (!mint) {
+        throw new Error('No mint returned from backend')
       }
 
-      // 3) Register with backend
-      setStep('Registering token…')
+      // 3) Send 0.02 SOL launch fee to treasury (off-chain fee, now that token is created)
+      setStep(`Sending ${LAUNCH_FEE_SOL} SOL launch fee…`)
+      const feeTx = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey:   TREASURY_OFFCHAIN,
+          lamports:   LAUNCH_FEE_SOL * LAMPORTS_PER_SOL,
+        }),
+      )
+      const feeSig = await sendTransaction(feeTx, connection)
+      await connection.confirmTransaction(feeSig, 'confirmed')
+
+      // 4) Register with backend token registry
+      setStep('Registering token metadata…')
       const payload = {
-        mint:              mint.toBase58(),
+        mint:              mint,
         name:              name.trim(),
         symbol:            symbol.trim().toUpperCase(),
         description:       description.trim(),
-        logo:              logo ?? '',
+        logo:              imageUrl,
         creator:           publicKey.toBase58(),
         twitterUrl:        twitter.trim(),
         websiteUrl:        website.trim(),
@@ -149,7 +171,7 @@ export function LaunchpadPanel() {
         body:    JSON.stringify(payload),
       }).catch(() => {})
 
-      // 4) Mirror in dashboard Redis (so /tokens listing works)
+      // 5) Mirror in dashboard Redis (so /tokens listing works)
       setStep('Syncing terminal index…')
       await fetch('/api/tokens', {
         method:  'POST',
@@ -157,9 +179,9 @@ export function LaunchpadPanel() {
         body:    JSON.stringify(payload),
       }).catch(() => {})
 
-      // 5) Redirect — no intermediate "success" screen, no modal.
+      // 6) Redirect — no intermediate "success" screen, no modal.
       setStep('Redirecting to terminal…')
-      router.push(`/terminal/${mint.toBase58()}`)
+      router.push(`/terminal/${mint}`)
     } catch (e: any) {
       setError(e?.message ?? String(e))
       setLaunching(false)
@@ -177,7 +199,7 @@ export function LaunchpadPanel() {
           <span className="text-red-500">⊕</span> Launch Token
         </h2>
         <p className="text-[10px] text-gray-600 font-mono mt-2">
-          Off-chain bonding curve · 0.02 SOL launch fee · 800M supply on curve · 5% reserved for missions on graduation
+          On-chain SPL token · 0.02 SOL launch fee · 800M supply on curve · 5% reserved for missions on graduation
         </p>
       </div>
 
