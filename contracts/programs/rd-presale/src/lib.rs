@@ -155,6 +155,17 @@ pub mod rd_presale {
         buyer.rdx_allocated = buyer.rdx_allocated.saturating_add(rdx_amount);
         buyer.claimed = false;
         buyer.claim_time = now;
+        // Stamp the phase the buyer entered in. Once true, never flipped to
+        // false on subsequent buys (early-bird buyers retain the longer
+        // vesting cliff for their whole allocation, matching the docstring
+        // phase model). New buyers in the public phase get is_early_bird=false.
+        if buyer.total_sol_contributed == sol_amount {
+            // First-ever buy: take the current phase verbatim.
+            buyer.is_early_bird = is_early_bird;
+        } else {
+            // Subsequent buy: keep is_early_bird true if it ever was true.
+            buyer.is_early_bird = buyer.is_early_bird || is_early_bird;
+        }
         
         // Track new participants
         if buyer.total_sol_contributed == sol_amount {
@@ -250,10 +261,13 @@ pub mod rd_presale {
             total_participants: presale.total_participants,
         });
 
-        // Transfer SOL to respective accounts
-        let presale_bump = ctx.accounts.presale.bump;
-        let seeds = &[b"presale_vault".as_ref(), &[ctx.bumps.presale_vault]];
-        let signer = &[&seeds[..]];
+        // Transfer SOL to respective accounts. Sign with the presale_vault
+        // PDA (NOT the presale state PDA) — the SOL lives in the vault, so
+        // the vault is the from-authority. Seeds match the vault's
+        // declaration in `Launch::presale_vault` below: [b"presale_vault"].
+        let vault_bump = ctx.bumps.presale_vault;
+        let seeds: &[&[u8]] = &[b"presale_vault".as_ref(), &[vault_bump]];
+        let signer = &[seeds];
 
         // Transfer to liquidity
         let liquidity_ctx = CpiContext::new_with_signer(
