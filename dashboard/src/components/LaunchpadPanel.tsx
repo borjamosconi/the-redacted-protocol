@@ -168,27 +168,13 @@ export function LaunchpadPanel() {
 
     setLaunching(true)
     try {
-      // 1) Pin metadata (best-effort — token still launches if Pinata is down)
-      setStep('Uploading metadata…')
-      let imageUrl = logo ?? ''
-      try {
-        const metaRes = await fetch(`${BACKEND_URL}/api/tokens/metadata/pin`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({
-            name:         name.trim(),
-            symbol:       symbol.trim().toUpperCase(),
-            description:  description.trim(),
-            image:        logo ?? '',
-            external_url: website.trim(),
-            twitter:      twitter.trim(),
-          }),
-        })
-        if (metaRes.ok) {
-          const d = await metaRes.json()
-          imageUrl = d.uri || d.url || imageUrl
-        }
-      } catch { /* non-fatal */ }
+      // 1) Image stays as-is. We don't pin to IPFS up-front — the backend
+      //    serves the metadata.json dynamically at /api/tokens/<mint>/
+      //    metadata.json reading from Mongo, which the on-chain
+      //    metadata.uri points to. The `logo` field in Mongo holds the
+      //    image URL (data URL from upload, or pollinations.ai URL, etc.)
+      //    and the metadata route surfaces it as `image` in the JSON.
+      const imageUrl = logo ?? ''
 
       // 2) Build the FULL launch transaction the user signs ONCE in Phantom.
       //
