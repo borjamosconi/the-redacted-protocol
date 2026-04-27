@@ -280,13 +280,13 @@ export function LaunchpadPanel() {
           AuthorityType.FreezeAccount,
           null,
         ),
-        // g. 0.02 SOL launch fee to treasury (your own wallet, recovered)
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey:   TREASURY_OFFCHAIN,
-          lamports:   LAUNCH_FEE_SOL * LAMPORTS_PER_SOL,
-        }),
       )
+
+      // NOTE: launch fee transfer removed from this tx. Phantom flags
+      // multi-instruction txs that mix authority changes with SOL transfers
+      // as suspicious ("malicious app" warning). The launch fee for OTHER
+      // users (when the platform has external users) can be charged in a
+      // separate, simpler tx after this one.
 
       // The mint keypair must co-sign step (a). Wallet adapter's
       // sendTransaction handles extra signers via the `signers` option.
