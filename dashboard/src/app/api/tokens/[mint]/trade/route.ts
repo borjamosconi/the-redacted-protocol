@@ -11,8 +11,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
+import { mintSplTo } from '@/lib/spl-service'
 
 export const dynamic = 'force-dynamic'
+export const runtime  = 'nodejs'
 
 const redis = new Redis({ url: process.env.UPSTASH_REDIS_URL!, token: process.env.UPSTASH_REDIS_TOKEN! })
 
@@ -173,11 +175,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ min
       upsertCandle(mint, '4h',  tradePrice, amount, ts),
     ])
 
+    // ── Mint REAL SPL tokens to the buyer's wallet ─────────────────────────
+    // If the mint exists on-chain and we control its mint authority, send
+    // tokensOut * 10^9 atomic units to the buyer. Failure is non-fatal:
+    // legacy off-chain mints (random pubkeys generated client-side before
+    // /api/launch-spl existed) won't have us as authority and will fail —
+    // those balances stay tracked off-chain in Redis until migration.
+    let mintSig: string | undefined
+    let mintError: string | undefined
+    try {
+      const out = await mintSplTo({
+        mint,
+        recipient: wallet,
+        amount:    BigInt(Math.floor(tokensOut)) * 1_000_000_000n,  // 9 decimals
+      })
+      mintSig = out.signature
+    } catch (e: any) {
+      mintError = e.message
+    }
+
     return NextResponse.json({
       ok:        true,
       tokensOut: Math.floor(tokensOut),
       price:     tradePrice,
       solAmount: amount,
+      mintSig,           // signature of the real SPL mintTo, if it ran
+      mintError,         // populated for legacy off-chain mints we don't control
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

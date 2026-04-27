@@ -105,10 +105,21 @@ export function LaunchpadPanel() {
         }
       } catch { /* non-fatal */ }
 
-      // 2) Generate the off-chain mint pubkey (no SPL mint actually created;
-      //    the bonding curve is simulated by the backend until graduation).
-      const mintKeypair = Keypair.generate()
-      const mint        = mintKeypair.publicKey.toBase58()
+      // 2) Create a REAL SPL mint on Solana mainnet via our server-side
+      //    mint authority. The mint shows up in Phantom + Solscan and can
+      //    be used to mint tokens to buyers later in the trade flow.
+      setStep('Creating SPL mint on Solana mainnet…')
+      const splRes = await fetch('/api/launch-spl', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ decimals: 9 }),
+      })
+      if (!splRes.ok) {
+        const j = await splRes.json().catch(() => ({}))
+        throw new Error(`SPL mint creation failed: ${j.error ?? splRes.status}. ${j.hint ?? ''}`)
+      }
+      const splData = await splRes.json()
+      const mint = splData.mint as string
 
       // 3) Pay the 0.02 SOL launch fee to the treasury — single user-signed tx.
       //
