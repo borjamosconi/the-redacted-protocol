@@ -161,6 +161,40 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
     }
   }
 
+  // ── Sell handler ─────────────────────────────────────────────────────────
+  // Burns the user's virtual RDX and credits a pending SOL payout. The
+  // actual SOL transfer is a manual batch from the treasury (no server
+  // keypair). Until graduation, sellers see "Pending payout: X SOL" in
+  // their balance and wait for the next batch settlement.
+  const handleSell = async () => {
+    if (!publicKey || !token) return
+    const tokensIn = Math.floor(token.userTokens || 0)
+    if (tokensIn <= 0) {
+      setStatus({ type: 'error', msg: 'You have no tokens to sell.' })
+      return
+    }
+    setBuying(true)
+    setStatus({ type: 'pending', msg: 'Recording sell…' })
+    try {
+      const res = await fetch(`/api/tokens/${mint}/sell`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ wallet: publicKey.toString(), tokensIn }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Sell failed.')
+      setStatus({
+        type: 'success',
+        msg:  `✓ Sold ${tokensIn.toLocaleString()} ${token.symbol}. Pending payout: ${data.solRefund.toFixed(4)} SOL`,
+      })
+      fetchToken(buyAmount)
+    } catch (e: any) {
+      setStatus({ type: 'error', msg: e.message || 'Sell failed.' })
+    } finally {
+      setBuying(false)
+    }
+  }
+
   const fmtPrice = (p: number) => {
     if (p < 0.000001) return p.toExponential(4)
     if (p < 0.01)     return p.toFixed(8)
@@ -417,17 +451,25 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
                 ))}
               </div>
 
-              {/* Buy button */}
+              {/* Buy + Sell buttons */}
               {publicKey ? (
-                <button onClick={handleBuy} disabled={buying || token.tokensRemaining <= 0}
-                  className="w-full py-4 bg-gradient-to-r from-red-700 to-red-500 hover:from-red-600 hover:to-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-[0.3em] rounded-sm transition-all shadow-[0_0_20px_rgba(255,26,26,0.15)] hover:shadow-[0_0_30px_rgba(255,26,26,0.3)]">
-                  {buying ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
-                    </span>
-                  ) : token.tokensRemaining <= 0 ? 'Curve Full' : `Buy $${token.symbol}`}
-                </button>
+                <div className="space-y-2">
+                  <button onClick={handleBuy} disabled={buying || token.tokensRemaining <= 0}
+                    className="w-full py-4 bg-gradient-to-r from-red-700 to-red-500 hover:from-red-600 hover:to-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-[0.3em] rounded-sm transition-all shadow-[0_0_20px_rgba(255,26,26,0.15)] hover:shadow-[0_0_30px_rgba(255,26,26,0.3)]">
+                    {buying ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                        Processing...
+                      </span>
+                    ) : token.tokensRemaining <= 0 ? 'Curve Full' : `Buy $${token.symbol}`}
+                  </button>
+                  {token.userTokens > 0 && (
+                    <button onClick={handleSell} disabled={buying}
+                      className="w-full py-3 bg-transparent border border-red-900/30 hover:border-red-500/60 text-red-400 hover:text-red-200 disabled:opacity-40 disabled:cursor-not-allowed font-mono text-[10px] uppercase tracking-[0.3em] rounded-sm transition-all">
+                      Sell {Math.floor(token.userTokens).toLocaleString()} ${token.symbol}
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="flex justify-center">
                   <WalletMultiButton style={{
