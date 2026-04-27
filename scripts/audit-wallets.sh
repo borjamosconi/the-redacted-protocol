@@ -24,7 +24,8 @@ ALLOWED=(
   HjqNchH7bsvgi1gSo9m3wbUasmQT1TaaRbJduDQ5uyPw   # authority (user's main)
   CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8   # treasury
   H4C2GpF5QLFCaY1ZSLsnnA34E1TXG6nYViQLAkNKXMeu   # airdrop
-  HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU   # token mint
+  HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU   # token mint (reserved)
+  Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj   # RDX SPL mint — first token launched
 )
 
 # ── 2. Solana protocol constants — public, cannot leak user funds ──────────
