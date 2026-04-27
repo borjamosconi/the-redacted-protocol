@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Header } from '@/components/Header'
 import { Hero } from '@/components/Hero'
+import { TokenLiveBanner } from '@/components/TokenLiveBanner'
 import { ScrollVideoSection } from '@/components/ScrollVideoSection'
 import { ColosseumSection } from '@/components/ColosseumSection'
-import { AirdropSection } from '@/components/AirdropSection'
 import { GamificationPanel } from '@/components/GamificationPanel'
 import { OcrSection } from '@/components/OcrSection'
 import { ImageGenSection } from '@/components/ImageGenSection'
@@ -36,9 +36,9 @@ function HomeContent() {
       <Header />
       <main>
         <Hero />
+        <TokenLiveBanner />
         <ScrollVideoSection />
         <ColosseumSection />
-        <AirdropSection />
         <GamificationPanel walletAddress={publicKey?.toString()} />
         <OcrSection />
         <ImageGenSection />
