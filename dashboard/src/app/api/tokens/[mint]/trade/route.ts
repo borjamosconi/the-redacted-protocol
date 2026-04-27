@@ -45,7 +45,51 @@ const KEY_SOL       = (m: string) => `rdx:bc:${m}:sol`
 const KEY_BUYERS    = (m: string) => `rdx:bc:${m}:buyers`
 const KEY_USER      = (m: string, w: string) => `rdx:bc:${m}:user:${w}`
 const KEY_TRADES    = (m: string) => `rdx:trades:${m}`
+const KEY_CANDLES   = (m: string, iv: string) => `rdx:candles:${m}:${iv}`
 const KEY_TX        = (sig: string) => `rdx:tx:${sig}`
+
+// ── Candle helpers ─────────────────────────────────────────────────────────
+const INTERVAL_SECS: Record<string, number> = {
+  '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400,
+}
+
+function candleBucket(ts: number, interval: string): number {
+  const s = INTERVAL_SECS[interval] ?? 60
+  return Math.floor(ts / s) * s
+}
+
+async function upsertCandle(
+  mint:       string,
+  interval:   string,
+  tradePrice: number,
+  volumeSol:  number,
+  ts:         number,
+) {
+  const bucket    = candleBucket(ts, interval)
+  const candleKey = KEY_CANDLES(mint, interval)
+  // Read the last candle. If its `time` matches the current bucket, update
+  // it in-place; otherwise push a new candle.
+  const raw  = await redis.lindex(candleKey, -1)
+  const last = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) as any : null
+  if (last && last.time === bucket) {
+    last.high   = Math.max(last.high, tradePrice)
+    last.low    = Math.min(last.low, tradePrice)
+    last.close  = tradePrice
+    last.volume = (last.volume ?? 0) + volumeSol
+    await redis.lset(candleKey, -1, JSON.stringify(last))
+  } else {
+    const candle = {
+      time:   bucket,
+      open:   tradePrice,
+      high:   tradePrice,
+      low:    tradePrice,
+      close:  tradePrice,
+      volume: volumeSol,
+    }
+    await redis.rpush(candleKey, JSON.stringify(candle))
+    await redis.ltrim(candleKey, -2000, -1)
+  }
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ mint: string }> }) {
   try {
@@ -118,6 +162,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ min
     pipe.ltrim(KEY_TRADES(mint), 0, 199)
 
     await pipe.exec()
+
+    // ── Update OHLC candles in every interval (outside pipeline because it
+    //    needs the previous candle's value) ──────────────────────────────
+    await Promise.all([
+      upsertCandle(mint, '1m',  tradePrice, amount, ts),
+      upsertCandle(mint, '5m',  tradePrice, amount, ts),
+      upsertCandle(mint, '15m', tradePrice, amount, ts),
+      upsertCandle(mint, '1h',  tradePrice, amount, ts),
+      upsertCandle(mint, '4h',  tradePrice, amount, ts),
+    ])
 
     return NextResponse.json({
       ok:        true,
