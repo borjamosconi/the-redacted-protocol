@@ -245,45 +245,73 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
           {/* ── Left: chart area ────────────────────────────────────────────── */}
           <div className="space-y-4">
 
-            {/* Token header */}
-            <div className="rd-card p-4 flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg overflow-hidden bg-red-950/20 border border-red-900/20 flex-shrink-0">
+            {/* Token header — name, logo, socials */}
+            <div className="rd-card p-5 flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-lg overflow-hidden bg-red-950/20 border border-red-900/20 flex-shrink-0 shadow-[0_0_20px_rgba(255,26,26,0.1)]">
                   {token.logo
                     ? <img src={token.logo} alt={token.symbol} className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center text-red-500/30 font-black">{token.symbol.charAt(0)}</div>
+                    : <div className="w-full h-full flex items-center justify-center text-red-500/40 text-xl font-black">{token.symbol.charAt(0)}</div>
                   }
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-white">{token.name}</span>
-                    <span className="text-[10px] text-red-400 font-mono font-bold">${token.symbol}</span>
-                    {isGraduating && <span className="text-[8px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 px-1.5 py-0.5 rounded-full">✨ Graduating</span>}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-base sm:text-lg font-black text-white">{token.name}</span>
+                    <span className="text-xs text-red-400 font-mono font-bold">${token.symbol}</span>
+                    {isGraduating && <span className="text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold animate-pulse">✨ GRADUATING</span>}
                   </div>
-                  <div className="text-[9px] text-gray-600 font-mono mt-0.5">
+                  <div className="text-[10px] text-gray-600 font-mono mb-2">
                     {token.mint.slice(0,8)}...{token.mint.slice(-6)}
                     <button
                       onClick={() => navigator.clipboard.writeText(token.mint)}
                       className="ml-2 text-gray-700 hover:text-white transition-colors"
-                    >⎘</button>
+                    >⎘ Copy</button>
+                    <a href={`https://solscan.io/token/${token.mint}`} target="_blank" rel="noopener noreferrer"
+                      className="ml-2 text-gray-700 hover:text-white transition-colors">↗ Solscan</a>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {token.twitterUrl && (
+                      <a href={token.twitterUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-[10px] text-gray-500 hover:text-white transition-colors px-2 py-0.5 border border-white/10 rounded-sm">𝕏</a>
+                    )}
+                    {token.websiteUrl && (
+                      <a href={token.websiteUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-[10px] text-gray-500 hover:text-white transition-colors px-2 py-0.5 border border-white/10 rounded-sm">🌐</a>
+                    )}
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <div className="text-[9px] text-gray-600 uppercase tracking-widest">Price</div>
-                  <div className="text-sm font-black text-white font-mono">{fmtPrice(token.currentPrice)} SOL</div>
+            {/* Stats row — Price, Market Cap, SOL raised, Holders */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                {
+                  label: 'Price',
+                  value: `${fmtPrice(token.currentPrice)} SOL`,
+                  accent: 'text-white',
+                },
+                {
+                  label: 'Market Cap',
+                  value: `${(token.currentPrice * (token.totalSupplyCurve ?? 1_000_000_000)).toFixed(2)} SOL`,
+                  accent: 'text-red-400',
+                },
+                {
+                  label: 'SOL Raised',
+                  value: `${token.solRaised.toFixed(3)}`,
+                  accent: 'text-green-400',
+                },
+                {
+                  label: 'Holders',
+                  value: token.buyerCount.toString(),
+                  accent: 'text-blue-400',
+                },
+              ].map(s => (
+                <div key={s.label} className="rd-card p-3">
+                  <div className="text-[9px] text-gray-600 uppercase tracking-[0.2em] mb-1">{s.label}</div>
+                  <div className={`text-base font-black font-mono ${s.accent}`}>{s.value}</div>
                 </div>
-                <div className="text-right">
-                  <div className="text-[9px] text-gray-600 uppercase tracking-widest">SOL Raised</div>
-                  <div className="text-sm font-black text-white font-mono">{token.solRaised.toFixed(3)}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[9px] text-gray-600 uppercase tracking-widest">Buyers</div>
-                  <div className="text-sm font-black text-white font-mono">{token.buyerCount}</div>
-                </div>
-              </div>
+              ))}
             </div>
 
             {/* THE CHART */}
@@ -436,17 +464,17 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
                 </div>
               </div>
 
-              {/* Fee breakdown */}
+              {/* Conspiracy Points + curve impact */}
               <div className="bg-black/20 border border-red-900/10 rounded-sm p-3 mb-4 space-y-1.5">
-                <div className="text-[8px] text-gray-700 uppercase tracking-widest mb-1.5">Fee Breakdown</div>
+                <div className="text-[8px] text-gray-700 uppercase tracking-widest mb-1.5">You'll earn</div>
                 {[
-                  { label: 'Vault (pool)', pct: '98.5%', sol: (parseFloat(buyAmount) * VAULT_PCT).toFixed(4) },
-                  { label: 'RDX Treasury', pct: '1.0%',  sol: (parseFloat(buyAmount) * TREASURY_FEE_PCT).toFixed(4) },
-                  { label: 'Creator Reward', pct: '0.5%', sol: (parseFloat(buyAmount) * CREATOR_FEE_PCT).toFixed(4) },
+                  { label: 'Conspiracy Pts', pct: '+',  sol: `${Math.floor(parseFloat(buyAmount || '0') * 100)} pts` },
+                  { label: 'Curve fills',     pct: '+',  sol: `${((parseFloat(buyAmount || '0') / 30) * 100).toFixed(2)}%` },
+                  { label: 'To treasury',     pct: '100%', sol: `${(parseFloat(buyAmount || '0')).toFixed(4)} SOL` },
                 ].map(f => (
                   <div key={f.label} className="flex justify-between text-[8px] font-mono">
                     <span className="text-gray-700">{f.label} <span className="text-gray-800">({f.pct})</span></span>
-                    <span className="text-gray-600">{f.sol} SOL</span>
+                    <span className="text-gray-600">{f.sol}</span>
                   </div>
                 ))}
               </div>

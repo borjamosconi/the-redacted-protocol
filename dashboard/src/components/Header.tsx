@@ -8,14 +8,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV_LINKS = [
-  { href: '#colosseum', label: 'Colosseum' },
-  { href: '#airdrop', label: 'Airdrop' },
-  { href: '#gamification', label: 'Gamification' },
-  { href: '#ocr', label: 'OCR' },
-  { href: '#images', label: 'Images' },
+  { href: '/terminal/Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj', label: 'Trade $RDX' },
+  { href: '/dashboard', label: 'Launchpad' },
+  { href: '#tokenomics', label: 'Tokenomics' },
   { href: '#news', label: 'News' },
-  { href: '#token', label: 'Token' },
-  { href: '/terminal', label: 'Terminal' },
+  { href: '#gamification', label: 'Tiers' },
+  { href: '/terminal', label: 'All Tokens' },
 ]
 
 export function Header() {

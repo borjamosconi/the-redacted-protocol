@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     let user = await db.getUser(walletAddress);
     if (!user) {
-      return Response.json({ error: 'USER_NOT_FOUND', message: 'Register via /api/airdrop first' }, { status: 404 });
+      return Response.json({ error: 'USER_NOT_FOUND', message: 'Connect a wallet to start earning Conspiracy Points' }, { status: 404 });
     }
     if (user.flagged) {
       return Response.json({ error: 'ACCOUNT_FLAGGED', reason: user.flagReason }, { status: 403 });

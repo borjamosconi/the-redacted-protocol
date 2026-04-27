@@ -39,7 +39,7 @@ export function TokenomicsSection() {
       pct:     20,
       amount:  '200M',
       vesting: 'Earn on claim',
-      detail:  'Gamified airdrop — complete missions to earn RDX',
+      detail:  'Conspiracy Points + tier rewards — earn by buying tokens',
       color:   'bg-blue-500',
     },
     {

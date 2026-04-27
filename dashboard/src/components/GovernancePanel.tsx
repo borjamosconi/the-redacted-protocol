@@ -21,8 +21,8 @@ export function GovernancePanel({ rdxBalance = 0 }: { rdxBalance?: number }) {
   const [proposals, setProposals] = useState<Proposal[]>([
     {
       id: '1',
-      title: 'Update Airdrop Multiplier',
-      description: 'Increase the streak multiplier for users with >100 days streak to 2.5x.',
+      title: 'Increase Conspiracy Point Multiplier',
+      description: 'Boost the streak multiplier for diamond-hand holders (>100 days) to 2.5× on all token buys.',
       votesFor: 1250000,
       votesAgainst: 450000,
       endTime: Date.now() / 1000 + 86400 * 2,

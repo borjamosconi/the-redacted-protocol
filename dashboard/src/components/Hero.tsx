@@ -168,11 +168,11 @@ export function Hero() {
               transition={{ delay: 0.8, duration: 0.5 }}
               className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-10"
             >
-              <a href="#airdrop" className="btn-premium min-w-[200px] text-center">
-                Claim Airdrop
+              <a href="/terminal/Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj" className="btn-premium min-w-[200px] text-center">
+                Trade $RDX
               </a>
-              <a href="https://t.me/theredacted_bot" target="_blank" rel="noopener noreferrer" className="btn-redacted min-w-[170px] text-center">
-                Telegram Bot
+              <a href="/dashboard" className="btn-redacted min-w-[170px] text-center">
+                Launch a Token
               </a>
               <a href="https://github.com/whalesconspiracy-33/the-redacted-protocol" target="_blank" rel="noopener noreferrer" className="btn-ghost min-w-[140px] text-center">
                 GitHub
@@ -208,7 +208,7 @@ export function Hero() {
             >
               {[
                 { label: 'Supply', value: '1B', suffix: 'RDX' },
-                { label: 'Airdrop', value: '40%', suffix: '400M' },
+                { label: 'Liquidity', value: '30%', suffix: '300M' },
                 { label: 'APY', value: '50%', suffix: 'STAKE' },
                 { label: 'Rust', value: '12K', suffix: 'LOC' },
                 { label: 'Contracts', value: '6', suffix: 'SC' },
