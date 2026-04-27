@@ -20,14 +20,26 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import {
   PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair,
 } from '@solana/web3.js'
+import {
+  MINT_SIZE,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  AuthorityType,
+  createInitializeMintInstruction,
+  createAssociatedTokenAccountInstruction,
+  createMintToInstruction,
+  createSetAuthorityInstruction,
+  getAssociatedTokenAddressSync,
+  getMinimumBalanceForRentExemptMint,
+} from '@solana/spl-token'
 import { useRouter } from 'next/navigation'
 
 const BACKEND_URL  = process.env.NEXT_PUBLIC_BACKEND_URL || ''
-const LAUNCH_MODE  = process.env.NEXT_PUBLIC_LAUNCH_MODE ?? 'offchain'
-// Off-chain treasury (mirrors TREASURY_PUBKEY from rd-bondingcurve client).
-// Hard-coded here so we don't pull in the on-chain client in off-chain mode.
+// User's treasury — receives the launch fee + holds the entire 1B supply.
 const TREASURY_OFFCHAIN = new PublicKey('CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8')
-const LAUNCH_FEE_SOL = 0.02
+const LAUNCH_FEE_SOL    = 0.02
+const TOKEN_DECIMALS    = 9
+const TOTAL_SUPPLY      = 1_000_000_000n   // 1B tokens, raw (without decimals)
 
 // Single AI prompt — the on-brand look. No more 6-style picker.
 const AI_PROMPT_BASE =
@@ -105,43 +117,92 @@ export function LaunchpadPanel() {
         }
       } catch { /* non-fatal */ }
 
-      // 2) Create a REAL SPL mint on Solana mainnet via our server-side
-      //    mint authority. The mint shows up in Phantom + Solscan and can
-      //    be used to mint tokens to buyers later in the trade flow.
-      setStep('Creating SPL mint on Solana mainnet…')
-      const splRes = await fetch('/api/launch-spl', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ decimals: 9 }),
-      })
-      if (!splRes.ok) {
-        const j = await splRes.json().catch(() => ({}))
-        throw new Error(`SPL mint creation failed: ${j.error ?? splRes.status}. ${j.hint ?? ''}`)
-      }
-      const splData = await splRes.json()
-      const mint = splData.mint as string
-
-      // 3) Pay the 0.02 SOL launch fee to the treasury — single user-signed tx.
+      // 2) Build the FULL launch transaction the user signs ONCE in Phantom.
       //
-      // We DO NOT block on `confirmTransaction` here. The public RPC
-      // (publicnode.com) is occasionally slow returning the
-      // confirmation status, and timing out at 30 s would orphan the
-      // user's already-broadcast tx (SOL spent, token never registered).
-      // Once `sendTransaction` returns a signature the tx is in the
-      // mempool; we register the token in our DB immediately and let
-      // the wallet UI handle final confirmation visibility. If the tx
-      // fails on-chain the signature still exists and the registration
-      // can be reconciled later (or rejected when someone tries to trade).
-      setStep(`Sending ${LAUNCH_FEE_SOL} SOL launch fee…`)
-      const feeTx = new Transaction().add(
+      //    NO SERVER KEYS. NO AUTO-GENERATED WALLETS. The user is the only
+      //    signer. After this single tx the SPL mint is real on mainnet
+      //    with all supply held by the user's treasury and a NULL mint
+      //    authority — meaning supply is fixed forever, nobody (not even
+      //    us) can mint more.
+      //
+      //    Instructions, in order:
+      //      a. SystemProgram.createAccount    — allocate the mint account
+      //      b. createInitializeMintInstruction — turn it into an SPL mint
+      //                                           with user as mint authority
+      //      c. createAssociatedTokenAccount   — treasury's RDX ATA
+      //      d. mintTo                          — 1B RDX → treasury ATA
+      //      e. setAuthority(MintTokens, null)  — REVOKE — supply fixed
+      //      f. SystemProgram.transfer          — 0.02 SOL launch fee
+      //
+      //    The mint Keypair is a one-shot ephemeral signer: its only purpose
+      //    is to sign step (a). After this tx its private key is forgotten;
+      //    the SPL mint at that pubkey now lives forever with NO authority.
+      setStep('Building launch transaction…')
+      const mintKp     = Keypair.generate()
+      const mint       = mintKp.publicKey.toBase58()
+      const treasuryAta = getAssociatedTokenAddressSync(mintKp.publicKey, TREASURY_OFFCHAIN)
+      const mintRent   = await getMinimumBalanceForRentExemptMint(connection)
+      const supplyAtomic = TOTAL_SUPPLY * (10n ** BigInt(TOKEN_DECIMALS))
+
+      const tx = new Transaction()
+      tx.add(
+        // a. allocate mint account
+        SystemProgram.createAccount({
+          fromPubkey: publicKey,
+          newAccountPubkey: mintKp.publicKey,
+          space: MINT_SIZE,
+          lamports: mintRent,
+          programId: TOKEN_PROGRAM_ID,
+        }),
+        // b. initialize as SPL mint, user is mint+freeze authority
+        createInitializeMintInstruction(
+          mintKp.publicKey,
+          TOKEN_DECIMALS,
+          publicKey,    // mint authority
+          publicKey,    // freeze authority — also revoked below
+        ),
+        // c. create the treasury's ATA so it can receive tokens
+        createAssociatedTokenAccountInstruction(
+          publicKey,         // payer (you cover ATA rent ≈ 0.002 SOL)
+          treasuryAta,
+          TREASURY_OFFCHAIN, // ATA owner
+          mintKp.publicKey,
+        ),
+        // d. mint the entire supply to the treasury
+        createMintToInstruction(
+          mintKp.publicKey,
+          treasuryAta,
+          publicKey,          // mint authority signs (the user)
+          supplyAtomic,
+        ),
+        // e. REVOKE mint authority → supply is fixed forever
+        createSetAuthorityInstruction(
+          mintKp.publicKey,
+          publicKey,
+          AuthorityType.MintTokens,
+          null,
+        ),
+        // f. revoke freeze authority too — no one can ever freeze accounts
+        createSetAuthorityInstruction(
+          mintKp.publicKey,
+          publicKey,
+          AuthorityType.FreezeAccount,
+          null,
+        ),
+        // g. 0.02 SOL launch fee to treasury (your own wallet, recovered)
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey:   TREASURY_OFFCHAIN,
           lamports:   LAUNCH_FEE_SOL * LAMPORTS_PER_SOL,
         }),
       )
-      const sig = await sendTransaction(feeTx, connection)
-      // Best-effort confirmation watcher — non-blocking, just for telemetry.
+
+      // The mint keypair must co-sign step (a). Wallet adapter's
+      // sendTransaction handles extra signers via the `signers` option.
+      setStep('Approve in Phantom — single tx creates the SPL real…')
+      const sig = await sendTransaction(tx, connection, { signers: [mintKp] })
+      // Don't block on confirm — public RPC sometimes lags. Once we have
+      // the signature, the tx is in the mempool. Register and redirect.
       void connection.confirmTransaction(sig, 'confirmed').catch(() => {})
 
       // 4) Register the token in BOTH the Mongo backend AND the Redis mirror.
