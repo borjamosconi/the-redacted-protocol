@@ -43,7 +43,48 @@ export async function GET(req: NextRequest) {
     const search = (req.nextUrl.searchParams.get('q') ?? '').toLowerCase()
 
     // Get all mint addresses
-    const mints: string[] = await redis.zrange(KEY_INDEX, 0, -1, { rev: true })
+    let mints: string[] = await redis.zrange(KEY_INDEX, 0, -1, { rev: true })
+
+    // Backfill: if Redis index is empty (e.g. fresh deploy or mirror failed),
+    // pull whatever the Mongo backend has and lazily seed Redis. This means
+    // tokens launched while Redis was misconfigured still show up.
+    if (!mints.length) {
+      try {
+        const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'https://api.redacted.bond'
+        const r = await fetch(`${backend}/api/tokens?limit=100`, { cache: 'no-store' })
+        if (r.ok) {
+          const j = await r.json()
+          const items: any[] = j?.items ?? []
+          if (items.length) {
+            const pipe = redis.pipeline()
+            for (const t of items) {
+              if (!t?.mint) continue
+              const seed = {
+                mint:              t.mint,
+                name:              t.name ?? '',
+                symbol:            t.symbol ?? '',
+                description:       t.description ?? '',
+                logo:              t.logo ?? '',
+                creator:           t.creator ?? '',
+                twitterUrl:        t.twitterUrl ?? '',
+                websiteUrl:        t.websiteUrl ?? '',
+                launchTxSignature: t.launchTxSignature ?? '',
+                createdAt:         new Date(t.createdAt ?? Date.now()).getTime(),
+                totalSupply:       1_000_000_000,
+                decimals:          9,
+                maxSupplyCurve:    MAX_SUPPLY_BC,
+                launchFee:         0.02,
+              }
+              pipe.hset(KEY_TOKEN(t.mint), seed as any)
+              pipe.zadd(KEY_INDEX, { score: seed.createdAt, member: t.mint })
+            }
+            await pipe.exec()
+            mints = await redis.zrange(KEY_INDEX, 0, -1, { rev: true }) as string[]
+          }
+        }
+      } catch { /* ignore — return [] */ }
+    }
+
     if (!mints.length) return NextResponse.json({ tokens: [] })
 
     // Fetch metadata + curve state in parallel

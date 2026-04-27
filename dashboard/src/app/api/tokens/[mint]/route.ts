@@ -42,15 +42,44 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ mint
     const { mint } = await params
     const wallet = req.nextUrl.searchParams.get('wallet') ?? ''
 
-    const [meta, sold, solR, buyers] = await Promise.all([
+    let [meta, sold, solR, buyers] = await Promise.all([
       redis.hgetall(KEY_TOKEN(mint)),
       redis.get<number>(KEY_SOLD(mint)),
       redis.get<number>(KEY_SOL(mint)),
       redis.get<number>(KEY_BUYERS(mint)),
     ])
 
+    // Backfill: if Redis doesn't have the token (e.g. mirror POST failed at
+    // launch time), pull it from the Mongo backend and lazily seed Redis.
     if (!meta || !(meta as any).mint) {
-      return NextResponse.json({ error: 'Token not found' }, { status: 404 })
+      const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'https://api.redacted.bond'
+      try {
+        const r = await fetch(`${backend}/api/tokens/${mint}`, { cache: 'no-store' })
+        if (r.ok) {
+          const j = await r.json()
+          const t = j?.token
+          if (t?.mint) {
+            const seed = {
+              mint:              t.mint,
+              name:              t.name ?? '',
+              symbol:            t.symbol ?? '',
+              description:       t.description ?? '',
+              logo:              t.logo ?? '',
+              creator:           t.creator ?? '',
+              twitterUrl:        t.twitterUrl ?? '',
+              websiteUrl:        t.websiteUrl ?? '',
+              launchTxSignature: t.launchTxSignature ?? '',
+              createdAt:         new Date(t.createdAt ?? Date.now()).getTime(),
+            }
+            await redis.hset(KEY_TOKEN(mint), seed)
+            meta = seed as any
+          }
+        }
+      } catch { /* fallthrough to 404 */ }
+
+      if (!meta || !(meta as any).mint) {
+        return NextResponse.json({ error: 'Token not found' }, { status: 404 })
+      }
     }
 
     const tokensSold    = Number(sold ?? 0)

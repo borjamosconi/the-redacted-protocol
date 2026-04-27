@@ -105,42 +105,12 @@ export function LaunchpadPanel() {
         }
       } catch { /* non-fatal */ }
 
-      // 2) Create token on-chain via backend endpoint
-      // The backend will:
-      //   - Generate SPL mint
-      //   - Create token via Metaplex
-      //   - Create liquidity pool
-      //   - Register in MongoDB
-      //   - Return mint address
-      setStep('Creating token on mainnet…')
-      const launchRes = await fetch(`${BACKEND_URL}/api/launch`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          name:        name.trim(),
-          symbol:      symbol.trim().toUpperCase(),
-          description: description.trim(),
-          imageUrl:    imageUrl,
-          creator:     publicKey.toBase58(),
-          twitterUrl:  twitter.trim(),
-          websiteUrl:  website.trim(),
-        }),
-      })
-      
-      if (!launchRes.ok) {
-        const err = await launchRes.json()
-        throw new Error(err.error || `Launch failed: ${launchRes.status}`)
-      }
-      
-      const launchData = await launchRes.json()
-      const mint = launchData.mint
-      const sig = launchData.txSignature || ''
-      
-      if (!mint) {
-        throw new Error('No mint returned from backend')
-      }
+      // 2) Generate the off-chain mint pubkey (no SPL mint actually created;
+      //    the bonding curve is simulated by the backend until graduation).
+      const mintKeypair = Keypair.generate()
+      const mint        = mintKeypair.publicKey.toBase58()
 
-      // 3) Send 0.02 SOL launch fee to treasury (off-chain fee, now that token is created)
+      // 3) Pay the 0.02 SOL launch fee to the treasury — single user-signed tx.
       setStep(`Sending ${LAUNCH_FEE_SOL} SOL launch fee…`)
       const feeTx = new Transaction().add(
         SystemProgram.transfer({
@@ -149,13 +119,14 @@ export function LaunchpadPanel() {
           lamports:   LAUNCH_FEE_SOL * LAMPORTS_PER_SOL,
         }),
       )
-      const feeSig = await sendTransaction(feeTx, connection)
-      await connection.confirmTransaction(feeSig, 'confirmed')
+      const sig = await sendTransaction(feeTx, connection)
+      await connection.confirmTransaction(sig, 'confirmed')
 
-      // 4) Register with backend token registry
-      setStep('Registering token metadata…')
+      // 4) Register the token in BOTH the Mongo backend AND the Redis mirror.
+      //    Surfaces errors loudly — no silent .catch — so the user knows if
+      //    something went wrong AFTER paying the fee.
       const payload = {
-        mint:              mint,
+        mint,
         name:              name.trim(),
         symbol:            symbol.trim().toUpperCase(),
         description:       description.trim(),
@@ -165,21 +136,31 @@ export function LaunchpadPanel() {
         websiteUrl:        website.trim(),
         launchTxSignature: sig,
       }
-      await fetch(`${BACKEND_URL}/api/tokens`, {
+
+      setStep('Registering token (backend)…')
+      const backendRes = await fetch(`${BACKEND_URL}/api/tokens`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
-      }).catch(() => {})
+      })
+      if (!backendRes.ok) {
+        const j = await backendRes.json().catch(() => ({}))
+        throw new Error(`Backend registration failed: ${j.error ?? backendRes.status}`)
+      }
 
-      // 5) Mirror in dashboard Redis (so /tokens listing works)
-      setStep('Syncing terminal index…')
-      await fetch('/api/tokens', {
+      setStep('Registering token (terminal index)…')
+      const mirrorRes = await fetch('/api/tokens', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
-      }).catch(() => {})
+      })
+      if (!mirrorRes.ok) {
+        // Non-fatal: backend has the token. The terminal page falls back to
+        // the backend if Redis doesn't have it. Log but proceed.
+        console.warn('Redis mirror POST failed — terminal will fall back to backend')
+      }
 
-      // 6) Redirect — no intermediate "success" screen, no modal.
+      // 5) Redirect — token now exists in at least the backend.
       setStep('Redirecting to terminal…')
       router.push(`/terminal/${mint}`)
     } catch (e: any) {
