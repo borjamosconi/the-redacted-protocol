@@ -45,6 +45,18 @@ const TOTAL_SUPPLY      = 1_000_000_000n   // 1B tokens, raw (without decimals)
 // Metaplex Token Metadata program (mainnet, immutable program id).
 const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s')
 
+// Solana Memo program — attaches readable description to txs so wallets
+// show context instead of generic "possibly malicious" warnings.
+const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr')
+
+function memoIx(text: string): TransactionInstruction {
+  return new TransactionInstruction({
+    programId: MEMO_PROGRAM_ID,
+    keys: [],
+    data: Buffer.from(text, 'utf-8'),
+  })
+}
+
 function getMetadataPDA(mint: PublicKey): PublicKey {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()],
@@ -218,6 +230,8 @@ export function LaunchpadPanel() {
       //      d. createATA           (treasury's RDX account)
       //      e. mintTo              (1B → treasury)
       const tx1 = new Transaction().add(
+        // Memo first — Phantom shows it as the tx purpose.
+        memoIx(`Launch ${symbol.trim().toUpperCase()} token on redacted.bond`),
         SystemProgram.createAccount({
           fromPubkey: publicKey,
           newAccountPubkey: mintKp.publicKey,
@@ -266,6 +280,7 @@ export function LaunchpadPanel() {
       //    pattern — also benign in Phantom.
       try {
         const tx2 = new Transaction().add(
+          memoIx(`Lock ${symbol.trim().toUpperCase()} authorities — fixed supply forever`),
           createSetAuthorityInstruction(
             mintKp.publicKey,
             publicKey,

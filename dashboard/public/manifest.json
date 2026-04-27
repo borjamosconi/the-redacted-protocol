@@ -1,0 +1,19 @@
+{
+  "name":             "The Redacted Protocol",
+  "short_name":       "Redacted",
+  "description":      "Pump.fun for classified, censored, and redacted documents. Trade $RDX, launch tokens for banned articles, and direct an autonomous AI agent to investigate suppressed news.",
+  "start_url":        "/",
+  "display":          "standalone",
+  "background_color": "#000000",
+  "theme_color":      "#ff1a1a",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "32x32",   "type": "image/x-icon" }
+  ],
+  "categories": ["finance", "social", "news"],
+  "screenshots": [],
+  "homepage": "https://redacted.bond",
+  "twitter":  "https://x.com/TheRedacted_Sol",
+  "github":   "https://github.com/whalesconspiracy-33/the-redacted-protocol",
+  "rdx_token_mint": "Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj",
+  "treasury": "CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8"
+}

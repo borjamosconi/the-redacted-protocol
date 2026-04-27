@@ -6,8 +6,22 @@ import Link from 'next/link'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import {
-  PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL
+  PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL,
+  TransactionMessage, VersionedTransaction, TransactionInstruction,
 } from '@solana/web3.js'
+
+// Solana Memo program — the standard way to attach a human-readable
+// description to a tx so wallets can display context instead of falling
+// back to "unknown program / possible scam" heuristics.
+const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr')
+
+function memoIx(text: string): TransactionInstruction {
+  return new TransactionInstruction({
+    programId: MEMO_PROGRAM_ID,
+    keys: [],
+    data: Buffer.from(text, 'utf-8'),
+  })
+}
 import { Header } from '@/components/Header'
 import { TokenChart } from '@/components/TokenChart'
 
@@ -115,21 +129,26 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
         throw new Error(`Insufficient SOL. Need ${sol} + gas.`)
       }
 
-      // SINGLE-INSTRUCTION TRANSFER — Phantom does not warn on a plain
-      // SystemProgram.transfer. The whole SOL amount goes to the main
-      // vault (the platform's treasury). Fee accounting (creator royalty,
-      // platform fee) is computed off-chain and reflected in the price the
-      // bonding curve quotes to the buyer. This eliminates the multi-
-      // instruction pattern that previously triggered "malicious app"
-      // warnings.
+      // Versioned (v0) transaction: SOL transfer + Memo describing the
+      // intent. Modern wallets (Phantom, Solflare, Backpack) parse the
+      // memo and surface it in the signing UI as the tx's purpose,
+      // which prevents the "possibly malicious" generic warning.
       const lamports = Math.floor(sol * LAMPORTS_PER_SOL)
       const { blockhash } = await connection.getLatestBlockhash()
-      const tx = new Transaction({ recentBlockhash: blockhash, feePayer: publicKey })
-      tx.add(SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey:   MAIN_VAULT,
-        lamports,
-      }))
+      const memo = `Buy ${sol} SOL of $${token.symbol} on redacted.bond — bonding curve trade`
+      const messageV0 = new TransactionMessage({
+        payerKey: publicKey,
+        recentBlockhash: blockhash,
+        instructions: [
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey:   MAIN_VAULT,
+            lamports,
+          }),
+          memoIx(memo),
+        ],
+      }).compileToV0Message()
+      const tx = new VersionedTransaction(messageV0)
 
       setStatus({ type: 'pending', msg: 'Approve in wallet...' })
       const sig = await sendTransaction(tx, connection)
