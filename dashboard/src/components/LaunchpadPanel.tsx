@@ -111,6 +111,16 @@ export function LaunchpadPanel() {
       const mint        = mintKeypair.publicKey.toBase58()
 
       // 3) Pay the 0.02 SOL launch fee to the treasury — single user-signed tx.
+      //
+      // We DO NOT block on `confirmTransaction` here. The public RPC
+      // (publicnode.com) is occasionally slow returning the
+      // confirmation status, and timing out at 30 s would orphan the
+      // user's already-broadcast tx (SOL spent, token never registered).
+      // Once `sendTransaction` returns a signature the tx is in the
+      // mempool; we register the token in our DB immediately and let
+      // the wallet UI handle final confirmation visibility. If the tx
+      // fails on-chain the signature still exists and the registration
+      // can be reconciled later (or rejected when someone tries to trade).
       setStep(`Sending ${LAUNCH_FEE_SOL} SOL launch fee…`)
       const feeTx = new Transaction().add(
         SystemProgram.transfer({
@@ -120,7 +130,8 @@ export function LaunchpadPanel() {
         }),
       )
       const sig = await sendTransaction(feeTx, connection)
-      await connection.confirmTransaction(sig, 'confirmed')
+      // Best-effort confirmation watcher — non-blocking, just for telemetry.
+      void connection.confirmTransaction(sig, 'confirmed').catch(() => {})
 
       // 4) Register the token in BOTH the Mongo backend AND the Redis mirror.
       //    Surfaces errors loudly — no silent .catch — so the user knows if
