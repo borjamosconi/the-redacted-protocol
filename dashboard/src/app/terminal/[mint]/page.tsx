@@ -156,8 +156,13 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
 
       setStatus({ type: 'pending', msg: 'Approve in wallet...' })
       const sig = await sendTransaction(tx, connection)
-      setStatus({ type: 'pending', msg: 'Confirming on-chain...' })
-      await connection.confirmTransaction(sig, 'confirmed')
+      // Don't block on confirmation — public RPC sometimes takes >30 s to
+      // return status for an already-finalized tx. Once we have a
+      // signature, the network has it and the trade route will accept it.
+      // Confirmation continues in the background for telemetry only.
+      void connection.confirmTransaction(sig, 'confirmed').catch(() => {})
+
+      setStatus({ type: 'pending', msg: 'Recording trade…' })
 
       // Record trade
       const res = await fetch(`/api/tokens/${mint}/trade`, {
