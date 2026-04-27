@@ -16,7 +16,7 @@ import {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const VAULT = 'BWhHF85ZNoR3x7GhoxhXEK6C4bBZvCyMFDZfMWNRXiME'
+const VAULT = 'CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8'
 const RDX_DECIMALS = 9
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

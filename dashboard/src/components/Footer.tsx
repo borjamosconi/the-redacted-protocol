@@ -46,7 +46,7 @@ export function Footer() {
         <div className="mb-10 p-4 border border-red-900/20 bg-red-950/5 rounded-sm text-center">
           <p className="text-[9px] font-mono text-red-500/50 tracking-[0.3em] uppercase mb-2">Support The Agent — Vault Address</p>
           <p className="text-[10px] font-mono text-gray-600 tracking-wider break-all select-all hover:text-gray-400 transition-colors cursor-text">
-            BWhHF85ZNoR3x7GhoxhXEK6C4bBZvCyMFDZfMWNRXiME
+            CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8
           </p>
           <p className="text-[9px] text-gray-700 mt-1 tracking-widest">SOL / SPL TOKENS ACCEPTED</p>
         </div>

@@ -30,7 +30,7 @@ exports.config = {
         treasury: opt('RD_TREASURY_PROGRAM_ID', 'HpvmQtmxyPeeYKGvKHqEdcnsYUzAQrdynoCX452s2xLz'),
         presale: opt('RD_PRESALE_PROGRAM_ID', 'HACK1L8hdDN1wuhV5mEbNYGeMXjhFzvz3HNvDTCdFP2a'),
     },
-    treasuryPubkey: opt('TREASURY_PUBKEY', 'BWhHF85ZNoR3x7GhoxhXEK6C4bBZvCyMFDZfMWNRXiME'),
+    treasuryPubkey: opt('TREASURY_PUBKEY', 'CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8'),
     migrationAuthorityPubkey: opt('MIGRATION_AUTHORITY_PUBKEY'),
     pinataJwt: opt('PINATA_JWT'),
     pinataGateway: opt('PINATA_GATEWAY_URL', 'https://gateway.pinata.cloud/ipfs'),

@@ -15,7 +15,7 @@ import { TokenChart } from '@/components/TokenChart'
 const TREASURY_WALLET = process.env.NEXT_PUBLIC_RDX_TREASURY_WALLET
   ? new PublicKey(process.env.NEXT_PUBLIC_RDX_TREASURY_WALLET)
   : null
-const MAIN_VAULT = new PublicKey('BWhHF85ZNoR3x7GhoxhXEK6C4bBZvCyMFDZfMWNRXiME')
+const MAIN_VAULT = new PublicKey('CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8')
 const TREASURY_FEE_PCT = 0.01   // 1% → RDX treasury
 const CREATOR_FEE_PCT  = 0.005  // 0.5% → token creator
 const VAULT_PCT        = 0.985  // 98.5% → main vault

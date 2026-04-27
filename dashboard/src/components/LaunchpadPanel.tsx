@@ -26,7 +26,7 @@ const BACKEND_URL  = process.env.NEXT_PUBLIC_BACKEND_URL || ''
 const LAUNCH_MODE  = process.env.NEXT_PUBLIC_LAUNCH_MODE ?? 'offchain'
 // Off-chain treasury (mirrors TREASURY_PUBKEY from rd-bondingcurve client).
 // Hard-coded here so we don't pull in the on-chain client in off-chain mode.
-const TREASURY_OFFCHAIN = new PublicKey('BWhHF85ZNoR3x7GhoxhXEK6C4bBZvCyMFDZfMWNRXiME')
+const TREASURY_OFFCHAIN = new PublicKey('CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8')
 const LAUNCH_FEE_SOL = 0.02
 
 // Single AI prompt — the on-brand look. No more 6-style picker.

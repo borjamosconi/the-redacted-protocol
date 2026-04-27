@@ -16,7 +16,7 @@ const redis = new Redis({ url: process.env.UPSTASH_REDIS_URL!, token: process.en
 const BASE_PRICE_SOL  = 0.000001          // starting price: 1 SOL = 1,000,000 RDX
 const CURVE_SCALE     = 200_000_000       // curve steepness
 const MAX_SUPPLY      = 200_000_000       // 200M RDX available on bonding curve (20%)
-const VAULT           = 'BWhHF85ZNoR3x7GhoxhXEK6C4bBZvCyMFDZfMWNRXiME'
+const VAULT           = 'CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8'
 const RDX_DECIMALS    = 9
 
 const KEY_SOLD  = 'bonding:tokensSold'
