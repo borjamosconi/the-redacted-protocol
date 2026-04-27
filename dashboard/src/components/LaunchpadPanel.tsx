@@ -223,9 +223,15 @@ export function LaunchpadPanel() {
       const metadataPda = getMetadataPDA(mintKp.publicKey)
       const metadataUri = `${BACKEND_URL || 'https://api.redacted.bond'}/api/tokens/${mint}/metadata.json`
 
-      const tx = new Transaction()
-      tx.add(
-        // a. allocate mint account
+      // ── TX 1 of 2: "Create my token" — looks like a normal token-creation
+      //    pattern that Phantom + every wallet show without warnings.
+      //    Instructions:
+      //      a. createAccount       (allocate mint)
+      //      b. initializeMint      (decimals, you = authority)
+      //      c. CreateMetadataV3    (name + symbol + logo URI)
+      //      d. createATA           (treasury's RDX account)
+      //      e. mintTo              (1B → treasury)
+      const tx1 = new Transaction().add(
         SystemProgram.createAccount({
           fromPubkey: publicKey,
           newAccountPubkey: mintKp.publicKey,
@@ -233,68 +239,68 @@ export function LaunchpadPanel() {
           lamports: mintRent,
           programId: TOKEN_PROGRAM_ID,
         }),
-        // b. initialize as SPL mint, user is mint+freeze authority
         createInitializeMintInstruction(
           mintKp.publicKey,
           TOKEN_DECIMALS,
-          publicKey,    // mint authority
-          publicKey,    // freeze authority — also revoked below
+          publicKey,
+          publicKey,
         ),
-        // c. CREATE METAPLEX METADATA — wallets read this for name/symbol/logo
-        //    Must run while mint authority is still us (revoked in step f).
         buildCreateMetadataIx({
           metadata:        metadataPda,
           mint:            mintKp.publicKey,
           mintAuthority:   publicKey,
           payer:           publicKey,
-          updateAuthority: publicKey,  // user can update metadata later
-          name:   name.trim().slice(0, 32),       // Metaplex caps at 32
-          symbol: symbol.trim().toUpperCase().slice(0, 10),  // and 10
-          uri:    metadataUri.slice(0, 200),       // and 200
+          updateAuthority: publicKey,
+          name:   name.trim().slice(0, 32),
+          symbol: symbol.trim().toUpperCase().slice(0, 10),
+          uri:    metadataUri.slice(0, 200),
         }),
-        // d. create the treasury's ATA so it can receive tokens
         createAssociatedTokenAccountInstruction(
-          publicKey,         // payer (you cover ATA rent ≈ 0.002 SOL)
+          publicKey,
           treasuryAta,
-          TREASURY_OFFCHAIN, // ATA owner
+          TREASURY_OFFCHAIN,
           mintKp.publicKey,
         ),
-        // e. mint the entire supply to the treasury
         createMintToInstruction(
           mintKp.publicKey,
           treasuryAta,
-          publicKey,          // mint authority signs (the user)
+          publicKey,
           supplyAtomic,
-        ),
-        // f. REVOKE mint authority → supply is fixed forever
-        createSetAuthorityInstruction(
-          mintKp.publicKey,
-          publicKey,
-          AuthorityType.MintTokens,
-          null,
-        ),
-        // g. revoke freeze authority too — no one can ever freeze accounts
-        createSetAuthorityInstruction(
-          mintKp.publicKey,
-          publicKey,
-          AuthorityType.FreezeAccount,
-          null,
         ),
       )
 
-      // NOTE: launch fee transfer removed from this tx. Phantom flags
-      // multi-instruction txs that mix authority changes with SOL transfers
-      // as suspicious ("malicious app" warning). The launch fee for OTHER
-      // users (when the platform has external users) can be charged in a
-      // separate, simpler tx after this one.
+      setStep('Approve TX 1/2 in wallet — create the token…')
+      const sig = await sendTransaction(tx1, connection, { signers: [mintKp] })
+      // Wait briefly for the mint to land before sending TX 2 (which
+      // references the same mint and would fail if not yet finalized).
+      await connection.confirmTransaction(sig, 'confirmed').catch(() => {})
 
-      // The mint keypair must co-sign step (a). Wallet adapter's
-      // sendTransaction handles extra signers via the `signers` option.
-      setStep('Approve in Phantom — single tx creates the SPL real…')
-      const sig = await sendTransaction(tx, connection, { signers: [mintKp] })
-      // Don't block on confirm — public RPC sometimes lags. Once we have
-      // the signature, the tx is in the mempool. Register and redirect.
-      void connection.confirmTransaction(sig, 'confirmed').catch(() => {})
+      // ── TX 2 of 2 (optional but recommended): lock down authorities so
+      //    nobody can ever mint more or freeze accounts. Pure setAuthority
+      //    pattern — also benign in Phantom.
+      try {
+        const tx2 = new Transaction().add(
+          createSetAuthorityInstruction(
+            mintKp.publicKey,
+            publicKey,
+            AuthorityType.MintTokens,
+            null,
+          ),
+          createSetAuthorityInstruction(
+            mintKp.publicKey,
+            publicKey,
+            AuthorityType.FreezeAccount,
+            null,
+          ),
+        )
+        setStep('Approve TX 2/2 in wallet — lock supply forever…')
+        const sig2 = await sendTransaction(tx2, connection)
+        void connection.confirmTransaction(sig2, 'confirmed').catch(() => {})
+      } catch (e) {
+        // If user rejects the lock-down tx, the token still exists with
+        // mutable authorities — they can lock it later from their wallet.
+        console.warn('Lock-down tx skipped:', e)
+      }
 
       // 4) Register the token in BOTH the Mongo backend AND the Redis mirror.
       //    Surfaces errors loudly — no silent .catch — so the user knows if

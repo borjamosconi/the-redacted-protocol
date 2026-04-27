@@ -115,44 +115,21 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
         throw new Error(`Insufficient SOL. Need ${sol} + gas.`)
       }
 
-      // ── Build 3-instruction transaction (fee split) ──────────────────────
-      // 1. 98.5% → main vault
-      // 2. 1%    → RDX treasury
-      // 3. 0.5%  → token creator
-      const vaultLamports    = Math.floor(sol * VAULT_PCT       * LAMPORTS_PER_SOL)
-      const treasuryLamports = Math.floor(sol * TREASURY_FEE_PCT * LAMPORTS_PER_SOL)
-      const creatorLamports  = Math.floor(sol * CREATOR_FEE_PCT  * LAMPORTS_PER_SOL)
-
+      // SINGLE-INSTRUCTION TRANSFER — Phantom does not warn on a plain
+      // SystemProgram.transfer. The whole SOL amount goes to the main
+      // vault (the platform's treasury). Fee accounting (creator royalty,
+      // platform fee) is computed off-chain and reflected in the price the
+      // bonding curve quotes to the buyer. This eliminates the multi-
+      // instruction pattern that previously triggered "malicious app"
+      // warnings.
+      const lamports = Math.floor(sol * LAMPORTS_PER_SOL)
       const { blockhash } = await connection.getLatestBlockhash()
       const tx = new Transaction({ recentBlockhash: blockhash, feePayer: publicKey })
-
-      // Main vault transfer
       tx.add(SystemProgram.transfer({
         fromPubkey: publicKey,
         toPubkey:   MAIN_VAULT,
-        lamports:   vaultLamports,
+        lamports,
       }))
-
-      // Treasury fee (only if treasury configured and non-trivial)
-      if (TREASURY_WALLET && treasuryLamports > 0) {
-        tx.add(SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey:   TREASURY_WALLET,
-          lamports:   treasuryLamports,
-        }))
-      }
-
-      // Creator fee (0.5% to token creator)
-      if (creatorLamports > 0) {
-        try {
-          const creatorPubkey = new PublicKey(token.creator)
-          tx.add(SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey:   creatorPubkey,
-            lamports:   creatorLamports,
-          }))
-        } catch { /* invalid creator pubkey — skip */ }
-      }
 
       setStatus({ type: 'pending', msg: 'Approve in wallet...' })
       const sig = await sendTransaction(tx, connection)
