@@ -99,6 +99,36 @@ router.post('/metadata/pin', async (req: Request, res: Response) => {
   }
 })
 
+// Token Metadata standard JSON, served at a stable URL so the on-chain
+// Metaplex metadata.uri field can point here. Phantom + Solscan fetch this
+// to render the token's logo, name, symbol, and socials.
+router.get('/:mint/metadata.json', async (req: Request, res: Response) => {
+  try {
+    const t = await Token.findOne({ mint: req.params.mint })
+    if (!t) return res.status(404).json({ error: 'token not found' })
+
+    res.set('Cache-Control', 'public, max-age=300')
+    return res.json({
+      name:         t.name,
+      symbol:       t.symbol,
+      description:  t.description || '',
+      image:        t.logo || '',
+      external_url: t.websiteUrl || 'https://redacted.bond',
+      attributes:   [],
+      properties: {
+        files:    t.logo ? [{ uri: t.logo, type: 'image/png' }] : [],
+        category: 'image',
+      },
+      extensions: {
+        twitter: t.twitterUrl || undefined,
+        website: t.websiteUrl || undefined,
+      },
+    })
+  } catch (e) {
+    return res.status(500).json({ error: (e as Error).message })
+  }
+})
+
 router.get('/:mint', async (req: Request, res: Response) => {
   try {
     const { mint } = req.params

@@ -19,6 +19,7 @@ import { useState, useRef } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import {
   PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair,
+  TransactionInstruction, SYSVAR_RENT_PUBKEY,
 } from '@solana/web3.js'
 import {
   MINT_SIZE,
@@ -40,6 +41,78 @@ const TREASURY_OFFCHAIN = new PublicKey('CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMf
 const LAUNCH_FEE_SOL    = 0.02
 const TOKEN_DECIMALS    = 9
 const TOTAL_SUPPLY      = 1_000_000_000n   // 1B tokens, raw (without decimals)
+
+// Metaplex Token Metadata program (mainnet, immutable program id).
+const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s')
+
+function getMetadataPDA(mint: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+    METADATA_PROGRAM_ID,
+  )[0]
+}
+
+// Borsh string: u32 LE length + UTF-8 bytes.
+function borshString(s: string): Buffer {
+  const buf = Buffer.from(s, 'utf-8')
+  const len = Buffer.alloc(4)
+  len.writeUInt32LE(buf.length, 0)
+  return Buffer.concat([len, buf])
+}
+
+/**
+ * Build a CreateMetadataAccountV3 instruction by hand.
+ *
+ * Discriminator: 33 (this is the position of the variant in the
+ * MetadataInstruction enum). Args layout:
+ *   data: DataV2 {
+ *     name: String, symbol: String, uri: String,
+ *     sellerFeeBasisPoints: u16,
+ *     creators: Option<Vec<Creator>>,
+ *     collection: Option<Collection>,
+ *     uses: Option<Uses>,
+ *   }
+ *   isMutable: bool
+ *   collectionDetails: Option<CollectionDetails>
+ *
+ * Accounts:
+ *   metadata (writable), mint, mintAuthority (signer), payer (signer, writable),
+ *   updateAuthority, systemProgram, rent.
+ */
+function buildCreateMetadataIx(args: {
+  metadata:       PublicKey
+  mint:           PublicKey
+  mintAuthority:  PublicKey
+  payer:          PublicKey
+  updateAuthority: PublicKey
+  name: string; symbol: string; uri: string
+}): TransactionInstruction {
+  const data = Buffer.concat([
+    Buffer.from([33]),                 // discriminator
+    borshString(args.name),
+    borshString(args.symbol),
+    borshString(args.uri),
+    Buffer.from([0, 0]),               // sellerFeeBasisPoints u16 = 0
+    Buffer.from([0]),                  // creators: None
+    Buffer.from([0]),                  // collection: None
+    Buffer.from([0]),                  // uses: None
+    Buffer.from([1]),                  // isMutable: true
+    Buffer.from([0]),                  // collectionDetails: None
+  ])
+  return new TransactionInstruction({
+    programId: METADATA_PROGRAM_ID,
+    keys: [
+      { pubkey: args.metadata,        isSigner: false, isWritable: true  },
+      { pubkey: args.mint,            isSigner: false, isWritable: false },
+      { pubkey: args.mintAuthority,   isSigner: true,  isWritable: false },
+      { pubkey: args.payer,           isSigner: true,  isWritable: true  },
+      { pubkey: args.updateAuthority, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY,   isSigner: false, isWritable: false },
+    ],
+    data,
+  })
+}
 
 // Single AI prompt — the on-brand look. No more 6-style picker.
 const AI_PROMPT_BASE =
@@ -144,6 +217,12 @@ export function LaunchpadPanel() {
       const mintRent   = await getMinimumBalanceForRentExemptMint(connection)
       const supplyAtomic = TOTAL_SUPPLY * (10n ** BigInt(TOKEN_DECIMALS))
 
+      // Metaplex metadata URI — points to a stable JSON our backend serves
+      // by mint pubkey. The JSON has { name, symbol, image, ... } that
+      // Phantom and Solscan fetch to display the logo.
+      const metadataPda = getMetadataPDA(mintKp.publicKey)
+      const metadataUri = `${BACKEND_URL || 'https://api.redacted.bond'}/api/tokens/${mint}/metadata.json`
+
       const tx = new Transaction()
       tx.add(
         // a. allocate mint account
@@ -161,28 +240,40 @@ export function LaunchpadPanel() {
           publicKey,    // mint authority
           publicKey,    // freeze authority — also revoked below
         ),
-        // c. create the treasury's ATA so it can receive tokens
+        // c. CREATE METAPLEX METADATA — wallets read this for name/symbol/logo
+        //    Must run while mint authority is still us (revoked in step f).
+        buildCreateMetadataIx({
+          metadata:        metadataPda,
+          mint:            mintKp.publicKey,
+          mintAuthority:   publicKey,
+          payer:           publicKey,
+          updateAuthority: publicKey,  // user can update metadata later
+          name:   name.trim().slice(0, 32),       // Metaplex caps at 32
+          symbol: symbol.trim().toUpperCase().slice(0, 10),  // and 10
+          uri:    metadataUri.slice(0, 200),       // and 200
+        }),
+        // d. create the treasury's ATA so it can receive tokens
         createAssociatedTokenAccountInstruction(
           publicKey,         // payer (you cover ATA rent ≈ 0.002 SOL)
           treasuryAta,
           TREASURY_OFFCHAIN, // ATA owner
           mintKp.publicKey,
         ),
-        // d. mint the entire supply to the treasury
+        // e. mint the entire supply to the treasury
         createMintToInstruction(
           mintKp.publicKey,
           treasuryAta,
           publicKey,          // mint authority signs (the user)
           supplyAtomic,
         ),
-        // e. REVOKE mint authority → supply is fixed forever
+        // f. REVOKE mint authority → supply is fixed forever
         createSetAuthorityInstruction(
           mintKp.publicKey,
           publicKey,
           AuthorityType.MintTokens,
           null,
         ),
-        // f. revoke freeze authority too — no one can ever freeze accounts
+        // g. revoke freeze authority too — no one can ever freeze accounts
         createSetAuthorityInstruction(
           mintKp.publicKey,
           publicKey,
