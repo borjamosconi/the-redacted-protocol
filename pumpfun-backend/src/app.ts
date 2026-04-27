@@ -13,8 +13,6 @@ import tokenRoutes from './routes/tokens'
 import tradeRoutes from './routes/trade'
 import candlesRoutes from './routes/candles'
 import tradesRoutes from './routes/trades'
-import chartRoutes from './routes/chart'
-import launchRoutes from './routes/launch'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 5000
@@ -33,16 +31,24 @@ app.set('port', PORT)
 // Health
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'redacted-backend', ts: Date.now() }))
 
-// Legacy (kept for backward compat with existing dashboard auth)
+// Legacy auth/user routes
 app.use('/user/', userRoutes)
 app.use('/feedback/', feedbackRoutes)
 
-// ── Launchpad API (matches dashboard expectations) ─────────────────────────
-app.use('/api/launch', launchRoutes)                // POST / — on-chain token creation
-app.use('/api/tokens', tokenRoutes)                 // list / create / get
+// Launchpad API — strictly off-chain Mongo registry. NONE of these routes
+// touch wallets, mint tokens, or hold private keys. The dashboard owns the
+// on-chain side via the user's wallet directly.
+//
+// Removed (had foreign wallets hardcoded in pump.fun template):
+//   - /api/launch    → routes/launch.ts (deleted: imported web3.ts which
+//                      had EmPsWiBxEy6… and 3XMrhbv989Vx… as fee sinks)
+//   - /api/chart     → routes/chart.ts (legacy, used coin model that
+//                      depended on web3.ts)
+//   - /api/coin*     → routes/coin.ts, coinStatus.ts, coinTradeRoutes.ts
+//                      (also deleted, same web3.ts dependency)
+app.use('/api/tokens', tokenRoutes)                 // list / create / get / metadata pin
 app.use('/api/tokens', tradeRoutes)                 // POST /:mint/trade
 app.use('/api/tokens', candlesRoutes)               // GET /:mint/candles
 app.use('/api/tokens', tradesRoutes)                // GET /:mint/trades
-app.use('/api/chart', chartRoutes)                  // legacy chart endpoint
 
 export default app
