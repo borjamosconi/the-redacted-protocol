@@ -5,6 +5,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { Header } from '@/components/Header'
 import { Hero } from '@/components/Hero'
 import { TokenLiveBanner } from '@/components/TokenLiveBanner'
+import { BuyIncentivesPanel } from '@/components/BuyIncentivesPanel'
 import { ScrollVideoSection } from '@/components/ScrollVideoSection'
 import { ColosseumSection } from '@/components/ColosseumSection'
 import { GamificationPanel } from '@/components/GamificationPanel'
@@ -37,6 +38,7 @@ function HomeContent() {
       <main>
         <Hero />
         <TokenLiveBanner />
+        <BuyIncentivesPanel />
         <ScrollVideoSection />
         <ColosseumSection />
         <GamificationPanel walletAddress={publicKey?.toString()} />

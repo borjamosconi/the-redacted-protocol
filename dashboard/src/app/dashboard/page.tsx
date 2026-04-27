@@ -273,7 +273,7 @@ function DashboardContent() {
               Connect Your Wallet
             </h1>
             <p className="text-gray-400 mb-8 text-sm leading-relaxed">
-              Connect your Solana wallet to access your agent dashboard, track XP, and manage your airdrop allocation.
+              Connect your Solana wallet to access the launchpad, trade $RDX, and earn Conspiracy Points by buying tokens of redacted documents.
             </p>
             <div className="flex justify-center">
               <WalletMultiButton
@@ -357,7 +357,7 @@ function DashboardContent() {
               <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-4 gap-y-2">
                 <StatChip label="XP" value={profile?.xp?.toLocaleString() || '—'} accent="text-purple-400" />
                 <StatChip label="Streak" value={`${profile?.streak || 0}d`} accent="text-orange-400" />
-                <StatChip label="Airdrop" value={`${profile?.airdropFormatted || '0'} RDX`} accent="text-green-400" />
+                <StatChip label="Conspiracy Pts" value={`${(profile?.totalActions ?? 0) * 10}`} accent="text-red-400" />
                 <StatChip label="Rank" value="#—" accent="text-blue-400" />
               </div>
             </div>
@@ -489,10 +489,10 @@ function DashboardContent() {
                     color="#a855f7"
                   />
                   <StatCard
-                    label="Airdrop"
-                    value={`${profile?.airdropFormatted || '0'} RDX`}
+                    label="Conspiracy Pts"
+                    value={`${(profile?.totalActions ?? 0) * 10}`}
                     icon={<IconGift className="w-5 h-5" />}
-                    color="#34d399"
+                    color="#ef4444"
                   />
                   <StatCard
                     label="Streak"
@@ -547,8 +547,8 @@ function DashboardContent() {
                       icon={<IconZap className="w-4 h-4" />}
                     />
                     <NetworkStat
-                      label="Airdropped"
-                      value={stats?.totalAirdrop || '0'}
+                      label="$RDX Holders"
+                      value={(stats?.totalUsers ?? 0).toLocaleString()}
                       icon={<IconGift className="w-4 h-4" />}
                     />
                     <NetworkStat
