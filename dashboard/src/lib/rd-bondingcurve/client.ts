@@ -17,7 +17,7 @@ import { IDL as BONDING_CURVE_IDL, BondingCurveIDL } from './idl'
 
 // Public program & treasury identifiers — swapped post-deploy via env.
 export const BONDING_CURVE_PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_RD_BONDINGCURVE_PROGRAM_ID || 'BCurve1111111111111111111111111111111111111'
+  process.env.NEXT_PUBLIC_RD_BONDINGCURVE_PROGRAM_ID || 'AfkwwBhRsuEzZo74mdbwK8EBwo7VYwc8S1T7hb1RHMAa'
 )
 export const TREASURY_PUBKEY = new PublicKey(
   process.env.NEXT_PUBLIC_TREASURY_PUBKEY || 'CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8'

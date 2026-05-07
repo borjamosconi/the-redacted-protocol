@@ -8,13 +8,13 @@
 
 **Project Name:** Redacted Protocol
 
-**Tagline:** Autonomous AI agent that detects, reconstructs, and declassifies censored content
+**Tagline:** Autonomous AI agent that detects, reconstructs, and tokenizes censored content via bonding curves
 
 **Team:** whalesconspiracy (solo developer)
 
 **GitHub:** https://github.com/whalesconspiracy-33/the-redacted-protocol
 
-**Live Demo:** https://redacted-protocol.vercel.app
+**Live Demo:** https://redacted.bond
 
 **Telegram Bot:** https://t.me/theredacted_bot
 
@@ -22,14 +22,14 @@
 
 ## 🎬 Demo Video
 
-*(Replace with your actual demo video link)*
+*(Recording in progress — see live dashboard at https://redacted.bond)*
 
 **Suggested video structure (3-5 minutes):**
 1. **0:00-0:30** — Show the problem: censored documents, hidden truth
 2. **0:30-1:30** — Show the autonomous bot working: Telegram receiving auto-scans
 3. **1:30-2:30** — Show dashboard: upload a censored document, AI reconstructs it
-4. **2:30-3:30** — Show the autonomous agent scanning news autonomously
-5. **3:30-4:30** — Show tokenomics, airdrop, staking system
+4. **2:30-3:30** — The "Pump.fun for Truth" feature: Launch a token tied to the declassified document
+5. **3:30-4:30** — Show the autonomous agent scanning news autonomously
 6. **4:30-5:00** — Close: architecture overview, future roadmap
 
 ---
@@ -43,7 +43,8 @@ Every day, governments and organizations censor thousands of documents. Redacted
 3. **Reconstructs** censored content using LLM inference with confidence scoring
 4. **Publishes** results to Telegram subscribers automatically
 5. **Anchors** verified fragments on Solana blockchain
-6. **Rewards** community contributors with $RDX tokens
+6. **Tokenizes** high-value declassified documents via a Bonding Curve (Pump.fun mechanics)
+7. **Rewards** community contributors with $RDX tokens
 
 ### What Makes It Unique
 
@@ -52,6 +53,7 @@ Every day, governments and organizations censor thousands of documents. Redacted
 - **Multi-source** — Scans Reuters, AP, Al Jazeera, The Guardian, BBC, CNN, NYT
 - **AI-powered** — Context-aware reconstruction, not just pattern matching
 - **Blockchain-backed** — Fragment verification on Solana
+- **Document Launchpad** — The first platform to tokenize declassified truth via a Solana Bonding Curve
 - **Incentivized** — Token rewards create a self-sustaining ecosystem
 
 ---
@@ -73,11 +75,11 @@ Every 30 minutes:
 Upload document → Detect redactions → AI reconstruct → Show results → Optional: publish to Telegram
 ```
 
-### Token System
+### Token System & Document Launchpad
 ```
-Submit censored doc → Earn RDX
-Verify reconstruction → Earn RDX
-Stake RDX → Earn protocol fees
+Submit censored doc → AI Reconstructs → Document becomes tradeable
+Token Launch → Fair launch via Bonding Curve (Pump.fun mechanics)
+Stake RDX → Earn protocol fees from document trading volume
 ```
 
 ---
@@ -85,17 +87,19 @@ Stake RDX → Earn protocol fees
 ## 🛠️ Technology
 
 ### Backend
-- **Rust** — 8 crates, 5,742 lines of code
+- **Rust** — 10 crates, 5,742+ lines of code
 - **ReAct Loop** — Autonomous reasoning + action cycle
 - **Multi-LLM** — OpenRouter (free), Anthropic, OpenAI, xAI
 - **Rate Limiting** — Sliding window for all operations
 - **Session Persistence** — Atomic JSON writes
 
 ### Smart Contracts
-- **Solana Anchor** — 6 programs
+- **Solana Anchor** — 9 programs
 - **Token SPL** — $RDX with deflationary mechanics
-- **Staking** — Pool with rewards distribution
-- **Fragment** — On-chain anchoring with verification
+- **Bonding Curve** — `rd-bondingcurve` for document token launches
+- **Presale & Staking** — `rd-presale`, `rd-staking`, `rd-rewards`
+- **Governance & Treasury** — `rd-governance`, `rd-treasury`
+- **Fragment & Archive** — On-chain anchoring with verification
 
 ### Frontend
 - **Next.js 15** — React 19, TypeScript
@@ -157,12 +161,12 @@ cd dashboard && npm install && npm run dev
 
 | Metric | Value |
 |--------|-------|
-| Lines of Code | 12,487 (source) / 26,833 (total) |
-| Rust Crates | 8 |
-| Solana Programs | 6 |
+| Lines of Code | 12,487+ (source) / 26,833+ (total) |
+| Rust Crates | 10 |
+| Solana Programs | 9 |
 | Tests | 47 passing, 0 failing |
 | API Endpoints | 8 |
-| React Components | 12 |
+| React Components | 26 |
 | Telegram Commands | 7 |
 | News Sources | 7 |
 | Autonomous Scan Interval | 30 minutes |
@@ -202,4 +206,6 @@ MIT
 
 - **GitHub:** https://github.com/whalesconspiracy-33
 - **Telegram:** https://t.me/theredacted_bot
-- **Dashboard:** https://redacted-protocol.vercel.app
+- **Dashboard:** https://redacted.bond
+- **Community:** https://t.me/TheRedacted_sol
+- **X / Twitter:** https://x.com/theprotocol_sol

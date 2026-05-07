@@ -25,7 +25,8 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 3. **Reconstructs censored content** using LLM inference with confidence scoring
 4. **Publishes results** to Telegram subscribers automatically
 5. **Anchors fragments** on Solana blockchain for permanent verification
-6. **Rewards contributors** with $RDX tokens for submissions and verifications
+6. **Tokenizes documents** via a custom Bonding Curve (Pump.fun mechanics)
+7. **Rewards contributors** with $RDX tokens for submissions and verifications
 
 ### What Makes It Different
 
@@ -36,6 +37,7 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 | **AI Reconstruction** | Pattern detection only | LLM-powered context inference |
 | **Blockchain Anchoring** | None | Solana fragment verification |
 | **Real-time Alerts** | Batch reports | Instant Telegram broadcasts |
+| **Document Launchpad** | None | Tokenize truth via Solana Bonding Curve |
 | **Incentive System** | None | Token rewards + staking |
 
 ---
@@ -114,6 +116,7 @@ Users can:
 - **Upload** censored documents (text, images via OCR)
 - **Analyze** automatic redaction detection
 - **Reconstruct** via AI with confidence scoring
+- **Tokenize** truth: Launch a token for the document via the Bonding Curve
 - **Track** progress in real-time
 - **Earn** XP and $RDX rewards for contributions
 
@@ -152,7 +155,7 @@ Users can:
 
 ## 🛠️ Tech Stack
 
-### Backend (Rust)
+### Backend (Rust — 10 Crates)
 | Crate | Purpose | Lines |
 |-------|---------|-------|
 | **rd-core** | ReAct loop, Orchestrator, Permission Checker | 581 |
@@ -163,6 +166,8 @@ Users can:
 | **rd-config** | Multi-layer configuration | 116 |
 | **rd-hooks** | Pre/Post tool execution hooks | 108 |
 | **rd-cli** | CLI binary (REPL, Telegram bot, Ralph mode) | 828 |
+| **rd-muapi** | Muapi.ai API client (image/video generation) | — |
+| **rd-arweave** | Arweave permanent storage client | — |
 
 ### Frontend (Next.js 15)
 - React 19 + TypeScript
@@ -258,13 +263,16 @@ the-redacted-protocol/
 │   ├── rd-hooks/              # Pre/post hooks
 │   └── rd-cli/                # CLI binary
 ├── contracts/                 # Solana Anchor programs
-│   ├── programs/              # 6 programs
-│   │   ├── rd-token/          # Token metadata
-│   │   ├── rd-fragment/       # Fragment anchoring
-│   │   ├── rd-staking/        # Staking pool
-│   │   ├── rd-rewards/        # Reward distribution
+│   ├── programs/              # 9 programs
+│   │   ├── rd-token/          # Token metadata & mechanics
+│   │   ├── rd-bondingcurve/   # Pump.fun-style document tokenization
+│   │   ├── rd-presale/        # Fair presale system
+│   │   ├── rd-staking/        # Staking pool for fee sharing
+│   │   ├── rd-rewards/        # Reward distribution logic
 │   │   ├── rd-treasury/       # Treasury management
-│   │   └── rd-presale/        # Fair presale system
+│   │   ├── rd-governance/     # DAO voting mechanics
+│   │   ├── rd-fragment/       # Fragment anchoring
+│   │   └── rd-archive/        # Permanent document archival
 │   └── tests/                 # 6 TypeScript test files
 ├── dashboard/                 # Next.js 15 web app
 │   ├── src/app/api/           # 8 API routes
@@ -283,10 +291,11 @@ the-redacted-protocol/
 
 | Service | URL |
 |---------|-----|
-| **Dashboard** | https://redacted-protocol.vercel.app |
+| **Dashboard** | https://redacted.bond |
 | **Telegram Bot** | https://t.me/theredacted_bot |
+| **Telegram Community** | https://t.me/TheRedacted_sol |
+| **X / Twitter** | https://x.com/theprotocol_sol |
 | **GitHub** | https://github.com/whalesconspiracy-33/the-redacted-protocol |
-| **Solana Explorer** | (devnet — pending deployment) |
 
 ---
 
@@ -302,10 +311,11 @@ An autonomous AI agent that continuously monitors news sources for censorship, r
 2. **Multi-source scanning** — 7 major news outlets simultaneously
 3. **AI reconstruction** — Context-aware content reconstruction with confidence scoring
 4. **Blockchain anchoring** — Fragment verification on Solana
-5. **Token incentive system** — $RDX rewards for community contributions
-6. **Real-time broadcasting** — Instant Telegram alerts
+5. **Document Launchpad** — The first platform to tokenize declassified truth via a Solana Bonding Curve
+6. **Token incentive system** — $RDX rewards for community contributions
+7. **Real-time broadcasting** — Instant Telegram alerts
 
-**Demo:** (Add your demo video link here)
+**Demo:** *(Recording in progress — see live dashboard at https://redacted.bond)*
 
 ---
 

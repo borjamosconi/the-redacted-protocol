@@ -34,6 +34,9 @@ import {
   getMinimumBalanceForRentExemptMint,
 } from '@solana/spl-token'
 import { useRouter } from 'next/navigation'
+import * as bc from '@/lib/rd-bondingcurve/client'
+
+const LAUNCH_MODE = process.env.NEXT_PUBLIC_LAUNCH_MODE || 'offchain'
 
 const BACKEND_URL  = process.env.NEXT_PUBLIC_BACKEND_URL || ''
 // User's treasury — receives the launch fee + holds the entire 1B supply.
@@ -341,7 +344,31 @@ export function LaunchpadPanel() {
         console.warn('Redis mirror POST failed — terminal will fall back to backend')
       }
 
-      // 5) Redirect — token now exists in at least the backend.
+      // 5) Gamification trigger
+      if (publicKey) {
+        // Log the action
+        fetch('/api/gamify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: publicKey.toBase58(),
+            action: 'token_launch'
+          })
+        }).catch(() => {});
+        
+        // Attempt quest completion
+        fetch('/api/gamify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: publicKey.toBase58(),
+            action: 'quest_complete',
+            questId: 'whistleblower'
+          })
+        }).catch(() => {});
+      }
+
+      // 6) Redirect — token now exists in at least the backend.
       setStep('Redirecting to terminal…')
       router.push(`/terminal/${mint}`)
     } catch (e: any) {
@@ -351,145 +378,242 @@ export function LaunchpadPanel() {
     }
   }
 
+  // ON-CHAIN LAUNCH PATH (Bonding Curve)
+  const launchOnChain = async () => {
+    setError('')
+    if (!publicKey || !signTransaction) return setError('Connect your wallet first.')
+    if (!name.trim())                    return setError('Name is required.')
+    if (!symbol.trim())                  return setError('Symbol is required.')
+
+    setLaunching(true)
+    try {
+      const mintKp = Keypair.generate()
+      const mint = mintKp.publicKey
+      
+      setStep('Building bonding curve pool tx…')
+      const { tx } = await bc.buildCreatePoolTx(connection, { publicKey, signTransaction } as any, {
+        mintKeypair: mintKp,
+        name: name.trim().slice(0, 32),
+        symbol: symbol.trim().toUpperCase().slice(0, 10),
+        uri: `${BACKEND_URL}/api/tokens/${mint.toBase58()}/metadata.json`
+      })
+
+      setStep('Approve transaction in wallet…')
+      const sig = await sendTransaction(tx, connection, { signers: [mintKp] })
+      await connection.confirmTransaction(sig, 'confirmed')
+
+      // Register in backend
+      setStep('Registering in backend…')
+      await fetch(`${BACKEND_URL}/api/tokens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mint: mint.toBase58(),
+          name: name.trim(),
+          symbol: symbol.trim().toUpperCase(),
+          description: description.trim(),
+          logo: logo ?? '',
+          creator: publicKey.toBase58(),
+          launchTxSignature: sig,
+          mode: 'onchain'
+        }),
+      })
+
+      // Gamification trigger
+      if (publicKey) {
+        fetch('/api/gamify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: publicKey.toBase58(),
+            action: 'token_launch'
+          })
+        }).catch(() => {});
+        
+        fetch('/api/gamify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: publicKey.toBase58(),
+            action: 'quest_complete',
+            questId: 'whistleblower'
+          })
+        }).catch(() => {});
+      }
+
+      router.push(`/terminal/${mint.toBase58()}`)
+    } catch (e: any) {
+      setError(e?.message ?? String(e))
+      setLaunching(false)
+      setStep('')
+    }
+  }
+
+  const handleLaunchClick = () => {
+    if (LAUNCH_MODE === 'onchain') {
+      launchOnChain()
+    } else {
+      launch()
+    }
+  }
+
   const canLaunch = !!publicKey && !!name.trim() && !!symbol.trim() && !launching
+
+  // Quick-pick document presets
+  const PRESETS = [
+    { name: 'Epstein Flight Logs', symbol: 'EPST', desc: 'Jeffrey Epstein flight logs revealing names of passengers aboard the Lolita Express. Partially sealed by court order.' },
+    { name: 'JFK Warren Commission', symbol: 'JFK63', desc: 'Classified annexes from the Warren Commission investigation into the assassination of President Kennedy, 1963.' },
+    { name: 'MKUltra Program Files', symbol: 'MKUL', desc: 'CIA Project MKUltra documents detailing covert mind control experiments conducted on unwitting subjects 1953–1973.' },
+    { name: 'Pentagon UFO Briefings', symbol: 'UAP51', desc: 'Classified UAP briefings from the Pentagon AATIP program, partially released under FOIA request 2021.' },
+    { name: 'NSA Mass Surveillance', symbol: 'NSA13', desc: 'Snowden archive: PRISM and XKeyscore programs collecting bulk internet and phone data without warrants.' },
+    { name: 'Panama Papers Shell Co.', symbol: 'PANA', desc: 'Mossack Fonseca leaked documents exposing 11.5M files of offshore shell company networks of world leaders.' },
+  ]
 
   // ── UI ───────────────────────────────────────────────────────────────────
   return (
-    <div className="rd-card p-6 sm:p-8 max-w-2xl mx-auto border-red-500/10">
-      <div className="mb-6">
-        <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] flex items-center gap-2">
-          <span className="text-red-500">⊕</span> Launch Token
+    <div className="max-w-2xl mx-auto">
+
+      {/* Header */}
+      <div className="mb-8 text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 mb-4 border border-red-500/30 bg-red-500/5">
+          <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+          <span className="text-[9px] text-red-400 font-mono tracking-[0.3em] uppercase">Document Launchpad</span>
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-black text-white mb-3">
+          Any Document. One Token. <span className="text-red-500">Live Now.</span>
         </h2>
-        <p className="text-[10px] text-gray-600 font-mono mt-2">
-          On-chain SPL token · 0.02 SOL launch fee · 800M supply on curve · 5% reserved for missions on graduation
+        <p className="text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
+          On-chain SPL token · 0.02 SOL fee · 1B supply · Bonding curve starts immediately
         </p>
       </div>
 
-      {/* 1. NAME */}
-      <Field label="Token name">
-        <input
-          type="text"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="e.g. Shadow Protocol"
-          className="rd-input"
-          disabled={launching}
-        />
-      </Field>
-
-      {/* 2. SYMBOL */}
-      <Field label="Symbol">
-        <input
-          type="text"
-          value={symbol}
-          onChange={e => setSymbol(e.target.value.toUpperCase().slice(0, 10))}
-          placeholder="e.g. SHDW"
-          className="rd-input"
-          disabled={launching}
-        />
-      </Field>
-
-      {/* 3. DESCRIPTION */}
-      <Field label="Description">
-        <textarea
-          rows={3}
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder="Protocol objective…"
-          className="rd-input resize-none"
-          disabled={launching}
-        />
-      </Field>
-
-      {/* 4. LOGO */}
-      <Field label="Logo">
-        <div className="flex gap-3 items-start">
-          <div
-            className="w-24 h-24 flex-shrink-0 bg-black/60 border-2 border-dashed border-red-900/30 rounded-sm flex items-center justify-center overflow-hidden"
-            onClick={() => fileRef.current?.click()}
-            role="button"
-          >
-            {logo
-              ? <img src={logo} alt="logo" className="w-full h-full object-cover" />
-              : <span className="text-red-500/30 text-2xl">███</span>}
-          </div>
-          <div className="flex-1 flex flex-col gap-2">
+      {/* Quick Picks */}
+      <div className="mb-6">
+        <p className="text-[9px] text-gray-600 font-mono uppercase tracking-[0.3em] mb-3">
+          — Quick launch a famous document —
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {PRESETS.map(p => (
             <button
+              key={p.symbol}
               type="button"
-              onClick={() => fileRef.current?.click()}
               disabled={launching}
-              className="py-2 px-3 text-[10px] font-mono uppercase tracking-widest border border-red-900/30 text-gray-400 hover:text-white hover:border-red-500/40 rounded-sm transition-all disabled:opacity-40"
+              onClick={() => { setName(p.name); setSymbol(p.symbol); setDescription(p.desc); generateAI() }}
+              className="text-left px-3 py-2.5 border border-white/[0.05] bg-white/[0.02] hover:border-red-900/40 hover:bg-red-950/10 transition-all duration-200 group disabled:opacity-40"
             >
-              {logo ? 'Change image' : 'Upload image'}
+              <div className="text-[11px] font-black text-white font-mono group-hover:text-red-400 transition-colors">${p.symbol}</div>
+              <div className="text-[9px] text-gray-600 truncate mt-0.5">{p.name}</div>
             </button>
-            <button
-              type="button"
-              onClick={generateAI}
-              disabled={launching || generating}
-              className="py-2 px-3 text-[10px] font-mono uppercase tracking-widest border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-sm transition-all disabled:opacity-40"
-            >
-              {generating ? 'Generating…' : 'Generate AI image'}
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-          </div>
+          ))}
         </div>
-      </Field>
-
-      {/* OPTIONAL LINKS — collapsible */}
-      <div className="mb-5">
-        <button
-          type="button"
-          onClick={() => setShowOptional(s => !s)}
-          className="text-[10px] font-mono uppercase tracking-widest text-gray-500 hover:text-red-400 transition-colors"
-        >
-          {showOptional ? '−' : '+'} Optional links (Twitter, Website)
-        </button>
-        {showOptional && (
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input
-              type="text" value={twitter} onChange={e => setTwitter(e.target.value)}
-              placeholder="https://x.com/…" className="rd-input text-xs" disabled={launching}
-            />
-            <input
-              type="text" value={website} onChange={e => setWebsite(e.target.value)}
-              placeholder="https://…" className="rd-input text-xs" disabled={launching}
-            />
-          </div>
-        )}
       </div>
 
-      {/* LAUNCH BUTTON */}
-      <button
-        onClick={launch}
-        disabled={!canLaunch}
-        className="w-full py-5 bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-[0.4em] transition-all shadow-[0_0_20px_rgba(255,26,26,0.2)] hover:shadow-[0_0_40px_rgba(255,26,26,0.4)] rounded-sm"
-      >
-        {launching ? (
-          <span className="flex items-center justify-center gap-3">
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            {step || 'Launching…'}
-          </span>
-        ) : !publicKey ? 'Connect wallet to launch' : '⊕ Launch token'}
-      </button>
+      {/* Divider */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex-1 h-px bg-white/[0.05]" />
+        <span className="text-[9px] text-gray-700 font-mono uppercase tracking-widest">or fill manually</span>
+        <div className="flex-1 h-px bg-white/[0.05]" />
+      </div>
 
-      {error && (
-        <p className="mt-4 text-[10px] font-mono text-red-400 text-center break-all">⚠ {error}</p>
-      )}
+      {/* Form card */}
+      <div className="rd-card p-6 border-red-500/10">
+
+        {/* NAME + SYMBOL row */}
+        <div className="grid grid-cols-[1fr_auto] gap-3 mb-4">
+          <Field label="Document / Token name">
+            <input type="text" value={name} onChange={e => setName(e.target.value)}
+              placeholder="e.g. Epstein Flight Logs Vol.II"
+              className="rd-input" disabled={launching} />
+          </Field>
+          <Field label="Ticker">
+            <input type="text" value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase().slice(0, 10))}
+              placeholder="EPST" style={{ width: '90px' }}
+              className="rd-input text-center font-black" disabled={launching} />
+          </Field>
+        </div>
+
+        {/* DESCRIPTION */}
+        <Field label="Document summary / narrative">
+          <textarea rows={3} value={description} onChange={e => setDescription(e.target.value)}
+            placeholder="What does this document reveal? Why was it censored?"
+            className="rd-input resize-none" disabled={launching} />
+        </Field>
+
+        {/* LOGO */}
+        <Field label="Token image">
+          <div className="flex gap-3 items-start">
+            <div
+              className="w-20 h-20 flex-shrink-0 bg-black/60 border-2 border-dashed border-red-900/25 flex items-center justify-center overflow-hidden cursor-pointer hover:border-red-500/40 transition-colors"
+              onClick={() => fileRef.current?.click()}
+            >
+              {logo
+                ? <img src={logo} alt="logo" className="w-full h-full object-cover" />
+                : <span className="text-red-500/20 text-3xl select-none">██</span>}
+            </div>
+            <div className="flex-1 flex flex-col gap-2">
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={launching}
+                className="py-2 px-3 text-[10px] font-mono uppercase tracking-widest border border-red-900/30 text-gray-400 hover:text-white hover:border-red-500/40 transition-all disabled:opacity-40">
+                {logo ? 'Change image' : 'Upload image'}
+              </button>
+              <button type="button" onClick={generateAI} disabled={launching || generating}
+                className="py-2 px-3 text-[10px] font-mono uppercase tracking-widest border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-40">
+                {generating ? '◌ Generating AI image…' : '✦ Generate AI image'}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+            </div>
+          </div>
+        </Field>
+
+        {/* OPTIONAL LINKS */}
+        <div className="mb-5">
+          <button type="button" onClick={() => setShowOptional(s => !s)}
+            className="text-[10px] font-mono uppercase tracking-widest text-gray-600 hover:text-red-400 transition-colors">
+            {showOptional ? '− Hide' : '+'} Optional links (X / Website)
+          </button>
+          {showOptional && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input type="text" value={twitter} onChange={e => setTwitter(e.target.value)}
+                placeholder="https://x.com/…" className="rd-input text-xs" disabled={launching} />
+              <input type="text" value={website} onChange={e => setWebsite(e.target.value)}
+                placeholder="https://…" className="rd-input text-xs" disabled={launching} />
+            </div>
+          )}
+        </div>
+
+        {/* LAUNCH BUTTON */}
+        <button onClick={handleLaunchClick} disabled={!canLaunch}
+          className="w-full py-5 bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-[0.4em] transition-all shadow-[0_0_20px_rgba(255,26,26,0.2)] hover:shadow-[0_0_50px_rgba(255,26,26,0.45)]">
+          {launching ? (
+            <span className="flex items-center justify-center gap-3">
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              {step || 'Launching…'}
+            </span>
+          ) : !publicKey ? 'Connect wallet to launch' : LAUNCH_MODE === 'onchain' ? '⊕ Launch on Bonding Curve' : '⊕ Tokenize this document'}
+        </button>
+
+        {error && (
+          <p className="mt-4 text-[10px] font-mono text-red-400 text-center break-all">⚠ {error}</p>
+        )}
+
+        <p className="mt-4 text-center text-[9px] text-gray-700 font-mono">
+          {LAUNCH_MODE === 'onchain' ? 'Bonding Curve (Pump.fun style)' : '0.02 SOL Fee'} · Solana {process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'} · SPL token · {LAUNCH_MODE === 'onchain' ? 'Graduation at 85 SOL' : 'Fixed supply'}
+        </p>
+      </div>
 
       <style jsx>{`
         .rd-input {
           width: 100%;
           background: rgba(0,0,0,0.55);
-          border: 1px solid rgba(127,29,29,0.25);
-          padding: 0.7rem;
+          border: 1px solid rgba(127,29,29,0.22);
+          padding: 0.65rem 0.75rem;
           color: white;
           font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 0.85rem;
-          border-radius: 2px;
+          font-size: 0.8rem;
           outline: none;
           transition: border-color 0.15s;
         }
         .rd-input:focus { border-color: rgba(239,68,68,0.5); }
+        .rd-input::placeholder { color: rgba(255,255,255,0.18); }
         .rd-input:disabled { opacity: 0.5; }
       `}</style>
     </div>

@@ -10,9 +10,9 @@ import { usePathname } from 'next/navigation'
 const NAV_LINKS = [
   { href: '/terminal/Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj', label: 'Trade $RDX' },
   { href: '/dashboard', label: 'Launchpad' },
-  { href: '#tokenomics', label: 'Tokenomics' },
-  { href: '#news', label: 'News' },
-  { href: '#gamification', label: 'Tiers' },
+  { href: '/#tokenomics', label: 'Tokenomics' },
+  { href: '/#news', label: 'News' },
+  { href: '/#gamification', label: 'Tiers' },
   { href: '/terminal', label: 'All Tokens' },
 ]
 
@@ -109,31 +109,37 @@ export function Header() {
                 <span className="w-12 h-[1px] bg-gradient-to-r from-red-500/80 to-transparent inline-block" />
               </div>
             </div>
+
+            {/* LAUNCH TICKER */}
+            <div className="hidden lg:flex items-center gap-4 ml-8 pl-8 border-l border-white/5">
+               <div className="flex flex-col">
+                  <span className="text-[8px] text-gray-600 uppercase tracking-widest font-bold">NEXT DECLASSIFICATION</span>
+                  <span className="text-[11px] text-red-500 font-mono font-black">MAY 22, 2026</span>
+               </div>
+               <div className="px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-sm">
+                  <span className="text-[9px] text-red-400 font-mono animate-pulse">SYSTEM: BOOTING</span>
+               </div>
+            </div>
           </Link>
 
-          {/* Desktop Nav - Glassmorphism & Neon */}
+          {/* Desktop Nav - Professional Glassmorphism */}
           {pathname !== '/dashboard' && (
-            <nav className="hidden xl:flex items-center gap-1 px-4 py-2 rounded-full border border-white/5 bg-white/[0.02] backdrop-blur-md shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
+            <nav className="hidden xl:flex items-center gap-2 px-6 py-2.5 rounded-full border border-white/10 bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
               {NAV_LINKS.map(link => {
-                const isPage   = link.href.startsWith('/')
-                const isActive = isPage ? pathname === link.href : activeSection === link.href
+                const isPage   = link.href.startsWith('/') && !link.href.includes('#')
+                const isActive = isPage ? pathname === link.href : activeSection === link.href.replace('/', '')
                 return (
                   <a
                     key={link.href}
                     href={link.href}
-                    className={`px-5 py-2 text-xs font-mono uppercase tracking-widest rounded-full transition-all duration-500 relative group overflow-hidden ${
+                    className={`px-4 py-1.5 text-[0.7rem] font-mono uppercase tracking-[0.15em] rounded-full transition-all duration-300 relative group ${
                       isActive
-                        ? 'text-white bg-red-500/10'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        ? 'text-white'
+                        : 'text-gray-400 hover:text-white'
                     }`}
                   >
                     <span className="relative z-10">{link.label}</span>
-                    {isActive && (
-                      <>
-                        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[2px] bg-red-500 shadow-[0_0_12px_#ff1a1a] rounded-t-full" />
-                        <span className="absolute inset-0 bg-gradient-to-t from-red-500/20 to-transparent opacity-50" />
-                      </>
-                    )}
+                    <span className={`absolute inset-0 rounded-full transition-opacity duration-300 ${isActive ? 'bg-white/10 opacity-100' : 'bg-white/5 opacity-0 group-hover:opacity-100'}`} />
                   </a>
                 )
               })}
@@ -175,23 +181,7 @@ export function Header() {
             {/* Wallet — desktop */}
             {walletReady && (
               <div className="hidden md:block">
-                <WalletMultiButton
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(255,26,26,0.1) 0%, rgba(255,26,26,0.02) 100%)',
-                    border: '1px solid rgba(255, 26, 26, 0.3)',
-                    color: '#ff1a1a',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.75rem',
-                    letterSpacing: '0.15em',
-                    height: '40px',
-                    padding: '0 1.5rem',
-                    borderRadius: '9999px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    textTransform: 'uppercase',
-                    boxShadow: '0 0 20px rgba(255,26,26,0.1), inset 0 0 10px rgba(255,26,26,0.05)',
-                  }}
-                />
+                <WalletMultiButton className="wallet-adapter-button-premium" />
               </div>
             )}
 
@@ -246,21 +236,9 @@ export function Header() {
             <div className="mt-6 pt-6 border-t border-red-500/20 flex flex-col gap-3">
               {/* Wallet button — full width in mobile menu */}
               {walletReady && (
-                <WalletMultiButton
-                  style={{
-                    background: 'rgba(255,26,26,0.1)',
-                    border: '1px solid rgba(255,26,26,0.3)',
-                    color: '#ff1a1a',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.75rem',
-                    letterSpacing: '0.15em',
-                    height: '52px',
-                    width: '100%',
-                    justifyContent: 'center',
-                    borderRadius: '12px',
-                    textTransform: 'uppercase',
-                  }}
-                />
+                <div className="w-full flex justify-center">
+                  <WalletMultiButton className="wallet-adapter-button-premium w-full !justify-center" />
+                </div>
               )}
 
               {/* Dashboard link — only when connected */}

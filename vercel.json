@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "name": "the-redacted-protocol",
+  "framework": "nextjs",
+  "regions": ["sfo1"],
+  "env": {
+    "NEXT_PUBLIC_BONDING_CURVE_PROGRAM_ID": "AfkwwBhRsuEzZo74mdbwK8EBwo7VYwc8S1T7hb1RHMAa",
+    "NEXT_PUBLIC_LAUNCH_MODE": "onchain",
+    "NEXT_PUBLIC_BACKEND_URL": "https://api.redacted.bond"
+  },
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "routes": [
+    {
+      "src": "/api/tokens/(.*)",
+      "dest": "/api/tokens/$1"
+    }
+  ]
+}

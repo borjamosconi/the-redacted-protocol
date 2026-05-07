@@ -180,6 +180,28 @@ export async function POST(req: NextRequest) {
     pipe.set(KEY_BUYERS(mint), 0)
     await pipe.exec()
 
+    // ── Notify Telegram ──
+    const tgToken = process.env.TELEGRAM_BOT_TOKEN
+    const chatId  = process.env.TELEGRAM_CHAT_ID
+    if (tgToken && chatId) {
+      const msg = `\u{1F6A8} *NEW DECLASSIFICATION DETECTED* \u{1F6A8}\n\n` +
+                  `DOCUMENT: \`${meta.name.toUpperCase()}\`\n` +
+                  `TICKER: \`$${meta.symbol.toUpperCase()}\`\n\n` +
+                  `\u{1F513} *UNCOVER THE TRUTH AT:*\n` +
+                  `https://redacted.bond/terminal/${mint}\n\n` +
+                  `_The file is breathing\\._`
+
+      await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: msg,
+          parse_mode: 'Markdown',
+        }),
+      }).catch(err => console.error('[API/Tokens] Telegram notification failed:', err))
+    }
+
     return NextResponse.json({ ok: true, mint, token: meta })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

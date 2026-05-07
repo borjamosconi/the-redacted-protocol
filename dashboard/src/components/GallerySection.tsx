@@ -1,118 +1,92 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-
-const AI_PROMPTS: { prompt: string; label: string; file: string }[] = [
-  { prompt: 'hooded figure glowing red eyes black censorship bars face classified documents floating dark cyberpunk ultra detailed 8k cinematic', label: 'AGENT ZERO', file: 'GEN #001' },
-  { prompt: 'large red ACCESS DENIED text glitch holographic dark background VHS distortion scanlines neon cyberpunk 8k', label: 'ACCESS DENIED', file: 'GEN #002' },
-  { prompt: 'classified TOP SECRET document black redaction bars glowing red stamps holographic dark grid cinematic 8k', label: 'ARCHIVO 0', file: 'GEN #003' },
-  { prompt: 'solana blockchain network nodes glowing red connections dark void holographic cyberpunk cryptographic 8k', label: 'SOLANA NETWORK', file: 'GEN #004' },
-  { prompt: 'AI agent neural network dark aesthetic glowing circuit traces red orange holographic classified cyberpunk 8k', label: 'NEURAL AGENT', file: 'GEN #005' },
-  { prompt: 'redacted protocol logo red black glitch holographic VHS distortion dark cinematic dramatic 8k', label: '$RDX TOKEN', file: 'GEN #006' },
-  { prompt: 'dystopian surveillance room multiple screens redacted documents black bars censor red light holographic 8k', label: 'SURVEILLANCE', file: 'GEN #007' },
-  { prompt: 'zero knowledge proof cryptographic cipher dark holographic purple red glow classified cyberpunk 8k', label: 'ZK PROOF', file: 'GEN #008' },
+const LOCAL_IMAGES = [
+  { url: '/images/art-1.png', label: 'THE REDACTED ENTITY', docId: 'FILE #001' },
+  { url: '/images/art-2.jpg', label: 'CIPHER CORE', docId: 'FILE #002' },
+  { url: '/images/art-3.jpg', label: 'SURVEILLANCE NODE', docId: 'FILE #003' },
+  { url: '/images/art-4.jpg', label: 'CLASSIFIED TERMINAL', docId: 'FILE #004' },
+  { url: '/images/art-5.jpg', label: 'NEURAL UPLINK', docId: 'FILE #005' },
 ]
 
 export function GallerySection() {
   const [selected, setSelected] = useState<number | null>(null)
-  const [imgErrors, setImgErrors] = useState<Record<number, boolean>>({})
-  const [imgLoaded, setImgLoaded] = useState<Record<number, boolean>>({})
-  const [genSeed] = useState(() => Math.floor(Math.random() * 9000) + 1000)
 
   const openModal = (i: number) => { setSelected(i) }
   const closeModal = () => setSelected(null)
 
-  const modalItem = selected !== null ? AI_PROMPTS[selected] : null
+  const modalItem = selected !== null ? LOCAL_IMAGES[selected] : null
 
   return (
-    <section id="images" className="py-24 relative">
-      <div className="max-w-6xl mx-auto px-4">
+    <section id="images" className="py-24 relative bg-black">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-red-900/10 via-black to-black pointer-events-none" />
+      <div className="max-w-6xl mx-auto px-4 relative z-10">
 
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-14"
+          className="text-center mb-16"
         >
-          <p className="section-file-label mb-3">File #0007</p>
-          <h2 className="text-4xl sm:text-5xl font-black mb-4">
-            <span className="text-red-500 neon-red">IMAGE</span>{' '}
-            <span className="text-white">ARCHIVE</span>
+          <p className="text-red-500 font-mono tracking-widest text-sm mb-3"># OPERATION: VISUALS</p>
+          <h2 className="text-5xl md:text-7xl font-black mb-6 uppercase tracking-tighter">
+            <span className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">CLASSIFIED</span>{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-800 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">ARCHIVE</span>
           </h2>
           <div className="flex items-center justify-center gap-4 mb-5">
-            <div className="h-px w-12 bg-gradient-to-r from-transparent to-red-900/40" />
-            <div className="w-20 h-2 censor-bar" />
-            <div className="h-px w-12 bg-gradient-to-l from-transparent to-red-900/40" />
+            <div className="h-px w-20 bg-gradient-to-r from-transparent to-red-500/50" />
+            <div className="w-24 h-1.5 bg-red-600/80 skew-x-12" />
+            <div className="h-px w-20 bg-gradient-to-l from-transparent to-red-500/50" />
           </div>
-          <p className="text-gray-500 text-sm tracking-widest">CLASSIFIED VISUAL INTELLIGENCE — ARCHIVO 0</p>
+          <p className="text-gray-400 max-w-2xl mx-auto text-sm tracking-widest">ENCRYPTED VISUAL INTELLIGENCE EXTRACTED FROM THE MAINNET</p>
         </motion.div>
 
+        {/* Masonry-style Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-[300px]">
+          {LOCAL_IMAGES.map((item, i) => {
+            const isLarge = i === 0 || i === 3
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1, duration: 0.5 }}
+                onClick={() => openModal(i)}
+                className={`group relative overflow-hidden rounded-xl border border-red-900/30 bg-black cursor-pointer shadow-2xl shadow-red-900/10 ${isLarge ? 'md:col-span-2 md:row-span-2' : ''}`}
+              >
+                {/* Image */}
+                <div className="absolute inset-0">
+                  <img
+                    src={item.url}
+                    alt={item.label}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none opacity-80 group-hover:opacity-60 transition-opacity" />
+                </div>
 
-            <motion.div
-              key="generated"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.3 }}
-              className="grid grid-cols-2 md:grid-cols-3 gap-4"
-            >
-              {AI_PROMPTS.map((item, i) => {
-                const seed = genSeed + i * 17
-                const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(item.prompt)}?width=512&height=512&seed=${seed}&nologo=true&model=flux`
-                const hasError = imgErrors[i]
-                const isLoaded = imgLoaded[i]
-                return (
-                  <motion.div key={i}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.08 }}
-                    onClick={() => !hasError && openModal(i)}
-                    className={`group relative overflow-hidden border border-gray-800/60 hover:border-red-900/40 transition-all duration-300 ${!hasError ? 'cursor-pointer' : 'cursor-default'}`}
-                    whileHover={!hasError ? { boxShadow: '0 0 24px rgba(255,26,26,0.08)' } : {}}
-                  >
-                    <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-2 py-1.5 bg-black/70 border-b border-white/[0.03]">
-                      <span className="text-[8px] font-mono text-gray-600 tracking-widest">{item.file}</span>
-                      <span className={`text-[8px] font-mono ${hasError ? 'text-red-600/60' : isLoaded ? 'text-green-600/60' : 'text-yellow-600/60'}`}>
-                        {hasError ? 'ERR' : isLoaded ? 'AI' : '...'}
-                      </span>
-                    </div>
-                    <div className="relative aspect-square bg-gray-950">
-                      {/* Loading shimmer */}
-                      {!isLoaded && !hasError && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="w-6 h-6 border border-red-900/30 border-t-red-500/50 rounded-full animate-spin mx-auto mb-2" />
-                            <div className="text-[7px] text-gray-700 font-mono tracking-widest">GENERATING...</div>
-                          </div>
-                        </div>
-                      )}
-                      {!hasError && (
-                        <img src={url} alt={item.label} loading="lazy"
-                          className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-105 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-                          onLoad={() => setImgLoaded(p => ({ ...p, [i]: true }))}
-                          onError={() => setImgErrors(p => ({ ...p, [i]: true }))}
-                        />
-                      )}
-                      {hasError && (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <div className="text-center px-4">
-                            <div className="text-red-500/20 text-4xl mb-2">█</div>
-                            <div className="text-[7px] text-gray-700 font-mono tracking-widest">UNAVAILABLE</div>
-                          </div>
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
-                      <div className="absolute bottom-0 left-0 right-0 p-2 pointer-events-none">
-                        <div className="text-[10px] font-bold text-white">{item.label}</div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )
-              })}
-            </motion.div>
+                {/* Top Badge */}
+                <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-red-950/80 border border-red-500/30 backdrop-blur-md rounded flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-[10px] font-mono text-red-200 tracking-widest">{item.docId}</span>
+                </div>
+
+                {/* Bottom Content */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                  <h3 className="text-xl md:text-2xl font-bold text-white mb-2 tracking-wide">{item.label}</h3>
+                  <div className="h-0.5 w-12 bg-red-500 group-hover:w-full transition-all duration-500 ease-out" />
+                </div>
+
+                {/* Hover UI Overlays */}
+                <div className="absolute inset-0 border-2 border-transparent group-hover:border-red-500/50 transition-colors duration-300 rounded-xl pointer-events-none" />
+                <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+              </motion.div>
+            )
+          })}
+        </div>
 
         {/* Modal */}
         <AnimatePresence>
@@ -121,51 +95,45 @@ export function GallerySection() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+              className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-8"
               onClick={closeModal}
             >
               <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className="rd-card max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="relative max-w-5xl w-full max-h-[90vh] flex flex-col bg-gray-900 border border-red-900/50 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(220,38,38,0.15)]"
                 onClick={e => e.stopPropagation()}
               >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <div className="text-xs font-mono text-red-500/70 tracking-widest mb-1">
-                      {'file' in modalItem ? modalItem.file : ''}
-                    </div>
-                    <div className="text-lg font-bold text-white">{modalItem.label}</div>
+                {/* Header */}
+                <div className="flex justify-between items-center px-6 py-4 border-b border-red-900/30 bg-black/50 backdrop-blur-md z-10">
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-mono text-red-400 bg-red-950/50 px-2 py-1 rounded border border-red-900/50">{modalItem.docId}</span>
+                    <h3 className="text-lg font-bold text-white tracking-widest">{modalItem.label}</h3>
                   </div>
-                  <button onClick={closeModal} className="text-gray-600 hover:text-red-400 transition-colors p-1">
+                  <button onClick={closeModal} className="text-gray-400 hover:text-white bg-white/5 hover:bg-red-500/20 p-2 rounded-full transition-all">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
 
-                <img
-                  src={`https://image.pollinations.ai/prompt/${encodeURIComponent(modalItem.prompt)}?width=1024&height=1024&seed=${100 + selected * 13}&nologo=true&model=flux`}
-                  alt={modalItem.label}
-                  className="w-full rounded mb-4 border border-gray-800/60"
-                />
-
-                <button onClick={closeModal} className="w-full btn-ghost">
-                  CLOSE
-                </button>
+                {/* Image Container */}
+                <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center min-h-[50vh]">
+                  <img
+                    src={modalItem.url}
+                    alt={modalItem.label}
+                    className="max-w-full max-h-[75vh] object-contain"
+                  />
+                  {/* Subtle scanline effect on top of image */}
+                  <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-20" />
+                </div>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Footer note */}
-        <div className="mt-12 text-center">
-          <p className="text-[10px] text-gray-700 tracking-widest font-mono">
-            OFICIAL ARTWORK — REDACTED PROTOCOL © 2026 — AI GENERATION VIA POLLINATIONS.AI
-          </p>
-        </div>
       </div>
     </section>
   )

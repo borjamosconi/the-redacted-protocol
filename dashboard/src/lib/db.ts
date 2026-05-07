@@ -26,6 +26,7 @@ export interface UserProfile {
   badges: string[];
   registeredAt: string;
   airdropAmount: number;
+  claimedAirdropAmount: number; // Raw units (with 9 decimals)
   ipHash: string;
   deviceFingerprint: string;
   flagged: boolean;

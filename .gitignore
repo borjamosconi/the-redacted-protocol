@@ -57,6 +57,41 @@ vps-*.js
 docker-build-anchor.yml
 test-ledger/
 load-creds.bat
+copy-ssh-key-to-vps.bat
+
+# Internal deployment scripts (contain hardcoded credentials or VPS specifics)
+.env.professional
+.credentials
+.credentials.*
+DEPLOY-TO-VPS-NOW.bat
+DEPLOY-PROFESSIONAL.bat
+CONFIGURE-EVERYTHING.bat
+UPLOAD-AND-START.bat
+setup-vps.ps1
+FINAL-STATUS.ps1
+DIAGNOSTICO.md
+TODO-LISTO.md
+SETUP-COMPLETE.md
+FINAL-DEPLOY.md
+PROFESSIONAL-DEPLOYMENT.md
+PROFESSIONAL-DEPLOYMENT-GUIDE.md
+DNS-CONFIG.md
+DEPLOY-SIMPLIFICADO.md
+VERCEL-SETUP.md
+GUIA-CONFIGURACION.md
+anchor-build-output/
+test-deploy-token.bat
+test-deploy-token.ps1
+deploy-everything.ps1
+PUSH-HACKATHON.bat
+START-AGENT.bat
+DEPLOY-ALL-ON-VPS.sh
+DEPLOY-VPS-SHARED.sh
+DEPLOYMENT.md
+deploy-contracts-vps.bat
+setup-vps-anchor.bat
+setup-vps-anchor.sh
+setup-vps-professional.sh
 
 # Logs
 *.log

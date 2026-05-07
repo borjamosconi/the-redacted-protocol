@@ -10,6 +10,18 @@ import { GovernancePanel } from '@/components/GovernancePanel'
 import { LaunchpadPanel } from '@/components/LaunchpadPanel'
 import { CinemaPanel } from '@/components/CinemaPanel'
 
+// Safe number formatting helper - handles undefined/null/NaN values
+const formatNumber = (value: any, defaultValue = '—'): string => {
+  try {
+    if (value === null || value === undefined) return defaultValue
+    const num = Number(value)
+    if (isNaN(num)) return defaultValue
+    return num.toLocaleString('en-US')
+  } catch (e) {
+    return defaultValue
+  }
+}
+
 interface UserProfile {
   walletAddress: string
   telegramId: string
@@ -24,7 +36,9 @@ interface UserProfile {
   badges: string[]
   registeredAt: string
   airdropAmount: string
+  claimedAirdropAmount: number
   airdropFormatted: string
+  levelName: string
   questsCompleted: number
   quests: Array<{
     id: string
@@ -148,20 +162,6 @@ function SkeletonLine({ className = 'w-32 h-4' }: { className?: string }) {
 }
 
 export default function DashboardPage() {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
-
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-5 h-5 border border-red-900/30 border-t-red-500 rounded-full animate-spin" />
-          <span className="text-gray-600 text-xs font-mono tracking-widest uppercase">Initializing Protocol...</span>
-        </div>
-      </div>
-    )
-  }
-
   return <DashboardContent />
 }
 
@@ -175,15 +175,16 @@ function DashboardContent() {
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [claimStatus, setClaimStatus] = useState<{ loading: boolean, success?: string, error?: string }>({ loading: false })
 
   useEffect(() => {
-    if (!connected) return
+    if (!connected || !publicKey) return
     fetchProfile()
     fetchStats()
-  }, [connected])
+  }, [connected, publicKey])
 
   const fetchProfile = async () => {
-    if (!publicKey) return
+    if (!publicKey) { setLoading(false); return }
     setLoading(true)
     try {
       const res = await fetch(`/api/gamify?wallet=${publicKey.toString()}`)
@@ -245,6 +246,27 @@ function DashboardContent() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleClaimAirdrop = async () => {
+    if (!publicKey || claimStatus.loading) return
+    setClaimStatus({ loading: true })
+    try {
+      const res = await fetch('/api/gamify/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: publicKey.toString() }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setClaimStatus({ loading: false, success: data.message })
+        fetchProfile()
+      } else {
+        setClaimStatus({ loading: false, error: data.message || data.error })
+      }
+    } catch {
+      setClaimStatus({ loading: false, error: 'Connection failed' })
+    }
+  }
+
   if (!walletReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -260,38 +282,51 @@ function DashboardContent() {
     return (
       <>
         <Header />
-        <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="min-h-screen relative flex items-center justify-center px-4 overflow-hidden">
+          {/* Background effects */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-red-900/10 via-black to-black pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-500/5 blur-[120px] rounded-full pointer-events-none" />
+          
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center max-w-md"
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 w-full max-w-lg"
           >
-            <div className="w-16 h-16 mx-auto mb-8 rounded-2xl border border-red-900/30 bg-red-950/20 flex items-center justify-center">
-              <IconWallet className="w-8 h-8 text-red-500" />
+            <div className="relative p-8 sm:p-12 rounded-[24px] bg-black/40 backdrop-blur-2xl border border-white/[0.05] shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden text-center group">
+              {/* Card glow effect on hover */}
+              <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              
+              <div className="relative z-10">
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.5 }}
+                  className="w-20 h-20 mx-auto mb-8 rounded-2xl bg-gradient-to-br from-red-500/10 to-red-900/5 border border-red-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(255,26,26,0.1)] relative"
+                >
+                  <div className="absolute inset-0 rounded-2xl border border-red-500/30 animate-pulse" />
+                  <IconWallet className="w-10 h-10 text-red-500 drop-shadow-[0_0_15px_rgba(255,26,26,0.5)]" />
+                </motion.div>
+                
+                <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 tracking-tight">
+                  Access <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">Terminal</span>
+                </h1>
+                
+                <p className="text-gray-400 mb-10 text-sm sm:text-base leading-relaxed max-w-sm mx-auto">
+                  Connect your Solana wallet to authenticate your agent identity, access the launchpad, and earn Conspiracy Points.
+                </p>
+                
+                <div className="flex justify-center relative">
+                  {/* Button glow behind */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[120%] bg-red-500/20 blur-xl rounded-full" />
+                  <WalletMultiButton className="wallet-adapter-button-premium w-full sm:w-auto !justify-center" />
+                </div>
+              </div>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-              Connect Your Wallet
-            </h1>
-            <p className="text-gray-400 mb-8 text-sm leading-relaxed">
-              Connect your Solana wallet to access the launchpad, trade $RDX, and earn Conspiracy Points by buying tokens of redacted documents.
-            </p>
-            <div className="flex justify-center">
-              <WalletMultiButton
-                style={{
-                  background: 'transparent',
-                  border: '1px solid rgba(255, 26, 26, 0.4)',
-                  color: '#ff1a1a',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.1em',
-                  height: '44px',
-                  padding: '0 1.5rem',
-                  borderRadius: '2px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  textTransform: 'uppercase',
-                }}
-              />
+            
+            <div className="mt-8 flex items-center justify-center gap-3 text-xs font-mono text-gray-500 tracking-widest uppercase">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              Secure Solana Connection
             </div>
           </motion.div>
         </div>
@@ -299,7 +334,8 @@ function DashboardContent() {
     )
   }
 
-  const levelStyle = LEVEL_STYLES[profile?.level || 'CLASSIFIED'] || LEVEL_STYLES.CLASSIFIED
+  const currentLevel = (typeof profile?.level === 'object' ? (profile?.level as any)?.name : profile?.level) || 'CLASSIFIED'
+  const levelStyle = LEVEL_STYLES[currentLevel] || LEVEL_STYLES.CLASSIFIED
 
   return (
     <>
@@ -355,9 +391,9 @@ function DashboardContent() {
                 {publicKey?.toString().slice(0, 8)}...{publicKey?.toString().slice(-6)}
               </p>
               <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-4 gap-y-2">
-                <StatChip label="XP" value={profile?.xp?.toLocaleString() || '—'} accent="text-purple-400" />
+                <StatChip label="XP" value={formatNumber(profile?.xp)} accent="text-purple-400" />
                 <StatChip label="Streak" value={`${profile?.streak || 0}d`} accent="text-orange-400" />
-                <StatChip label="Conspiracy Pts" value={`${(profile?.totalActions ?? 0) * 10}`} accent="text-red-400" />
+                <StatChip label="Conspiracy Pts" value={formatNumber((profile?.totalActions ?? 0) * 10)} accent="text-red-400" />
                 <StatChip label="Rank" value="#—" accent="text-blue-400" />
               </div>
             </div>
@@ -506,6 +542,52 @@ function DashboardContent() {
                     icon={<IconTrophy className="w-5 h-5" />}
                     color="#60a5fa"
                   />
+                </div>
+              )}
+
+              {/* Airdrop Claim Section */}
+              {!loading && profile && (
+                <div className="rd-card mb-6 border-red-500/20 bg-red-500/[0.02]">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-red-500 mb-1">On-Chain Airdrop</h3>
+                      <p className="text-gray-400 text-xs font-mono">
+                        Allocate your earned $RDX to your wallet. You have {formatNumber((Number(profile.airdropAmount) - (profile.claimedAirdropAmount || 0)) / 1_000_000_000)} RDX pending.
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <button
+                        onClick={handleClaimAirdrop}
+                        disabled={claimStatus.loading || (Number(profile.airdropAmount) - (profile.claimedAirdropAmount || 0)) <= 0}
+                        className={`px-8 py-3 rounded-sm font-mono text-xs font-bold uppercase tracking-[0.2em] transition-all ${
+                          claimStatus.loading 
+                            ? 'bg-gray-800 text-gray-500 cursor-wait' 
+                            : (Number(profile.airdropAmount) - (profile.claimedAirdropAmount || 0)) <= 0
+                              ? 'bg-green-950/20 text-green-500/50 border border-green-500/10'
+                              : 'bg-red-500 text-black hover:bg-white shadow-[0_0_20px_rgba(255,26,26,0.3)]'
+                        }`}
+                      >
+                        {claimStatus.loading ? 'Processing...' : (Number(profile.airdropAmount) - (profile.claimedAirdropAmount || 0)) <= 0 ? 'Fully Claimed' : 'Claim $RDX Now'}
+                      </button>
+                      {claimStatus.success && <p className="text-[10px] text-green-400 font-mono animate-pulse">{claimStatus.success}</p>}
+                      {claimStatus.error && <p className="text-[10px] text-red-400 font-mono">{claimStatus.error}</p>}
+                    </div>
+                  </div>
+                  
+                  {/* Progress bar for claimed vs total */}
+                  <div className="mt-6">
+                    <div className="flex justify-between text-[10px] font-mono text-gray-600 mb-1">
+                      <span>CLAIMED: {formatNumber((profile.claimedAirdropAmount || 0) / 1_000_000_000)} RDX</span>
+                      <span>TOTAL: {formatNumber(Number(profile.airdropAmount) / 1_000_000_000)} RDX</span>
+                    </div>
+                    <div className="h-1 bg-white/[0.05] rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(100, ((profile.claimedAirdropAmount || 0) / Number(profile.airdropAmount)) * 100)}%` }}
+                        className="h-full bg-red-500"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 

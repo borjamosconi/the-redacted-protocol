@@ -15,6 +15,7 @@ use rd_arweave::{ArweaveClient, AnchoredContent, ArweaveTxId};
 use rd_muapi::{MuapiClient, ImageModel, AspectRatio};
 use rd_providers::Provider;
 use rd_tools::solana::{SolanaClient, FragmentSubmitResult};
+use rd_tools::launch_token::launch_document_token;
 use rd_types::image_gen::RedactedStyle;
 use sha2::{Sha256, Digest};
 use tracing::{info, warn};
@@ -23,6 +24,10 @@ use hex;
 /// Result of the complete anchoring pipeline
 #[derive(Debug, Clone)]
 pub struct AnchoredArticle {
+    /// Token launch result (if auto-launched)
+    pub token_mint: Option<String>,
+    pub token_symbol: Option<String>,
+    pub terminal_url: Option<String>,
     /// Original article metadata
     pub source_url: String,
     pub title: String,
@@ -241,6 +246,49 @@ impl AutonomousNewsEngine {
                     let is_fully_anchored = arweave_tx_id.is_some() && solana_tx_id.is_some();
 
                     // ── Step 7: Broadcast to all users ──
+                    // ── Step 8: Auto-launch document as token ──
+                    let (token_mint, token_symbol, terminal_url) = {
+                        let auto_launch = std::env::var("AGENT_AUTO_LAUNCH_TOKENS")
+                            .map(|v| v == "1" || v.to_lowercase() == "true")
+                            .unwrap_or(true); // on by default
+
+                        if auto_launch {
+                            let ticker = Self::make_ticker(&title);
+                            let threat_cat = match reconstruction.threat_level.as_str() {
+                                "Critical" => "CLASSIFIED",
+                                "Flagged"  => "LEAKED",
+                                _          => "SUPPRESSED",
+                            };
+                            match launch_document_token(
+                                &title,
+                                &ticker,
+                                &reconstruction.reconstructed_content.chars().take(200).collect::<String>(),
+                                threat_cat,
+                                image_url.as_deref(),
+                                Some(&url),
+                                reconstruction.confidence,
+                            ).await {
+                                Ok(result) if !result.duplicate => {
+                                    info!(
+                                        "🚀 Token launched: ${} — {} | {}",
+                                        result.symbol, result.mint, result.terminal_url
+                                    );
+                                    (Some(result.mint), Some(result.symbol), Some(result.terminal_url))
+                                }
+                                Ok(result) => {
+                                    info!("Token already exists: ${}", result.symbol);
+                                    (Some(result.mint), Some(result.symbol), Some(result.terminal_url))
+                                }
+                                Err(e) => {
+                                    warn!("Auto-launch failed (continuing): {}", e);
+                                    (None, None, None)
+                                }
+                            }
+                        } else {
+                            (None, None, None)
+                        }
+                    };
+
                     let anchored = AnchoredArticle {
                         source_url: url.clone(),
                         title,
@@ -257,6 +305,9 @@ impl AutonomousNewsEngine {
                         content_hash,
                         reconstruction_hash,
                         is_fully_anchored,
+                        token_mint,
+                        token_symbol,
+                        terminal_url,
                     };
 
                     self.broadcast_anchored_article(bot, user_ids, &anchored).await;
@@ -360,6 +411,45 @@ impl AutonomousNewsEngine {
             .to_string();
 
         Ok((reconstruction, confidence, reasoning))
+    }
+
+    /// Generate a short ticker symbol from a document title
+    /// e.g. "Epstein Flight Logs Vol.2" → "EPST2"
+    fn make_ticker(title: &str) -> String {
+        // Remove common stop words, take first letters of remaining words
+        let stop = ["the", "a", "an", "of", "in", "on", "at", "to", "for",
+                    "and", "or", "vol", "volume", "part", "file", "files",
+                    "document", "documents", "report", "operation"];
+
+        let words: Vec<&str> = title.split_whitespace()
+            .filter(|w| {
+                let lc = w.to_lowercase();
+                let clean: String = lc.chars().filter(|c| c.is_alphabetic()).collect();
+                !stop.contains(&clean.as_str()) && !clean.is_empty()
+            })
+            .collect();
+
+        // Take first 4 words, first 1-2 letters each
+        let ticker: String = words.iter()
+            .take(4)
+            .flat_map(|w| {
+                w.chars()
+                 .filter(|c| c.is_alphanumeric())
+                 .take(2)
+            })
+            .collect::<String>()
+            .to_uppercase();
+
+        // Ensure it's 3-8 chars
+        let t = if ticker.len() < 3 {
+            format!("{}XX", ticker)
+        } else {
+            ticker[..ticker.len().min(8)].to_string()
+        };
+
+        // Append single digit hash to reduce collisions
+        let h: u8 = title.bytes().fold(0u8, |acc, b| acc.wrapping_add(b)) % 10;
+        format!("{}{}", t, h)
     }
 
     /// Classify threat level from reconstruction
@@ -517,11 +607,17 @@ impl AutonomousNewsEngine {
             .unwrap_or_default();
 
         let arweave_note = article.arweave_tx_id.as_ref()
-            .map(|id| format!("\n🌐 Arweave: https://arweave.net/{}", id))
+            .map(|id| format!("\n🌐 Source (Download): https://arweave.net/{}\n👁️ Source (View): https://viewblock.io/arweave/tx/{}", id, id))
             .unwrap_or_default();
 
         let solana_note = if let (Some(ref tx), Some(ref addr)) = (&article.solana_tx_id, &article.fragment_address) {
             format!("\n⛓️ Solana: tx={} | fragment={}", &tx[..min(tx.len(), 16)], addr)
+        } else {
+            String::new()
+        };
+
+        let token_note = if let (Some(ref sym), Some(ref url)) = (&article.token_symbol, &article.terminal_url) {
+            format!("\n\n🚀 TOKEN LAUNCHED: ${} — Trade: {}", sym, url)
         } else {
             String::new()
         };
@@ -537,7 +633,7 @@ impl AutonomousNewsEngine {
             {} — Confidence: {}%\n\n\
             📰 {}\n\n\
             === ORIGINAL (CENSORED) ===\n{}\n\n\
-            === RECONSTRUCTED ===\n{}{}{}{}\n\n\
+            === RECONSTRUCTED ===\n{}{}{}{}{}\n\n\
             🔑 Content Hash: {}\n\n\
             {}\n\n\
             ⚠️ AI reconstruction — verify independently\n\
@@ -559,6 +655,7 @@ impl AutonomousNewsEngine {
             img_note,
             arweave_note,
             solana_note,
+            token_note,
             &article.content_hash[..min(article.content_hash.len(), 32)],
             anchor_status,
         );

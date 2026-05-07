@@ -67,6 +67,84 @@ interface Trade {
   txSignature:  string
 }
 
+function ReconstructionTerminal() {
+  const [logs, setLogs] = useState<string[]>([
+    '> INITIALIZING AI ORCHESTRATOR...',
+    '> LOADING FRAGMENT_V2_DATASET...',
+    '> CONNECTING TO LLAMA_3_LLM_CLUSTER...',
+  ])
+  const [input, setInput] = useState('')
+
+  useEffect(() => {
+    const pool = [
+      'Analyzing cross-references in Section 14...',
+      'Matching redaction pattern: Type B (Blackout)...',
+      'Confidence score: 0.94. Fragment reconstructed.',
+      'Scanning for metadata leaks in headers...',
+      'OCR verification successful (Page 4).',
+      'Anomaly detected in paragraph 12. Adjusting focus...',
+      'Deep-learning reconstruction in progress...',
+    ]
+    const t = setInterval(() => {
+      setLogs(prev => [...prev.slice(-8), `> ${pool[Math.floor(Math.random() * pool.length)]}`])
+    }, 3500)
+    return () => clearInterval(t)
+  }, [])
+
+  return (
+    <div className="rd-card bg-black/60 border-red-900/30 p-4 font-mono text-[9px] space-y-1 h-48 overflow-hidden relative">
+      <div className="absolute top-2 right-4 text-red-500/30 animate-pulse">LIVE AGENT FEED</div>
+      {logs.map((log, i) => (
+        <div key={i} className={log.startsWith('> ') ? 'text-gray-400' : 'text-red-500'}>
+          {log}
+        </div>
+      ))}
+      <div className="flex gap-2 text-white mt-2 border-t border-red-900/10 pt-2">
+        <span className="text-red-500">$</span>
+        <span className="animate-pulse">_</span>
+      </div>
+    </div>
+  )
+}
+
+function DocumentPreview({ progress, name }: { progress: number; name: string }) {
+  const text = `The objective of this operation was to ensure the [REDACTED] of the [REDACTED] cluster. 
+  By utilizing the [REDACTED] protocol, the team successfully [REDACTED] the targets. 
+  Evidence suggests that [REDACTED] was involved in the [REDACTED] from the very beginning. 
+  The final report [REDACTED] that the [REDACTED] was actually a [REDACTED] for [REDACTED].`
+
+  const revealChar = (char: string, index: number) => {
+    if (char === ' ' || char === '\n') return char
+    // Simple heuristic: reveal more as progress increases
+    const revealThreshold = (index % 100)
+    if (progress > revealThreshold) return char
+    return '█'
+  }
+
+  return (
+    <div className="rd-card p-6 bg-white/[0.02] border-red-900/20 relative overflow-hidden group">
+       <div className="absolute top-0 right-0 p-2 text-[8px] font-bold text-red-900/40 uppercase tracking-widest border-l border-b border-red-900/10 bg-black/40">
+         Decryption Level: {progress.toFixed(0)}%
+       </div>
+       <h4 className="text-[10px] font-black text-red-500/60 uppercase tracking-[0.3em] mb-4">Document Fragment: {name}</h4>
+       <div className="font-mono text-xs leading-relaxed text-gray-500 select-none whitespace-pre-wrap">
+         {text.split('').map((c, i) => (
+           <span key={i} className={c !== '█' ? 'text-gray-300' : 'text-red-950/40'}>
+             {revealChar(c, i)}
+           </span>
+         ))}
+       </div>
+       {progress < 100 && (
+         <div className="mt-4 p-2 bg-red-500/5 border border-red-500/10 rounded-sm text-center">
+            <p className="text-[8px] text-red-400 uppercase tracking-widest animate-pulse">
+              Increase bonding curve progress to reveal more fragments
+            </p>
+         </div>
+       )}
+    </div>
+  )
+}
+
 export default function TokenDetailPage({ params }: { params: Promise<{ mint: string }> }) {
   const { mint } = use(params)
   const { connection }              = useConnection()
@@ -312,7 +390,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
                 },
                 {
                   label: 'Market Cap',
-                  value: `${(token.currentPrice * (token.totalSupplyCurve ?? 1_000_000_000)).toFixed(2)} SOL`,
+                  value: `${(token.currentPrice * (token.maxSupplyCurve ?? 1_000_000_000)).toFixed(2)} SOL`,
                   accent: 'text-red-400',
                 },
                 {
@@ -353,6 +431,12 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
                 <span>{token.tokensSold.toLocaleString()} sold</span>
                 <span>{token.tokensRemaining.toLocaleString()} remaining</span>
               </div>
+            </div>
+
+            {/* NEW: Interactive Elements */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <ReconstructionTerminal />
+               <DocumentPreview progress={token.progress} name={token.name} />
             </div>
 
             {/* Tabs: Trades / Info / Holders */}

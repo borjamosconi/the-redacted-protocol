@@ -32,7 +32,7 @@ use anchor_spl::token::{
     self, Burn, Mint, MintTo, Token, TokenAccount, Transfer as TokenTransfer,
 };
 
-declare_id!("BCurve1111111111111111111111111111111111111");
+declare_id!("AfkwwBhRsuEzZo74mdbwK8EBwo7VYwc8S1T7hb1RHMAa");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS — pump.fun parity

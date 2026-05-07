@@ -82,6 +82,47 @@ export default function TerminalPage() {
           </p>
         </div>
 
+        {/* ── King of the Hill (Top Trending) ────────────────────────────────── */}
+        {tokens.length > 0 && sort === 'new' && !search && (
+          <div className="mb-8 group">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[9px] font-black text-yellow-500 uppercase tracking-widest flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping" />
+                King of the Hill
+              </span>
+            </div>
+            <Link href={`/terminal/${tokens[0].mint}`} className="block">
+              <div className="rd-card p-6 border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-transparent relative overflow-hidden group-hover:border-yellow-500/40 transition-all duration-500">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                   <div className="text-6xl font-black text-yellow-500">👑</div>
+                </div>
+                <div className="flex items-center gap-6 relative z-10">
+                  <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-yellow-500/30 shadow-[0_0_30px_rgba(234,179,8,0.2)] flex-shrink-0">
+                    <img src={tokens[0].logo} alt={tokens[0].name} className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3 mb-1.5">
+                      <h2 className="text-2xl font-black text-white">{tokens[0].name}</h2>
+                      <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-500 text-[10px] font-black rounded-sm border border-yellow-500/30 tracking-wider uppercase">Trending #1</span>
+                    </div>
+                    <div className="text-sm text-yellow-500/60 font-mono font-bold mb-3">${tokens[0].symbol}</div>
+                    <div className="flex items-center gap-6">
+                      <div>
+                        <div className="text-[8px] text-gray-500 uppercase tracking-widest mb-0.5">Market Cap</div>
+                        <div className="text-lg font-black text-white font-mono">{(tokens[0].currentPrice * 1e9).toFixed(2)} SOL</div>
+                      </div>
+                      <div>
+                        <div className="text-[8px] text-gray-500 uppercase tracking-widest mb-0.5">Progress</div>
+                        <div className="text-lg font-black text-yellow-500 font-mono">{tokens[0].progress.toFixed(2)}%</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </div>
+        )}
+
         {/* ── Controls ──────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           {/* Search */}
@@ -177,7 +218,6 @@ function TokenCard({ token, index, fmtSol, fmtAge }: {
   fmtAge: (ts: number) => string
 }) {
   const isGraduating = token.progress >= 80
-  const isHot        = token.buyerCount > 10
 
   return (
     <motion.div
@@ -188,93 +228,60 @@ function TokenCard({ token, index, fmtSol, fmtAge }: {
       transition={{ duration: 0.2, delay: index < 12 ? index * 0.03 : 0 }}
     >
       <Link href={`/terminal/${token.mint}`} className="block group">
-        <div className={`rd-card relative overflow-hidden h-full transition-all duration-300 hover:border-red-500/30 hover:shadow-[0_0_30px_rgba(255,26,26,0.08)] ${
-          isGraduating ? 'border-yellow-500/20' : ''
+        <div className={`rd-card p-3 h-full transition-all duration-300 hover:bg-white/[0.02] border-red-900/10 hover:border-red-500/30 ${
+          isGraduating ? 'bg-yellow-500/5 border-yellow-500/20' : ''
         }`}>
-          {/* Graduation glow */}
-          {isGraduating && (
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
-          )}
-
-          {/* Top row: logo + meta */}
-          <div className="flex items-start gap-3 mb-3">
-            {/* Logo */}
-            <div className="w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-red-950/20 border border-red-900/20">
+          <div className="flex gap-4">
+            {/* Logo - Large left like pump */}
+            <div className="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-red-950/20 border border-red-900/10 group-hover:border-red-500/20 transition-colors shadow-lg">
               {token.logo ? (
                 <img src={token.logo} alt={token.symbol} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-red-500/30 font-black text-lg">
+                <div className="w-full h-full flex items-center justify-center text-red-500/20 font-black text-2xl">
                   {token.symbol.charAt(0)}
                 </div>
               )}
             </div>
 
-            {/* Name + badges */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-xs font-black text-white truncate">{token.name}</span>
-                {isHot && <span className="text-[7px] bg-orange-500/20 text-orange-400 border border-orange-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0">🔥</span>}
-                {isGraduating && <span className="text-[7px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0">✨</span>}
+            {/* Content right */}
+            <div className="flex-1 min-w-0 flex flex-col">
+              <div className="flex justify-between items-start mb-1">
+                <span className="text-[10px] text-gray-700 font-mono">created by {token.creator.slice(0,6)}</span>
+                <span className="text-[10px] text-gray-700 font-mono">{fmtAge(token.createdAt)}</span>
               </div>
-              <div className="text-[10px] text-red-400 font-mono font-bold">${token.symbol}</div>
-            </div>
+              
+              <div className="mb-2">
+                <div className="text-sm font-black text-white group-hover:text-red-400 transition-colors truncate">
+                  {token.name}
+                </div>
+                <div className="text-xs text-red-500/80 font-mono font-bold tracking-tight">
+                  ${token.symbol}
+                </div>
+              </div>
 
-            {/* Age */}
-            <span className="text-[8px] text-gray-700 font-mono flex-shrink-0">{fmtAge(token.createdAt)}</span>
-          </div>
-
-          {/* Description */}
-          <p className="text-[9px] text-gray-600 font-mono leading-relaxed mb-3 line-clamp-2">
-            {token.description || 'No description provided.'}
-          </p>
-
-          {/* Bonding curve progress */}
-          <div className="mb-3">
-            <div className="flex justify-between text-[8px] font-mono text-gray-700 mb-1">
-              <span>Bonding curve</span>
-              <span>{token.progress.toFixed(1)}%</span>
-            </div>
-            <div className="h-1.5 bg-red-950/10 rounded-full overflow-hidden border border-red-900/10">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min(token.progress, 100)}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-                className={`h-full rounded-full ${
-                  isGraduating
-                    ? 'bg-gradient-to-r from-yellow-600 to-yellow-400'
-                    : 'bg-gradient-to-r from-red-700 to-red-400'
-                }`}
-              />
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-1 text-center border-t border-red-900/10 pt-3">
-            <div>
-              <div className="text-[8px] text-gray-700 uppercase tracking-widest mb-0.5">SOL</div>
-              <div className="text-[10px] font-bold text-white font-mono">{fmtSol(token.solRaised)}</div>
-            </div>
-            <div>
-              <div className="text-[8px] text-gray-700 uppercase tracking-widest mb-0.5">Buyers</div>
-              <div className="text-[10px] font-bold text-white font-mono">{token.buyerCount}</div>
-            </div>
-            <div>
-              <div className="text-[8px] text-gray-700 uppercase tracking-widest mb-0.5">Price</div>
-              <div className="text-[10px] font-bold text-red-400 font-mono">
-                {(token.currentPrice * 1e9).toFixed(1)}μ
+              <div className="mt-auto space-y-2">
+                <div>
+                  <div className="flex justify-between text-[9px] font-mono text-gray-600 mb-1">
+                    <span>Market Cap: <span className="text-green-500 font-bold">{(token.currentPrice * 1e9).toFixed(2)} SOL</span></span>
+                  </div>
+                  <div className="flex justify-between text-[9px] font-mono text-gray-600 mb-1">
+                    <span>Progress: {token.progress.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-1.5 bg-black/40 rounded-full overflow-hidden border border-red-900/10">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(token.progress, 100)}%` }}
+                      className={`h-full ${isGraduating ? 'bg-yellow-500' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]'}`}
+                    />
+                  </div>
+                </div>
+                
+                <div className="text-[10px] text-gray-500 font-mono line-clamp-2 italic">
+                  "{token.description || 'No description...'}"
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Creator */}
-          <div className="mt-2 pt-2 border-t border-red-900/10">
-            <span className="text-[8px] text-gray-700 font-mono">
-              by {token.creator.slice(0, 6)}...{token.creator.slice(-4)}
-            </span>
-          </div>
-
-          {/* Hover arrow */}
-          <div className="absolute top-3 right-3 text-gray-700 text-xs opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">→</div>
         </div>
       </Link>
     </motion.div>

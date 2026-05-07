@@ -23,7 +23,7 @@ export const config = {
   cluster:                  opt('SOLANA_CLUSTER', 'mainnet-beta'),
 
   programIds: {
-    bondingCurve:  opt('RD_BONDINGCURVE_PROGRAM_ID', 'BCurve1111111111111111111111111111111111111'),
+    bondingCurve:  opt('RD_BONDINGCURVE_PROGRAM_ID', 'AfkwwBhRsuEzZo74mdbwK8EBwo7VYwc8S1T7hb1RHMAa'),
     token:         opt('RD_TOKEN_PROGRAM_ID',        'CPLCsPQJrfWQgacJEq1QcbwoMcJocbEhjGVmJLPhs38Z'),
     treasury:      opt('RD_TREASURY_PROGRAM_ID',     'HpvmQtmxyPeeYKGvKHqEdcnsYUzAQrdynoCX452s2xLz'),
     presale:       opt('RD_PRESALE_PROGRAM_ID',      'HACK1L8hdDN1wuhV5mEbNYGeMXjhFzvz3HNvDTCdFP2a'),

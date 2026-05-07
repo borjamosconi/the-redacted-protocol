@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use tokio::fs;
 use crate::registry::{ToolHandler, ToolError, ToolRegistry};
 use crate::spec::*;
+use crate::muapi_tools;
 use rd_types::permission::PermissionLevel;
 
 pub struct ReadFileTool;
@@ -281,7 +282,7 @@ impl ToolHandler for ScanNewsTool {
     }
 }
 
-pub mod muapi_tools;
+// Muapi tools are declared in lib.rs
 
 pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("read_file", "Read a file.", file_schema(), PermissionLevel::Observer), Box::new(ReadFileTool));
@@ -297,6 +298,13 @@ pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("gen_image", "Generate an AI image from a prompt.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenImageTool));
     registry.register(ToolSpec::builtin("gen_video", "Generate an AI video from a prompt.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenVideoTool));
     registry.register(ToolSpec::builtin("gen_cinema", "Generate a cinematic AI shot with pro camera controls.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenCinemaTool));
+    // Autonomous Token Launcher
+    registry.register(ToolSpec::builtin(
+        "launch_token",
+        "Launch a document as a Solana token on redacted.bond. Call this after detecting and reconstructing a censored document to tokenize it autonomously.",
+        crate::launch_token::launch_token_schema(),
+        PermissionLevel::Declassifier,
+    ), Box::new(crate::launch_token::LaunchTokenTool));
 }
 
 /// Register news scanning tool (needs shared scanner).

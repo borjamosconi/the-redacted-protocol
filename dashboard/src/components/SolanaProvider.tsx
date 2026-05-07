@@ -1,26 +1,26 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
 import '@solana/wallet-adapter-react-ui/styles.css'
 
+// Resolved once at module level — this component only ever renders client-side
+// (gated by Providers.tsx mounted check) so window/localStorage are safe.
+const RPC_URL =
+  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+  process.env.NEXT_PUBLIC_SOLANA_RPC ||
+  'https://api.mainnet-beta.solana.com'
+
 export function SolanaProvider({ children }: { children: React.ReactNode }) {
-  const [rpcUrl] = useState(
-    process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
-    process.env.NEXT_PUBLIC_SOLANA_RPC ||
-    'https://api.mainnet-beta.solana.com'
+  const wallets = useMemo(
+    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
+    []
   )
 
-  const [wallets, setWallets] = useState<any[]>([])
-
-  useEffect(() => {
-    setWallets([new PhantomWalletAdapter(), new SolflareWalletAdapter()])
-  }, [])
-
   return (
-    <ConnectionProvider endpoint={rpcUrl}>
+    <ConnectionProvider endpoint={RPC_URL}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>

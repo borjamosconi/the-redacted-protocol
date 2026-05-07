@@ -62,6 +62,9 @@ pub struct TgMessage {
     pub callback_data: Option<String>,
     /// Required to answer the callback query via answerCallbackQuery
     pub callback_query_id: Option<String>,
+    /// Whether this message represents a new member joining a group
+    pub is_new_member: bool,
+    pub new_member_name: Option<String>,
 }
 
 impl TgMessage {
@@ -311,20 +314,40 @@ impl TelegramBot {
                             urls: Vec::new(), is_callback: true,
                             callback_data: Some(data),
                             callback_query_id: cb_id,
+                            is_new_member: false,
+                            new_member_name: None,
                         });
                     }
                     continue;
                 }
 
-                // Handle regular messages
+                // Handle regular messages or service messages
                 if let Some(msg) = update.get("message") {
                     let cid = msg.get("chat").and_then(|c| c.get("id")).and_then(|v| v.as_i64());
                     let uid2 = msg.get("from").and_then(|f| f.get("id")).and_then(|v| v.as_i64());
                     let uname = msg.get("from").and_then(|f| f.get("username")).and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
                     let txt = msg.get("text").and_then(|v| v.as_str()).unwrap_or("");
                     let mid = msg.get("message_id").and_then(|v| v.as_i64()).unwrap_or(0);
-                    if let (Some(c), Some(u)) = (cid, uid2) {
-                        if !txt.is_empty() {
+                    
+                    if let Some(c) = cid {
+                        // LOG FOR DEBUGGING GROUP IDS
+                        println!("\n[TELEGRAM] Update from Chat ID: {} (@{})", c, uname);
+                        
+                        // Handle join event
+                        if let Some(new_members) = msg.get("new_chat_members").and_then(|v| v.as_array()) {
+                            for member in new_members {
+                                let name = member.get("first_name").and_then(|v| v.as_str()).unwrap_or("Stranger");
+                                msgs.push(TgMessage {
+                                    chat_id: c, user_id: 0, username: "system".into(),
+                                    text: "system:join".into(), message_id: mid,
+                                    urls: Vec::new(), is_callback: false,
+                                    callback_data: None, callback_query_id: None,
+                                    is_new_member: true, new_member_name: Some(name.to_string()),
+                                });
+                            }
+                        }
+
+                        if let (Some(u), false) = (uid2, txt.is_empty()) {
                             // Auto-detect URLs
                             let urls = Self::detect_urls_in_text(txt);
                             msgs.push(TgMessage {
@@ -332,6 +355,7 @@ impl TelegramBot {
                                 text: txt.to_string(), message_id: mid,
                                 urls, is_callback: false, callback_data: None,
                                 callback_query_id: None,
+                                is_new_member: false, new_member_name: None,
                             });
                         }
                     }
@@ -449,6 +473,38 @@ _The file is breathing\\._";
             ]);
 
         self.send_formatted(chat_id, &text, Some(&keyboard)).await
+    }
+ 
+    /// Announce a new token launch in the official group.
+    pub async fn announce_token_launch(
+        &self,
+        chat_id: i64,
+        name: &str,
+        symbol: &str,
+        mint: &str,
+    ) -> Result<(), String> {
+        let text = format!(
+            "\u{1F6A8} *NEW DECLASSIFICATION DETECTED* \u{1F6A8}
+ 
+\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}
+ 
+DOCUMENT: `{}`
+TICKER: `${}`
+MINT: `{}`
+ 
+\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}
+ 
+\u{1F513} *UNCOVER THE TRUTH AT:* 
+[redacted\\.bond/terminal/{}](https://redacted.bond/terminal/{})
+ 
+_The file is breathing\\._",
+            Self::escape_md(name),
+            Self::escape_md(symbol),
+            Self::escape_md(mint),
+            Self::escape_md(mint),
+            mint
+        );
+        self.send_formatted(chat_id, &text, Some(&Self::main_keyboard())).await
     }
 
     /// Send airdrop status.
@@ -585,6 +641,35 @@ _The file is breathing\\._
 
 \\#RedactedProtocol",
         "glitch_interference",
+    ),
+    (
+        "\u{1F534} *WARNING: PROTOCOL BREACH*
+
+TIMESTAMP: `2026\\-05\\-22`
+LOCATION: `REDACTED BONDING CURVE`
+
+Reconstruction of FILE \\#RDX\\-001 has begun\\. 
+The truth will be tokenized in \u{2588}\u{2588} days\\.
+
+Status: `UNSTABLE`
+_The file is breathing\\._
+
+\\#RedactedProtocol \\#RDX",
+        "access_denied",
+    ),
+    (
+        "\u{1F534} *DECLASSIFICATION SEQUENCE INITIATED*
+
+Target: \\$RDX
+Activation: `2026\\-05\\-22 00:00 UTC`
+
+\"They cannot hide the \u{2588}\u{2588}\u{2588}\u{2588} forever\\. 
+The bonding curve is the only path to the \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\\.\"
+
+_The file is breathing\\._
+
+\\#RedactedProtocol",
+        "classified_doc",
     ),
     (
         "\u{1F534} FILE \\#0050 — ARCHIVE 0

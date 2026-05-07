@@ -178,7 +178,7 @@ export async function GET(request: Request) {
       status: 'active',
       walletAddress: user.walletAddress.slice(0, 8) + '...' + user.walletAddress.slice(-6),
       telegramId: user.telegramId,
-      xp: user.xp, level: levelInfo, levelName: levelInfo.name,
+      xp: user.xp, level: levelInfo.name, levelName: levelInfo.name,
       xpForNextLevel: xpForNext, xpProgress: Math.round(xpProgress),
       streak: user.streak, streakMultiplier: getStreakMultiplier(user.streak),
       lastCheckin: user.lastCheckin, referrals: user.referrals.length,
@@ -187,6 +187,7 @@ export async function GET(request: Request) {
       badges: user.badges, actions: user.actions,
       questsCompleted: user.questsCompleted.length, totalQuests: QUESTS.length, quests,
       airdropAmount: user.airdropAmount,
+      claimedAirdropAmount: user.claimedAirdropAmount || 0,
       airdropFormatted: `${(user.airdropAmount / 1_000_000_000).toLocaleString()} RDX`,
       baseAirdrop: '700 RDX',
       bonusAirdrop: `${((user.airdropAmount - 700_000_000_000) / 1_000_000_000).toLocaleString()} RDX`,
@@ -244,7 +245,9 @@ export async function PUT(request: Request) {
       walletAddress, telegramId, xp: 100, level: levelInfo.name, streak: 0,
       lastCheckin: null, referrals: [], referredBy: body.referredBy || null,
       totalActions: 1, badges: ['EARLY_ADOPTER'], registeredAt: new Date().toISOString(),
-      airdropAmount: 700_000_000_000, ipHash, deviceFingerprint: deviceFingerprint || '',
+      airdropAmount: 700_000_000_000,
+      claimedAirdropAmount: 0,
+      ipHash, deviceFingerprint: deviceFingerprint || '',
       flagged: false, flagReason: '', actions: { register: 1 }, questsCompleted: [],
       weeklyActions: { register: 1 }, weeklyResetAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
     };
@@ -293,6 +296,7 @@ function checkQuestRequirement(user: db.UserProfile, quest: { id: string; requir
   if (req.startsWith('news_count:')) return (user.actions['news_scan'] || 0) >= parseInt(req.split(':')[1]);
   if (req.startsWith('referral_count:')) return user.referrals.length >= parseInt(req.split(':')[1]);
   if (req.startsWith('image_count:')) return (user.actions['image_gen'] || 0) >= parseInt(req.split(':')[1]);
+  if (req.startsWith('token_launch_count:')) return (user.actions['token_launch'] || 0) >= parseInt(req.split(':')[1]);
   if (req.startsWith('xp:')) return user.xp >= parseInt(req.split(':')[1]);
   return false;
 }
@@ -305,6 +309,7 @@ function getQuestProgress(user: db.UserProfile, quest: { requirement: string }):
   if (req.startsWith('news_count:')) return Math.min(100, Math.round(((user.actions['news_scan'] || 0) / parseInt(req.split(':')[1])) * 100));
   if (req.startsWith('referral_count:')) return Math.min(100, Math.round((user.referrals.length / parseInt(req.split(':')[1])) * 100));
   if (req.startsWith('image_count:')) return Math.min(100, Math.round(((user.actions['image_gen'] || 0) / parseInt(req.split(':')[1])) * 100));
+  if (req.startsWith('token_launch_count:')) return Math.min(100, Math.round(((user.actions['token_launch'] || 0) / parseInt(req.split(':')[1])) * 100));
   if (req.startsWith('xp:')) return Math.min(100, Math.round((user.xp / parseInt(req.split(':')[1])) * 100));
   return 0;
 }

@@ -27,6 +27,8 @@ export const XP_ACTIONS: Record<string, { xp: number; label: string }> = {
   streak_30: { xp: 2_000, label: '30-Day Streak Bonus' },
   first_fragment: { xp: 75, label: 'First Fragment Submitted' },
   verify_fragment: { xp: 50, label: 'Fragment Verified' },
+  token_launch: { xp: 500, label: 'Document Token Launched' },
+  token_launch_first: { xp: 1000, label: 'First Document Declassified' },
 };
 
 // ── User Profile ──
@@ -152,6 +154,16 @@ export const QUESTS: Quest[] = [
     xpReward: 0,
     rdxReward: 50,
     requirement: 'xp:1000',
+    type: 'lifetime',
+  },
+  {
+    id: 'whistleblower',
+    name: 'WHISTLEBLOWER',
+    description: 'Launch your first document token',
+    icon: '🚨',
+    xpReward: 1000,
+    rdxReward: 500,
+    requirement: 'token_launch_count:1',
     type: 'lifetime',
   },
 ];

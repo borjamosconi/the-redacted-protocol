@@ -28,28 +28,44 @@ class ErrorBoundaryClass extends React.Component<Props, State> {
 
   componentDidUpdate() {
     if (this.state.hasError) {
-      // Reset after user interaction or timeout
-      setTimeout(() => this.setState({ hasError: false }), 5000)
+      const timer = setTimeout(() => {
+        this.setState({ hasError: false, error: undefined })
+      }, 8000)
+      return () => clearTimeout(timer)
     }
+  }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: undefined })
   }
 
   render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="min-h-screen flex items-center justify-center p-8">
+        <div className="min-h-screen flex items-center justify-center p-8 bg-black">
           <div className="rd-card text-center max-w-md p-8">
             <div className="text-4xl mb-4 text-red-500">⚠️</div>
-            <h2 className="text-xl font-bold text-rd-text mb-2">Something broke</h2>
-            <p className="text-rd-muted mb-6">Try refreshing or check console for details.</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="btn-premium w-full"
-            >
-              Reload Page
-            </button>
-            <details className="mt-6 text-left text-xs font-mono text-rd-muted/50 p-3 bg-rd-black/20 rounded">
-              <summary>Dev: Show error</summary>
-              <pre className="mt-2">{this.state.error?.message}</pre>
+            <h2 className="text-xl font-bold text-white mb-2">Protocol Error</h2>
+            <p className="text-gray-400 mb-6 text-sm">
+              {this.state.error?.message || 'An unexpected error occurred. Check console for details.'}
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={this.handleReset} 
+                className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded text-sm font-mono"
+              >
+                Retry
+              </button>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="flex-1 px-4 py-2 bg-red-950/50 hover:bg-red-950 text-red-400 rounded text-sm font-mono"
+              >
+                Reload
+              </button>
+            </div>
+            <details className="mt-6 text-left text-xs font-mono text-gray-500 p-3 bg-black/50 rounded border border-gray-800">
+              <summary className="cursor-pointer hover:text-gray-400">Dev: Show error details</summary>
+              <pre className="mt-2 overflow-auto max-h-40 text-gray-600">{this.state.error?.stack || this.state.error?.toString()}</pre>
             </details>
           </div>
         </div>

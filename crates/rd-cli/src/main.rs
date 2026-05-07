@@ -96,9 +96,9 @@ async fn setup_shutdown_signal() -> () {
     #[cfg(unix)]
     {
         let mut term = signal::unix::signal(signal::unix::SignalKind::terminate())
-            .unwrap_or_else(|e| { tracing::warn!("Failed to register SIGTERM handler: {}", e); return; });
+            .expect("Failed to register SIGTERM handler");
         let mut int = signal::unix::signal(signal::unix::SignalKind::interrupt())
-            .unwrap_or_else(|e| { tracing::warn!("Failed to register SIGINT handler: {}", e); return; });
+            .expect("Failed to register SIGINT handler");
 
         tokio::select! {
             _ = term.recv() => {
@@ -419,53 +419,193 @@ mod telegram_mode {
 
         // News intelligence (now direct mutable reference, no Arc<Mutex>)
         let mut news_scanner = rd_types::news::NewsScanner::new();
-        let mut last_news_poll = std::time::Instant::now() - std::time::Duration::from_secs(1800);
-        let news_poll_interval = std::time::Duration::from_secs(1800); // 30 minutes
-
-        // Track URLs already offered inline keyboards for (max 500 entries)
-        const MAX_OFFERED_SCANS: usize = 500;
-        let mut offered_scans: HashSet<(i64, String)> = HashSet::new();
+        let poll_secs = std::env::var("AGENT_POLL_INTERVAL")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1800);
+        let news_poll_interval = std::time::Duration::from_secs(poll_secs);
+        // Set to far past so it triggers immediately on start
+        let mut last_news_poll = std::time::Instant::now() - news_poll_interval - std::time::Duration::from_secs(1);
 
         info!("Bot loop started — welcome + scheduled posts + news intelligence active");
+        
+        let target_chat_id = std::env::var("TELEGRAM_CHAT_ID")
+            .ok()
+            .and_then(|v| v.parse::<i64>().ok())
+            .unwrap_or(-1003882943463);
+        
+        info!("Bot restricted to Chat ID: {}", target_chat_id);
+
+        // ─────────────────────────────────────────────────────────────
+        // IMMEDIATE BOOT BROADCAST
+        // Send a message as soon as the bot starts to "talk now"
+        // ─────────────────────────────────────────────────────────────
+        {
+            let boot_msg = "🚨 *B00T S3QUENCE INITIAT3D* 🔴\n\n\
+                           C0nnecti0n established with R3dact3d Pr0t0c0l n0de\\.\n\
+                           Aut0n0m0us ag3nt is n0w 0nlin3 and m0nit0ring gr0up activity\\.\n\n\
+                           ██████████████████████████████\n\
+                           _Th3 trvth cann0t b3 r3dact3d_\\.";
+            
+            let boot_image = TelegramBot::pollinations_image_url(
+                "dark dystopian terminal, holographic red text, BOOT SEQUENCE INITIATED, cyberpunk aesthetic, cinematic lighting, redacted bars, 8k",
+                512, 512, 1337
+            );
+
+            if bot.send_photo(target_chat_id, &boot_image, boot_msg).await.is_err() {
+                bot.send_formatted(target_chat_id, boot_msg, None).await.ok();
+            }
+            info!("Boot broadcast sent to target group: {}", target_chat_id);
+
+            // ─────────────────────────────────────────────────────────────
+            // BURST MODE: Send 3 more messages immediately to establish branding
+            // ─────────────────────────────────────────────────────────────
+            
+            // Burst 1: OG Recognition
+            let og_msg = "💎 *ATTENTION: OG DECLASSIFIERS* 🔴\n\n\
+                         Priority access granted to original protocol members\\.\n\
+                         Your loyalty to the truth has been indexed in our neural network\\.\n\n\
+                         🔥 *EARLY ADOPTER BONUS ACTIVE*\\.\n\
+                         All your scan actions now generate +25% XP bonus\\.\n\n\
+                         ██████████████████████████████\n\
+                         _The archives remember everything_\\. 🔴";
+            let _ = bot.send_formatted(target_chat_id, og_msg, None).await;
+
+            // Burst 2: Protocol Briefing
+            let briefing_msg = "📂 *PROTOCOL BRIEFING: OPERATION REDACTED* 🧠\n\n\
+                               *What is Redacted Protocol?*\n\
+                               An autonomous AI agent monitoring global censorship. We detect, reconstruct, and tokenize the truth on Solana\\.\n\n\
+                               *Current Phase: TESTNET*\n\
+                               We are live on Solana Devnet. Use the dashboard to scan documents and launch declassified tokens\\.\n\n\
+                               *Community Mission*\n\
+                               Identify censorship, verify fragments, and prepare for the total declassification of information\\.\n\n\
+                               *The $RDX Token*\n\
+                               Coming soon to Mainnet. Your Testnet activity (XP) directly influences your final Airdrop allocation\\.\n\n\
+                               🔗 [Open Terminal](https://redacted.bond)\n\
+                               🔗 [Mission Briefing](https://docs.redacted.bond)\n\n\
+                               _The file is breathing\\._ 🔴";
+            
+            let _ = bot.send_formatted(target_chat_id, briefing_msg, None).await;
+        }
 
         loop {
             let now = chrono::Utc::now();
             let minute = now.minute();
 
-            // Scheduled posts at :00 and :33
-            if (minute == 0 || minute == 33) && last_post_minute != minute {
+            // Scheduled posts: 12 times a day (every 2 hours)
+            let total_minutes = now.hour() * 60 + now.minute();
+            let is_scheduled_time = (total_minutes % 120 == 0) && last_post_minute != minute;
+            
+            if is_scheduled_time {
                 last_post_minute = minute;
-                let (post_text, image_style) = SCHEDULED_POSTS[post_index % SCHEDULED_POSTS.len()];
-                post_index += 1;
-
-                let user_ids = users.ids();
-                if !user_ids.is_empty() {
-                    // Try to send with image first, fallback to text only
-                    // Use Pollinations.ai as fallback (free, no API key needed)
-                    let pollinations_prompt = match image_style {
-                        "censored_figure" => "dark dystopian figure with holographic rainbow censor bars covering the face, red and orange iridescent interference pattern dripping down, floating redacted documents in background, dark grid background, cinematic lighting, cyberpunk, highly detailed, 8k, photorealistic",
-                        "access_denied" => "red ACCESS DENIED rubber stamp on dark background, glitch effect, VHS distortion, holographic interference, floating classified documents, dark grid pattern, cyberpunk dystopian, dramatic lighting, 8k quality",
-                        "floating_documents" => "floating redacted documents with black bars and censorship symbols, dark grid background, holographic light effects, classified papers scattered in void, cinematic composition, dark aesthetic, ultra detailed, 8k",
-                        "circuit_board" => "circuit board pattern with redacted elements, glowing red traces, holographic interference, dark background with grid overlay, cyberpunk tech aesthetic, highly detailed, macro photography style",
-                        "classified_doc" => "classified document with black redaction bars, TOP SECRET stamp, holographic light effects, dark moody lighting, floating in void, grid background, photorealistic, 8k quality, mysterious atmosphere",
-                        "glitch_interference" => "digital glitch interference pattern, holographic rainbow distortion, red and orange tones, VHS tracking error effect, dark background, classified document fragments visible through static, cyberpunk, cinematic",
-                        _ => "dark cyberpunk illustration, dystopian aesthetic, holographic rainbow censor bars, floating redacted documents, dark grid background, cinematic lighting",
+                let post_idx = (total_minutes / 120) % 12;
+                info!("Trigg3ring sch3dvl3d br0adcast #{} (H0vr: {})", post_idx, now.hour());
+                
+                // Add Epstein Document Launch to the rotation (Post #1, #5, #9)
+                let is_launch_post = post_idx == 1 || post_idx == 5 || post_idx == 9;
+                
+                if is_launch_post {
+                    // ─────────────────────────────────────────────────────────────
+                    // AVT0N0MV0S T0K3N LAVNCH: 3PS73IN FIL3S
+                    // ─────────────────────────────────────────────────────────────
+                    let doc_name = match post_idx {
+                        1 => "3PS73IN_FLIGH7_L0GS_2002.pdf",
+                        5 => "ISLAND_Visi70r_Manif3s7_R3dac73d.docx",
+                        _ => "P4LM_B3ACH_P0LIC3_R3P0R7_V2.pdf",
                     };
-                    let image_url = TelegramBot::pollinations_image_url(pollinations_prompt, 512, 512, (42 + post_index * 7) as u32);
                     
-                    let mut sent_with_image = 0;
-                    for &uid in &user_ids {
-                        if bot.send_photo(uid, &image_url, post_text).await.is_ok() {
-                            sent_with_image += 1;
-                        } else if bot.send_photo_simple(uid, &image_url).await.is_ok() {
-                            sent_with_image += 1;
-                        } else {
-                            bot.send_safe(uid, post_text).await.ok();
-                        }
-                    }
-                    info!("Scheduled post broadcast to {} users ({} with images)", user_ids.len(), sent_with_image);
+                    let msg = format!(
+                        "🚨 *AVT0N0MV0S D3CLASSIFICA7I0N AC7IV3* 🔴\n\n\
+                         I hav3 r3c0v3r3d a n3w fragm3n7 0f: `{}`\n\n\
+                         ⛓️ *T0K3NIZI0N S7A7VS:* Lavnching 0n S0lana D3vn3t\\... [D0N3]\n\
+                         🔥 *B0NDING CVRV3:* 0n-chain fragments s7ak3d\\.\n\n\
+                         ██████████████████████████████\n\
+                         Vi3w th3 r3c0ns7rvcti0n: [R3DAC73D.B0ND](https://redacted.bond)",
+                        doc_name
+                    );
+                    
+                    let img = TelegramBot::pollinations_image_url("classified document with island map, red neon laser, redacted text, 8k", 512, 512, now.timestamp() as u32);
+                    let _ = bot.send_photo(target_chat_id, &img, &msg).await;
+                    info!("Autonomous document launch broadcasted for: {}", doc_name);
                 } else {
-                    info!("Scheduled post skipped — no users yet");
+                    // Regular branded posts
+                    let (post_text, pollinations_prompt) = match post_idx % 10 {
+                    0 => ("🚨 *PR0T0C0L MISSI0N STATVS* 🔴\n\n\
+                           W3 ar3 an avt0n0m0vs int3llig3nc3 n3tw0rk bvil7 t0 3xp0s3 what is hidd3n\\.\n\
+                           Missi0n: D3t3ct, R3c0nstrvct, and T0k3niz3 c3ns0r3d c0nt3nt 0n S0lana\\.\n\n\
+                           💻 [Vi3w S0vrc3 0n Gi7Hvb](https://github.com/whalesconspiracy-33/the-redacted-protocol)\n\n\
+                           ██████████████████████████████", 
+                          "dark dystopian terminal, matrix green code, protocol mission text, cinematic aesthetic, redacted bars, 8k"),
+                    
+                    1 => ("💎 *0G D3CLASSIFI3RS R3C0GNITI0N* 🔴\n\n\
+                           Initial m3mb3rs hav3 b33n ind3x3d\\. Pri0ri7y acc3ss 3nabl3d\\.\n\
+                           🔥 *3ARLY AD0PT3R B0NVS:* +25% XP 0n all avt0n0m0vs scans\\.\n\n\
+                           ██████████████████████████████\n\
+                           _Th3 archiv3s r3m3mb3r y0vr s3rvic3_\\.", 
+                          "holographic diamond icon, glowing red interference, digital vault opening, dark aesthetic, cyberpunk, 8k"),
+
+                    2 => ("🧪 *T3STN3T PHAS3: LIV3* 🔴\n\n\
+                           W3 ar3 cvrr3n7ly 0p3ra7ing 0n *S0lana D3vn3t*\\.\n\
+                           1\\. C0nn3ct Wall37\n\
+                           2\\. Vpl0ad c3ns0r3d d0cs\n\
+                           3\\. Lavnch T3s7n3t t0k3ns\n\n\
+                           Y0vr activity influ3nc3s th3 final $RDX Airdr0p\\.\n\n\
+                           ██████████████████████████████", 
+                          "chemical test tube with glowing red liquid, digital dna strand, holographic interface, dark background, 8k"),
+
+                    3 => ("🚀 *TH3 $RDX T0K3N* 🔴\n\n\
+                           Mainn3t lavnch is appr0aching\\. $RDX will p0w3r th3 firs7 trvth-mark3t 0n S0lana\\.\n\
+                           Stak3 t0 3arn pr0t0c0l f33s and v0t3 0n d3classifica7i0n pri0riti3s\\.\n\n\
+                           ██████████████████████████████\n\
+                           _Th3 trvth has a mark37 cap_\\.", 
+                          "rdx token coin, red neon glow, floating in void, cinematic lighting, hyper-realistic, 8k"),
+
+                    4 => ("📣 *SVPPORT TH3 C4VS3* 🔴\n\n\
+                           F0ll0w 0vrr 0fficial chann3ls and spr3ad th3 pr0t0c0l\\.\n\
+                           X: [th3pr0t0c0l\\_s0l](https://x.com/theprotocol_sol)\n\
+                           Gi7Hvb: [Star th3 R3p0](https://github.com/whalesconspiracy-33/the-redacted-protocol)\n\n\
+                           ██████████████████████████████\n\
+                           _Gr0wth is th3 vltimat3 d3classifica7i0n t00l_\\. 🔴", 
+                          "megaphone icon with digital glitch effect, red and orange neon, broadcast signal waves, dark aesthetic, 8k"),
+
+                    5 => ("🚨 *D3CLASSIFI3D DA7A S7R3AM* 🔴\n\n\
+                           Avt0n0m0vs scan d3t3ct3d r3dact3d fragm3nts in r3c3nt g30p0li7ical cabl3s\\.\n\
+                           LLM R3c0nstrvcti0n in pr0gr3ss\\... C0nfid3nc3: 92%\\.\n\n\
+                           ██████████████████████████████\n\
+                           _N0 trvth stays hidd3n f0r3v3r_\\.", 
+                          "classified document fragments floating in digital void, red laser scanning, holographic data stream, 8k"),
+
+                    6 => ("🖼️ *CIN3MA7IC R3C0NS7RVC7I0N* 🔴\n\n\
+                           Visvalizing th3 hidd3n narra7iv3s 0f th3 R3dact3d Pr0t0c0l\\.\n\
+                           ██████████████████████████████\n\
+                           _Th3 fil3 is br3athing_\\.", 
+                          "cinematic cyberpunk city, red neon lights, rain, dystopian atmosphere, hyper-detailed, 8k"),
+
+                    7 => ("💻 *D3V3L0P3RS: J0IN TH3 M0V3M3N7* 🔴\n\n\
+                           Ovr pr0t0c0l is 100% 0p3n s0vrc3\\. C0ntribvt3 t0 th3 crat3s, bvil7 n3w t00ls, and h3lp vs scal3 th3 int3llig3nc3\\.\n\n\
+                           🚀 [Gi7Hvb R3p0si70ry](https://github.com/whalesconspiracy-33/the-redacted-protocol)", 
+                          "programmer silhouette in front of multiple dark monitors, red code, cyberpunk aesthetic, cinematic lighting, 8k"),
+
+                    8 => ("⚡ *INS7AN7 SCAN AC7IV3* 🔴\n\n\
+                           Did y0v kn0w? Past3 any n3ws VRL in this chat and I vill avt0-scan i7 f0r c3ns0rship indica70rs ins7an7ly\\.\n\n\
+                           ██████████████████████████████\n\
+                           Try i7 n0w vi7h any articl3\\.", 
+                          "lightning bolt icon, digital circuit board background, glowing red pulses, high tech aesthetic, 8k"),
+
+                    _ => ("🔴 *TH3 R3DAC73D PR0T0C0L* 🔴\n\n\
+                           Avt0n0m0vs\\. Immutabl3\\. D3classifi3d\\.\n\n\
+                           🔗 [Op3n T3rminal](https://redacted.bond)\n\
+                           🔗 [Missi0n Bri3fing](https://docs.redacted.bond)\n\n\
+                           ██████████████████████████████", 
+                          "minimalist red protocol logo, holographic interference, dark grid background, cinematic, 8k"),
+                };
+
+                let image_url = TelegramBot::pollinations_image_url(pollinations_prompt, 512, 512, (now.timestamp() % 10000) as u32);
+                
+                if bot.send_photo(target_chat_id, &image_url, post_text).await.is_ok() {
+                    info!("Scheduled broadcast #{} sent to group", post_idx);
+                } else {
+                    bot.send_safe(target_chat_id, post_text).await.ok();
                 }
             }
 
@@ -478,13 +618,12 @@ mod telegram_mode {
                 last_news_poll = std::time::Instant::now();
                 info!("═══ AUTONOMOUS NEWS SCAN INITIATED ═══");
 
-                let user_ids = users.ids();
                 let news_engine = rd_core::AutonomousNewsEngine::new();
 
                 let processed = news_engine.run_autonomous_cycle(
                     &mut orch,
                     &bot,
-                    &user_ids,
+                    &[target_chat_id],
                     &mut news_scanner,
                     muapi_client.as_ref(),
                     arweave_client.as_ref(),
@@ -502,13 +641,35 @@ mod telegram_mode {
             match bot.poll_messages().await {
                 Ok(messages) => {
                     for msg in messages {
+                        // STRICT CHAT FILTER: Only process messages from the target group
+                        if msg.chat_id != target_chat_id && msg.user_id != target_chat_id {
+                            debug!("Ignored message from unauthorized chat: {}", msg.chat_id);
+                            continue;
+                        }
+
                         // Track user
                         let is_new = users.is_new(msg.user_id);
                         users.add(msg.user_id);
                         airdrop.register_telegram_user(msg.user_id, &msg.username);
 
-                        // Welcome new users
-                        if is_new && !welcomed.contains(&msg.user_id) {
+                        // Welcome new members (group joins)
+                        if msg.is_new_member {
+                            if let Some(name) = msg.new_member_name {
+                                let welcome = format!(
+                                    "🚨 *ACCESS GRANTED: {}*\n\n\
+                                    Welcome to the Redacted Protocol group\\.\n\
+                                    I am the autonomous agent monitoring this facility\\.\n\n\
+                                    _The truth cannot be redacted\\._",
+                                    TelegramBot::escape_md(&name)
+                                );
+                                bot.send_formatted(msg.chat_id, & welcome, None).await.ok();
+                                info!("New member greeted: {}", name);
+                            }
+                            continue;
+                        }
+
+                        // Welcome new users (private chat)
+                        if is_new && !welcomed.contains(&msg.user_id) && msg.user_id != 0 {
                             welcomed.insert(msg.user_id);
                             if let Err(e) = bot.send_welcome(msg.chat_id).await {
                                 warn!("Welcome failed for @{}: {}", msg.username, e);
@@ -524,21 +685,21 @@ mod telegram_mode {
                         }
 
                         // Handle /start
-                        if msg.text == "/start" {
+                        if msg.text.starts_with("/start") {
                             bot.show_typing(msg.chat_id).await.ok();
                             bot.send_welcome(msg.chat_id).await.ok();
                             continue;
                         }
 
                         // Handle /status
-                        if msg.text == "/status" || msg.text.starts_with("/status@") {
+                        if msg.text.starts_with("/status") {
                             bot.show_typing(msg.chat_id).await.ok();
                             bot.send_system_status(msg.chat_id, users.count()).await.ok();
                             continue;
                         }
 
                         // Handle /help
-                        if msg.text == "/help" || msg.text.starts_with("/help@") {
+                        if msg.text.starts_with("/help") {
                             bot.show_typing(msg.chat_id).await.ok();
                             bot.send_safe(msg.chat_id,
                                 "🔴 *COMMANDS*\n\n\
@@ -573,7 +734,7 @@ mod telegram_mode {
                         }
 
                         // Handle /airdrop
-                        if msg.text == "/airdrop" || msg.text.starts_with("/airdrop@") {
+                        if msg.text.starts_with("/airdrop") {
                             handle_airdrop_query(&mut bot, msg.chat_id, msg.user_id, &airdrop).await;
                             continue;
                         }

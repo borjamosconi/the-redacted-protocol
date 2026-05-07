@@ -12,10 +12,40 @@ const SOLSCAN_URL  = `https://solscan.io/token/${RDX_MINT}`
  * The protocol's own token is the proof-of-concept of the launchpad:
  * pump.fun for classified / censored / redacted documents.
  */
+
+function ScrollingTicker() {
+  const items = [
+    { ticker: '$EPST', price: '0.042 SOL', change: '+28%' },
+    { ticker: '$JFK63', price: '0.12 SOL', change: '-5%' },
+    { ticker: '$UAP51', price: '0.008 SOL', change: '+142%' },
+    { ticker: '$RDX', price: '0.001 SOL', change: '+12%' },
+    { ticker: '$NSA13', price: '0.03 SOL', change: '+8%' },
+    { ticker: '$CIA_DOCS', price: '0.002 SOL', change: '-12%' },
+  ]
+  return (
+    <div className="w-full overflow-hidden bg-red-600/5 border-y border-red-500/10 py-2 mb-12">
+      <motion.div 
+        animate={{ x: [0, -1000] }}
+        transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+        className="flex whitespace-nowrap gap-12"
+      >
+        {[...items, ...items, ...items].map((item, i) => (
+          <div key={i} className="flex items-center gap-2 font-mono text-[10px]">
+            <span className="text-white font-black">{item.ticker}</span>
+            <span className="text-gray-500">{item.price}</span>
+            <span className={item.change.startsWith('+') ? 'text-green-500' : 'text-red-500'}>{item.change}</span>
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  )
+}
+
 export function TokenLiveBanner() {
   return (
-    <section className="relative py-16 px-4 border-y border-red-900/20 bg-gradient-to-b from-black via-red-950/5 to-black">
-      <div className="max-w-4xl mx-auto">
+    <section className="relative py-16 border-y border-red-900/20 bg-gradient-to-b from-black via-red-950/5 to-black overflow-hidden">
+      <ScrollingTicker />
+      <div className="max-w-4xl mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

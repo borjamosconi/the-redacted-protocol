@@ -28,8 +28,8 @@ import path from 'path';
 // --- WALLET CONFIGURATION ---
 const WALLETS = {
   MAIN:     'HjqNchH7bsvgi1gSo9m3wbUasmQT1TaaRbJduDQ5uyPw', // Authority & LP
-  TREASURY: 'H4C2GpF5QLFCaY1ZSLsnnA34E1TXG6nYViQLAkNKXMeu', // Team + Treasury + Fee collector
-  AIRDROP:  'CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8', // Airdrop distribution
+  TREASURY: 'CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8', // Matches .env TREASURY_WALLET
+  AIRDROP:  'H4C2GpF5QLFCaY1ZSLsnnA34E1TXG6nYViQLAkNKXMeu', // Matches .env AIRDROP_WALLET
 };
 
 // --- TOKENOMICS (1,000,000,000 RDX) ---
@@ -52,7 +52,7 @@ async function main() {
   console.log('🔴 REDACTED PROTOCOL — Token Launch');
   console.log('=====================================');
 
-  const walletPath = path.join(process.env.USERPROFILE || '', '.config', 'solana', 'id.json');
+  const walletPath = path.join(process.cwd(), 'wallet.json');
   const secretKey = JSON.parse(fs.readFileSync(walletPath, 'utf-8'));
   const payer = Keypair.fromSecretKey(Uint8Array.from(secretKey));
   const connection = new Connection(RPC_URL, 'confirmed');
