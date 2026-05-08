@@ -102,11 +102,12 @@ When censorship is detected:
   - Cross-referencing known events
 - Returns reconstruction with confidence score (0-100%)
 
-### 3. Automatic Broadcasting
+### 3. Cross-Platform Broadcasting
 
 Reconstructed articles are:
 - Formatted in Redacted Protocol aesthetic
-- Sent to all Telegram subscribers
+- Sent to all Telegram subscribers instantly
+- **Automatically tweeted to X (Twitter)** every 8 hours
 - Includes original (censored) + reconstruction + confidence
 - Never requires human intervention
 
@@ -136,8 +137,9 @@ Users can:
 
 | Allocation | % | Amount | Vesting |
 |------------|---|--------|---------|
-| Community/Airdrop | 35% | 350M | Immediate |
-| Liquidity Pool | 20% | 200M | 6mo lock → LP burn |
+| Community/Airdrop | 25% | 250M | Immediate |
+| **Presale (Preventa)** | 15% | 150M | 30% TGE, 70% linear 12mo |
+| Liquidity Pool | 15% | 150M | 6mo lock → LP burn |
 | Staking Rewards | 20% | 200M | 36mo linear |
 | Ecosystem Dev | 10% | 100M | 3mo cliff, 18mo vest |
 | Team | 10% | 100M | 12mo cliff, 24mo vest |
@@ -292,7 +294,7 @@ the-redacted-protocol/
 | Service | URL |
 |---------|-----|
 | **Dashboard** | https://redacted.bond |
-| **Telegram Bot** | https://t.me/theredacted_bot |
+| **Telegram Bot** | https://t.me/theredactedprotocol_bot |
 | **Telegram Community** | https://t.me/TheRedacted_sol |
 | **X / Twitter** | https://x.com/theprotocol_sol |
 | **GitHub** | https://github.com/whalesconspiracy-33/the-redacted-protocol |

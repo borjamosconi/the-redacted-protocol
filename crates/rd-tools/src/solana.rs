@@ -41,6 +41,7 @@ pub struct FragmentSubmitResult {
 /// Solana RPC client for Redacted Protocol
 pub struct SolanaClient {
     pub rpc: RpcClient,
+    pub rpc_url: String,
     payer: Option<Keypair>,
 }
 
@@ -64,6 +65,7 @@ impl SolanaClient {
 
         Ok(Self {
             rpc: RpcClient::new(rpc_url.to_string()),
+            rpc_url: rpc_url.to_string(),
             payer,
         })
     }

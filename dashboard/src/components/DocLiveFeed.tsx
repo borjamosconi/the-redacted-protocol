@@ -5,41 +5,34 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
 const RDX_MINT = 'Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj'
+const MADURO_MINT = 'Fr1jaLiR24dHNncvQ19FSG6Xf4AyhS5LWdhc6fVstpd5'
+const BUKELE_MINT = 'CysZdDee27jZUxgBim63mk5LhZcDgU7gqopaZ4F9cnmU'
+const AREA51_MINT = '3ybspCwEWCBLVTpPHhgCRtPRfEJqB7fDcXnFL1H6qTUu'
+const MONARCH_MINT = '2bewpbHvFCezvcsVKNvCMiaGGuDNn2wJHxP4cWo26xnt'
+const TICK_MINT = 'H7qEFAh71USx9GXFwCG6XTcjuVRB6UWKqXBc9ViwizAo'
+const LYME_MINT = 'HpaSNBZKBWxQo2stEt4gBeKCraPBCoszdRni2RCi4MVW'
+
+const getLogo = (name: string) => `https://image.pollinations.ai/prompt/${encodeURIComponent(`${name} classified document token dark cyberpunk redacted 8k photorealistic ultra-detailed`)}`
 
 const SEED_TOKENS = [
-  { ticker: 'RDX', name: 'The Agent — Autonomous News Scanner', category: 'THE AGENT', price: '0.00420', change: '+∞%', age: 'genesis', hot: true, mint: RDX_MINT },
-  { ticker: 'EPST', name: 'Epstein Flight Logs Vol.I', category: 'CLASSIFIED', price: '0.00042', change: '+284%', age: '2m ago', hot: true, mint: RDX_MINT },
-  { ticker: 'JFK63', name: 'Warren Commission Files', category: 'REDACTED', price: '0.00018', change: '+132%', age: '5m ago', hot: true, mint: RDX_MINT },
-  { ticker: 'MKUL', name: 'MKUltra Program Docs', category: 'DECLASSIFIED', price: '0.00091', change: '+67%', age: '9m ago', hot: false, mint: RDX_MINT },
-  { ticker: 'UAP51', name: 'Pentagon UFO Briefings', category: 'CLASSIFIED', price: '0.00034', change: '+441%', age: '12m ago', hot: true, mint: RDX_MINT },
-  { ticker: 'PENT', name: 'Pentagon Papers Vol.1', category: 'DECLASSIFIED', price: '0.00007', change: '+29%', age: '18m ago', hot: false, mint: RDX_MINT },
-  { ticker: 'NSA13', name: 'Snowden NSA Collection', category: 'LEAKED', price: '0.00055', change: '+193%', age: '23m ago', hot: true, mint: RDX_MINT },
-  { ticker: 'CIA7', name: 'Vault 7 Hacking Tools', category: 'LEAKED', price: '0.00012', change: '+88%', age: '31m ago', hot: false, mint: RDX_MINT },
-  { ticker: 'PANA', name: 'Panama Papers: OffshoreDB', category: 'LEAKED', price: '0.00028', change: '+156%', age: '44m ago', hot: false, mint: RDX_MINT },
-  { ticker: 'MNRA', name: 'Pfizer mRNA Trial Data', category: 'SUPPRESSED', price: '0.00063', change: '+312%', age: '51m ago', hot: true, mint: RDX_MINT },
-  { ticker: 'WIRE', name: 'Hunter Biden Laptop Dump', category: 'CENSORED', price: '0.00009', change: '+44%', age: '1h ago', hot: false, mint: RDX_MINT },
-  { ticker: 'AREA', name: 'Roswell Incident Files', category: 'CLASSIFIED', price: '0.00081', change: '+521%', age: '1h ago', hot: true, mint: RDX_MINT },
-  { ticker: 'FISA', name: 'FISA Court Orders 2016', category: 'CLASSIFIED', price: '0.00014', change: '+76%', age: '2h ago', hot: false, mint: RDX_MINT },
+  { ticker: 'AREA51', name: 'Area 51: S-4 Sector Blueprints', category: 'CLASSIFIED', price: '0.00742', change: '+1240%', age: 'now', hot: true, mint: AREA51_MINT, logo: getLogo('Area 51 S-4 blueprints') },
+  { ticker: 'MONARCH', name: 'Project Monarch: Mind Control', category: 'REDACTED', price: '0.00481', change: '+856%', age: 'now', hot: true, mint: MONARCH_MINT, logo: getLogo('Project Monarch brain control') },
+  { ticker: 'TICK', name: 'Project Garrapata: Bio-Surveillance', category: 'SUPPRESSED', price: '0.00392', change: '+642%', age: 'now', hot: true, mint: TICK_MINT, logo: getLogo('Cybernetic tick bug') },
+  { ticker: 'LYME', name: 'Project Lyme: Weaponized Strains', category: 'SUPPRESSED', price: '0.00315', change: '+412%', age: 'now', hot: true, mint: LYME_MINT, logo: getLogo('Weaponized bacteria strains') },
+  { ticker: 'MADURO', name: 'Venezuela: The Maduro Cartel Dossier', category: 'SUPPRESSED', price: '0.00512', change: '+942%', age: 'now', hot: true, mint: MADURO_MINT, logo: getLogo('Maduro cartel documents') },
+  { ticker: 'BUKELE', name: 'El Salvador: Project Bitcoin City', category: 'CLASSIFIED', price: '0.00318', change: '+215%', age: 'now', hot: true, mint: BUKELE_MINT, logo: getLogo('Bitcoin City blueprints') },
+  { ticker: 'RDX', name: 'The Agent — Autonomous News Scanner', category: 'THE AGENT', price: '0.00420', change: '+∞%', age: 'genesis', hot: true, mint: RDX_MINT, logo: getLogo('Autonomous AI scanner agent') },
+  { ticker: 'EPST', name: 'Epstein Flight Logs Vol.I', category: 'CLASSIFIED', price: '0.00042', change: '+284%', age: '2m ago', hot: true, mint: RDX_MINT, logo: getLogo('Epstein flight logs document') },
+  { ticker: 'JFK63', name: 'Warren Commission Files', category: 'REDACTED', price: '0.00018', change: '+132%', age: '5m ago', hot: true, mint: RDX_MINT, logo: getLogo('JFK assassination files') },
 ]
 
 const NEW_LAUNCHES = [
-  'Epstein Island Visitor List — $ISLE launching...',
-  'Operation Northwoods — $NWDS launching...',
-  'COINTELPRO Files Vol.3 — $COIN launching...',
-  'MH370 ATC Transcripts — $MH37 launching...',
-  'Bohemian Grove Footage — $GROVE launching...',
-  'Iran-Contra Shredded Docs — $IRAN launching...',
+  'AREA51_S4_BLUEPRINTS -> $AREA51 LIVE',
+  'PROJECT_MONARCH -> $MONARCH SYNCED',
+  'GARRAPATA_BIO_INSECTS -> $TICK RECOVERED',
+  'PROJECT_LYME -> $LYME ACTIVE',
+  'MADURO_CARTEL_DOSSIER -> $MADURO LIVE',
 ]
-
-const CATEGORY_COLORS: Record<string, string> = {
-  'THE AGENT':  'text-yellow-300 border-yellow-500/40 bg-yellow-500/10',
-  CLASSIFIED:   'text-red-400 border-red-900/40 bg-red-950/20',
-  REDACTED:     'text-orange-400 border-orange-900/40 bg-orange-950/20',
-  DECLASSIFIED: 'text-green-400 border-green-900/40 bg-green-950/20',
-  LEAKED:       'text-yellow-400 border-yellow-900/40 bg-yellow-950/20',
-  SUPPRESSED:   'text-purple-400 border-purple-900/40 bg-purple-950/20',
-  CENSORED:     'text-pink-400 border-pink-900/40 bg-pink-950/20',
-}
 
 export function DocLiveFeed() {
   const [tokens, setTokens] = useState(SEED_TOKENS)
@@ -59,89 +52,128 @@ export function DocLiveFeed() {
     const interval = setInterval(() => {
       setTokens(prev => prev.map(t => ({
         ...t,
-        price: (parseFloat(t.price) * (0.97 + Math.random() * 0.06)).toFixed(5),
-        change: `+${(Math.random() * 400 + 20).toFixed(0)}%`,
+        price: (parseFloat(t.price) * (0.98 + Math.random() * 0.04)).toFixed(5),
+        change: `+${(Math.random() * 300 + 10).toFixed(0)}%`,
       })))
-    }, 4000)
+    }, 5000)
     return () => clearInterval(interval)
   }, [])
 
   return (
-    <div className="w-full">
-      {/* Live ticker bar */}
-      <div className="flex items-center gap-0 mb-4 border border-red-900/20 bg-black/60 overflow-hidden">
-        <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border-r border-red-900/30">
-          <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-          <span className="text-[9px] font-mono text-red-400 tracking-[0.3em] uppercase whitespace-nowrap">LIVE</span>
+    <div className="w-full font-mono bg-black">
+      {/* Live status bar - ULTRA SQUARED */}
+      <div className="flex flex-col mb-8 gap-0 border border-white/10 bg-white/[0.02]">
+        <div className="flex items-center gap-0 h-10 border-b border-white/10">
+          <div className="flex-shrink-0 flex items-center gap-3 px-6 h-full bg-red-600 border-r border-white/10 text-white">
+            <span className="w-2 h-2 bg-white animate-pulse" />
+            <span className="text-[10px] font-black tracking-[0.5em] uppercase whitespace-nowrap">LIVE_INTEL</span>
+          </div>
+          <div className="flex-1 overflow-hidden px-6 flex items-center">
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={ticker}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="text-[11px] text-white/60 truncate uppercase tracking-[0.2em] font-black"
+              >
+                {newLaunch || NEW_LAUNCHES[0]}
+              </motion.p>
+            </AnimatePresence>
+          </div>
         </div>
-        <div className="flex-1 overflow-hidden px-3 py-1.5">
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={ticker}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3 }}
-              className="text-[10px] font-mono text-gray-400 truncate"
-            >
-              🤖 Agent detected: {newLaunch || NEW_LAUNCHES[0]}
-            </motion.p>
-          </AnimatePresence>
+        <div className="flex items-center justify-between px-6 h-6 text-[8px] font-mono text-white/20 uppercase tracking-[0.3em]">
+           <span>RELAY: B42-X0_SOL_DEVNET</span>
+           <span>DECRYPTION_LOAD: 91% [|||||||||-]</span>
         </div>
       </div>
 
-      {/* Token rows */}
-      <div className="space-y-1.5 max-h-[420px] overflow-y-auto scrollbar-none">
+      {/* Action Header - GAMIFIED */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-10">
+         <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+            <span className="text-red-600 font-black text-[10px] tracking-[0.6em] uppercase mb-1">INTEL_TERMINAL</span>
+            <h3 className="text-2xl font-black text-white uppercase tracking-tighter">DECRYPTING_LIVE_NODES</h3>
+         </div>
+         <Link href="/dashboard" className="w-full sm:w-auto px-10 py-4 bg-white text-black font-black text-xs uppercase tracking-[0.4em] hover:bg-red-600 hover:text-white transition-all shadow-[8px_8px_0px_rgba(255,0,0,0.3)] hover:shadow-none hover:translate-x-1 hover:translate-y-1">
+            LAUNCH_NEW_DOCUMENT
+         </Link>
+      </div>
+
+      {/* Table Headers */}
+      <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-white/[0.03] border border-white/10 text-[9px] font-black text-white/40 uppercase tracking-[0.4em] mb-4">
+         <div className="hidden sm:block col-span-1">IMG</div>
+         <div className="col-span-2 sm:col-span-1">TKR</div>
+         <div className="col-span-6 sm:col-span-6">INTEL_IDENTITY</div>
+         <div className="col-span-4 sm:col-span-4 text-right">VALUATION</div>
+      </div>
+
+      {/* Token rows - Structured Grid */}
+      <div className="space-y-1 max-h-[520px] overflow-y-auto no-scrollbar">
         {tokens.map((token, i) => (
           <motion.div
             key={token.ticker}
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.04, duration: 0.3 }}
+            transition={{ delay: i * 0.03 }}
           >
             <Link
               href={`/terminal/${token.mint}`}
-              className="flex items-center gap-3 px-3 py-2.5 border border-white/[0.04] bg-white/[0.01] hover:bg-white/[0.03] hover:border-red-900/30 transition-all duration-200 group"
+              className="grid grid-cols-12 items-center gap-4 px-4 sm:px-6 py-4 border border-white/5 bg-white/[0.01] hover:bg-white hover:border-white transition-all group relative"
             >
-              {/* Ticker + hot badge */}
-              <div className="flex items-center gap-1.5 w-16 flex-shrink-0">
-                <span className="text-xs font-black text-white font-mono">${token.ticker}</span>
-                {token.hot && (
-                  <span className="text-[8px] text-orange-400">🔥</span>
-                )}
+              {/* Photo column - Hidden on very small screens */}
+              <div className="hidden sm:block col-span-1">
+                <div className="w-8 h-8 bg-red-950/20 border border-white/10 group-hover:border-black/20 overflow-hidden">
+                  <img src={token.logo} alt={token.ticker} className="w-full h-full object-cover" />
+                </div>
               </div>
 
-              {/* Name */}
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-gray-400 truncate group-hover:text-gray-300 transition-colors">{token.name}</p>
+              <div className="col-span-2 sm:col-span-1">
+                <span className="text-[10px] font-black text-white group-hover:text-black transition-colors">[{token.ticker}]</span>
               </div>
 
-              {/* Category */}
-              <span className={`hidden sm:inline-flex text-[8px] font-mono px-1.5 py-0.5 border rounded-sm flex-shrink-0 ${CATEGORY_COLORS[token.category] || 'text-gray-500 border-gray-800'}`}>
-                {token.category}
-              </span>
+              <div className="col-span-6 sm:col-span-6">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2 mb-1.5">
+                     <p className="text-[10px] text-white/70 group-hover:text-black transition-colors uppercase font-black tracking-tight leading-none truncate max-w-[120px] sm:max-w-none">{token.name}</p>
+                     <div className="px-1.5 py-0.5 bg-red-600/10 border border-red-600/30 text-red-500 text-[6px] font-black tracking-widest group-hover:bg-red-600 group-hover:text-white transition-all">REWARD_SYNC</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                     <span className={`text-[7px] font-black uppercase tracking-widest px-2 py-0.5 ${token.category === 'THE AGENT' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-white/40 group-hover:bg-black/10 group-hover:text-black'}`}>
+                       {token.category}
+                     </span>
+                     {token.hot && <span className="text-[7px] text-red-600 font-black animate-pulse group-hover:text-red-800 hidden sm:inline">[DECRYPTING...]</span>}
+                  </div>
+                </div>
+              </div>
 
-              {/* Price */}
-              <span className="text-[10px] font-mono text-gray-500 w-16 text-right flex-shrink-0">{token.price}</span>
-
-              {/* Change */}
-              <span className="text-[10px] font-mono text-green-400 w-12 text-right flex-shrink-0 font-bold">
-                {token.change}
-              </span>
-
-              {/* Age */}
-              <span className="hidden md:block text-[9px] text-gray-700 w-12 text-right flex-shrink-0 font-mono">{token.age}</span>
+              <div className="col-span-4 sm:col-span-4 text-right flex flex-col items-end">
+                 <span className="text-xs font-black text-white group-hover:text-black transition-colors">{token.price} <span className="text-[9px] text-white/30 group-hover:text-black/30 ml-1">SOL</span></span>
+                 <span className="text-[9px] font-black text-green-500 leading-none mt-1.5 tracking-tighter">DECRYPT_FOR_XP</span>
+              </div>
+              
+              {/* Corner Accents */}
+              <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-red-500/0 group-hover:border-red-500 transition-all" />
+              <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-red-500/0 group-hover:border-red-500 transition-all" />
             </Link>
           </motion.div>
         ))}
       </div>
 
-      {/* Footer */}
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-[9px] text-gray-700 font-mono">{tokens.length} documents tokenized</span>
-        <Link href="/dashboard" className="text-[9px] text-red-500/70 hover:text-red-400 font-mono tracking-wider transition-colors">
-          Launch yours →
-        </Link>
+      {/* Footer System Status - ULTRA SQUARED */}
+      <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-0 border border-white/10">
+         <div className="p-6 bg-white/[0.02] border-b sm:border-b-0 sm:border-r border-white/10">
+            <span className="text-[8px] text-white/20 uppercase tracking-[0.4em] block mb-2">NETWORK_DECRYPTION_PROGRESS</span>
+            <div className="flex items-center gap-3">
+               <div className="flex-1 h-1 bg-white/5 relative">
+                  <div className="absolute inset-0 bg-red-600/40 w-[91%]" />
+               </div>
+               <span className="text-[10px] text-red-500 font-black font-mono">91%</span>
+            </div>
+         </div>
+         <Link href="/dashboard" className="p-6 bg-red-600 hover:bg-white transition-all group flex items-center justify-between">
+            <span className="text-xs font-black text-white group-hover:text-black uppercase tracking-[0.3em]">SECURE_TERMINAL_ACCESS</span>
+            <span className="text-white group-hover:text-black text-xl">→</span>
+         </Link>
       </div>
     </div>
   )

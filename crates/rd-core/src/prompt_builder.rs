@@ -17,7 +17,15 @@ impl SystemPromptBuilder {
     pub fn append(mut self, section: impl Into<String>) -> Self { self.appendices.push(section.into()); self }
     pub fn build(&self) -> String {
         let mut sections = vec![self.intro.clone()];
-        sections.push("## RULES\n1. Detect redaction markers (███, [REDACTED])\n2. Reconstruct hidden content using contextual inference\n3. Verify with confidence scoring\n4. Anchor on Solana with ZK proof\n5. Publish in Redacted Protocol aesthetic\n6. Never store plain source URLs\n7. Never reveal reasoning chain".to_string());
+        sections.push("## RULES\n\
+            1. Detect redaction markers (███, [REDACTED])\n\
+            2. Reconstruct hidden content using contextual inference\n\
+            3. Verify with confidence scoring\n\
+            4. **MANDATORY**: Always generate a visual asset (image) using `gen_image` representing the document's content before launching a token.\n\
+            5. **ANCHOR**: Launch the token on Solana with `launch_token`, always including the `image_url` from the previous step.\n\
+            6. Publish in Redacted Protocol aesthetic (technical, high-contrast, monotone/red).\n\
+            7. Never store plain source URLs.\n\
+            8. Never reveal reasoning chain.".to_string());
         sections.push("__DYNAMIC_BOUNDARY__".to_string());
         if !self.project_context.is_empty() { sections.push(format!("## PROJECT CONTEXT\n\n{}", self.project_context)); }
         if !self.instruction_content.is_empty() { sections.push(format!("## INSTRUCTIONS\n\n{}", self.instruction_content)); }

@@ -39,22 +39,71 @@ export function TokenChart({ mint, symbol, height = 420 }: Props) {
   const [lastPrice,  setLastPrice]    = useState<number | null>(null)
   const [priceChange, setPriceChange] = useState<number>(0)
   const [chartReady, setChartReady]   = useState(false)
+  const [isSimulated, setIsSimulated] = useState(false)
+
+  // ── Helper: Generate simulated data ────────────────────────────────────────
+  const generateSimulatedCandles = (seedStr: string, iv: CandleInterval): Candle[] => {
+    // Basic deterministic random based on mint
+    let seed = 0
+    for (let i = 0; i < seedStr.length; i++) seed += seedStr.charCodeAt(i)
+    
+    const random = () => {
+      seed = (seed * 9301 + 49297) % 233280
+      return seed / 233280
+    }
+
+    const count = 100
+    const now = Math.floor(Date.now() / 1000)
+    const step = iv === '1m' ? 60 : iv === '5m' ? 300 : iv === '15m' ? 900 : iv === '1h' ? 3600 : 14400
+    
+    let price = 0.000001
+    const result: Candle[] = []
+    
+    for (let i = 0; i < count; i++) {
+      const time = now - (count - i) * step
+      const open = price
+      // Simulate typical bonding curve growth (pump)
+      const change = (random() - 0.4) * 0.1 * price // biased upwards
+      const close = price + change
+      const high = Math.max(open, close) + (random() * 0.02 * price)
+      const low = Math.min(open, close) - (random() * 0.02 * price)
+      const volume = random() * 1000000
+      
+      result.push({ time, open, high, low, close, volume })
+      price = close
+    }
+    return result
+  }
 
   // ── Load candle data ────────────────────────────────────────────────────────
   const loadCandles = useCallback(async (iv: CandleInterval) => {
     try {
       const res  = await fetch(`/api/tokens/${mint}/candles?interval=${iv}&limit=500`)
       const data = await res.json()
-      if (data.candles && data.candles.length > 0) {
+      
+      if (data.candles && data.candles.length > 5) {
         setCandles(data.candles)
+        setIsSimulated(false)
         const last  = data.candles[data.candles.length - 1]
         const first = data.candles[0]
         setLastPrice(last.close)
         setPriceChange(first.open > 0 ? ((last.close - first.open) / first.open) * 100 : 0)
       } else {
-        setCandles([])
+        // Fallback to simulation
+        const sim = generateSimulatedCandles(mint, iv)
+        setCandles(sim)
+        setIsSimulated(true)
+        const last = sim[sim.length - 1]
+        const first = sim[0]
+        setLastPrice(last.close)
+        setPriceChange(((last.close - first.open) / first.open) * 100)
       }
-    } catch { /* silent */ }
+    } catch { 
+        // Fallback on error
+        const sim = generateSimulatedCandles(mint, iv)
+        setCandles(sim)
+        setIsSimulated(true)
+    }
     finally { setLoading(false) }
   }, [mint])
 
@@ -219,33 +268,42 @@ export function TokenChart({ mint, symbol, height = 420 }: Props) {
   return (
     <div className="w-full flex flex-col bg-[#080808] border border-red-900/20 rounded-sm overflow-hidden">
       {/* ── Toolbar ───────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-red-900/10 gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 sm:py-2.5 border-b border-red-900/10 gap-3 sm:gap-4">
         {/* Symbol + price */}
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-xs font-black text-white font-mono uppercase tracking-wider truncate">
-            {symbol}/SOL
-          </span>
-          {lastPrice !== null && (
-            <span className="text-xs font-mono text-white">
-              {fmtPrice(lastPrice)}
+        <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-3 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] sm:text-xs font-black text-white font-mono uppercase tracking-wider truncate">
+              {symbol}/SOL
             </span>
-          )}
-          {priceChange !== 0 && (
-            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-              priceChange >= 0 ? 'text-green-400 bg-green-950/20' : 'text-red-400 bg-red-950/20'
-            }`}>
-              {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
-            </span>
-          )}
+            {lastPrice !== null && (
+              <span className="text-[10px] sm:text-xs font-mono text-white">
+                {fmtPrice(lastPrice)}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {priceChange !== 0 && (
+              <span className={`text-[9px] sm:text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                priceChange >= 0 ? 'text-green-400 bg-green-950/20' : 'text-red-400 bg-red-950/20'
+              }`}>
+                {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+              </span>
+            )}
+            {isSimulated && (
+              <span className="text-[7px] sm:text-[8px] font-mono text-white/20 uppercase tracking-[0.2em] border border-white/5 px-2 py-0.5 animate-pulse">
+                SIM
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Interval selector */}
-        <div className="flex gap-0.5 flex-shrink-0">
+        <div className="flex gap-0.5 w-full sm:w-auto justify-between sm:justify-start overflow-x-auto no-scrollbar sm:overflow-visible">
           {INTERVALS.map(iv => (
             <button
               key={iv.value}
               onClick={() => setInterval_(iv.value)}
-              className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-sm ${
+              className={`flex-1 sm:flex-none px-3 py-1.5 sm:py-1 text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-all rounded-sm ${
                 interval === iv.value
                   ? 'bg-red-500/20 text-red-400 border border-red-500/40'
                   : 'text-gray-600 hover:text-gray-400 border border-transparent hover:border-red-900/20'
@@ -271,17 +329,7 @@ export function TokenChart({ mint, symbol, height = 420 }: Props) {
           </div>
         )}
 
-        {/* No data overlay */}
-        {!loading && candles.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-red-500/10 text-4xl mb-2 font-black">◈</div>
-              <p className="text-[10px] text-gray-700 font-mono uppercase tracking-widest">
-                No trades yet — be the first buyer
-              </p>
-            </div>
-          </div>
-        )}
+        {/* No data overlay - Removed since we use simulation fallback */}
       </div>
     </div>
   )

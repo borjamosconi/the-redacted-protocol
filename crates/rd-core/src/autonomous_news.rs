@@ -15,6 +15,7 @@ use rd_arweave::{ArweaveClient, AnchoredContent, ArweaveTxId};
 use rd_muapi::{MuapiClient, ImageModel, AspectRatio};
 use rd_providers::Provider;
 use rd_tools::solana::{SolanaClient, FragmentSubmitResult};
+use rd_tools::twitter::TwitterClient;
 use rd_tools::launch_token::launch_document_token;
 use rd_types::image_gen::RedactedStyle;
 use sha2::{Sha256, Digest};
@@ -132,6 +133,7 @@ impl AutonomousNewsEngine {
         muapi: Option<&MuapiClient>,
         arweave: Option<&ArweaveClient>,
         solana: Option<&SolanaClient>,
+        twitter: Option<&TwitterClient>,
     ) -> usize {
         if user_ids.is_empty() {
             info!("Autonomous scan skipped — no registered users");
@@ -310,7 +312,7 @@ impl AutonomousNewsEngine {
                         terminal_url,
                     };
 
-                    self.broadcast_anchored_article(bot, user_ids, &anchored).await;
+                    self.broadcast_anchored_article(bot, user_ids, &anchored, twitter).await;
                     processed += 1;
                 }
                 Err(e) => {
@@ -593,6 +595,7 @@ impl AutonomousNewsEngine {
         bot: &rd_tools::telegram_bot::TelegramBot,
         user_ids: &[i64],
         article: &AnchoredArticle,
+        twitter: Option<&TwitterClient>,
     ) {
         let anchor_status = if article.is_fully_anchored {
             "✅ FULLY ANCHORED (Arweave + Solana)"
@@ -675,6 +678,22 @@ impl AutonomousNewsEngine {
                 info!("Broadcast to user {}", uid);
             }
             tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+
+        // Broadcast to X (Twitter)
+        if let Some(x_client) = twitter {
+            let x_msg = format!(
+                "{} DECLASSIFIED: {}\n\n{}\n\nConfidence: {}%\n\n_The file is breathing._ #Solana #AI #Redacted",
+                threat_emoji,
+                article.title,
+                if article.reconstructed_content.len() > 180 {
+                    format!("{}...", &article.reconstructed_content[..180])
+                } else {
+                    article.reconstructed_content.clone()
+                },
+                article.confidence
+            );
+            let _ = x_client.post_tweet(&x_msg).await;
         }
     }
 }

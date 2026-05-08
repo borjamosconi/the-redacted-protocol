@@ -42,6 +42,8 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
+    
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("rd_core=info,rd_tools=info,rd_hooks=info,rd_providers=info")))
         .with(tracing_subscriber::fmt::layer())
@@ -325,17 +327,17 @@ mod ralph {
 
 mod telegram_mode {
     use crate::oneshot;
-    use rd_tools::telegram_bot::{TelegramBot, UserRegistry, SCHEDULED_POSTS};
+    use rd_tools::telegram_bot::{TelegramBot, UserRegistry, TgMessage};
+    use rd_tools::twitter::TwitterClient;
     use rd_tools::airdrop::AirdropRegistry;
     use rd_tools::solana::SolanaClient;
-    use rd_tools::TgMessage;
     use rd_core::Orchestrator;
     use rd_tools::ToolRegistry;
     use rd_tools::builtins::register_builtins;
     use rd_hooks::HookRunner;
     use rd_muapi::MuapiClient;
     use rd_arweave::ArweaveClient;
-    use tracing::{error, warn, info};
+    use tracing::{error, warn, info, debug};
     use chrono::Timelike;
     use std::collections::HashSet;
 
@@ -414,8 +416,9 @@ mod telegram_mode {
         let mut users = UserRegistry::new();
         let mut airdrop = AirdropRegistry::new();
         let mut welcomed = HashSet::new();
+        let mut offered_scans = HashSet::new();
+        const MAX_OFFERED_SCANS: usize = 1000;
         let mut last_post_minute: u32 = 99;
-        let mut post_index = 0;
 
         // News intelligence (now direct mutable reference, no Arc<Mutex>)
         let mut news_scanner = rd_types::news::NewsScanner::new();
@@ -426,6 +429,11 @@ mod telegram_mode {
         let news_poll_interval = std::time::Duration::from_secs(poll_secs);
         // Set to far past so it triggers immediately on start
         let mut last_news_poll = std::time::Instant::now() - news_poll_interval - std::time::Duration::from_secs(1);
+
+        let twitter_client = TwitterClient::from_env();
+        if twitter_client.is_some() {
+            info!("X (Twitter) integration active — autonomous broadcasting enabled");
+        }
 
         info!("Bot loop started — welcome + scheduled posts + news intelligence active");
         
@@ -607,6 +615,14 @@ mod telegram_mode {
                 } else {
                     bot.send_safe(target_chat_id, post_text).await.ok();
                 }
+
+                // Broadcast to X (Twitter) — Limit to 3 times a day (every 8 hours / every 4 cycles)
+                if post_idx % 4 == 0 {
+                    if let Some(ref x_client) = twitter_client {
+                        let _ = x_client.post_tweet(post_text).await;
+                    }
+                }
+                }
             }
 
             // ─────────────────────────────────────────────────────────────
@@ -628,6 +644,7 @@ mod telegram_mode {
                     muapi_client.as_ref(),
                     arweave_client.as_ref(),
                     solana_client.as_ref(),
+                    twitter_client.as_ref(),
                 ).await;
 
                 if processed > 0 {
@@ -704,16 +721,14 @@ mod telegram_mode {
                             bot.send_safe(msg.chat_id,
                                 "🔴 *COMMANDS*\n\n\
                                 /start — Initialize connection\n\
-                                /status — System status\n\
-                                /airdrop — Check your $RDX eligibility\n\
+                                /status — Check status & $RDX eligibility\n\
+                                /airdrop <address> — Register/Update Solana wallet\n\
                                 /scan\\_news <url> — Scan article for conspiracy indicators\n\
                                 /gen\\_image <desc> — Generate AI image (Muapi.ai)\n\
                                 /gen\\_video <desc> — Generate AI video (Muapi.ai)\n\
                                 /gen\\_cinema <desc> — Cinema shot w/ camera controls\n\
                                 /help — This message\n\n\
                                 💡 *Tip:* Just paste any news URL and I'll auto-scan it!\n\n\
-                                Register wallet for airdrop:\n\
-                                [redacted-protocol.vercel.app](https://redacted-protocol.vercel.app)\n\n\
                                 Send any message for Redacted response."
                             ).await.ok();
                             continue;
@@ -733,9 +748,24 @@ mod telegram_mode {
                             continue;
                         }
 
-                        // Handle /airdrop
+                        // Handle /airdrop <wallet>
                         if msg.text.starts_with("/airdrop") {
-                            handle_airdrop_query(&mut bot, msg.chat_id, msg.user_id, &airdrop).await;
+                            let mut parts = msg.text.split_whitespace();
+                            parts.next(); // skip /airdrop
+                            if let Some(wallet) = parts.next() {
+                                // Register the wallet for the user
+                                airdrop.connect_wallet(msg.user_id, wallet);
+                                let amount = airdrop.get_amount(msg.user_id) as f64 / 1_000_000_000.0;
+                                let reply = format!(
+                                    "✅ *WALLET REGISTERED*\n\n\
+                                    Address: `{}`\n\
+                                    Bonus applied. Your new balance: *{:.2} RDX*", 
+                                    wallet, amount
+                                );
+                                bot.send_safe(msg.chat_id, &reply).await.ok();
+                            } else {
+                                handle_airdrop_query(&mut bot, msg.chat_id, msg.user_id, &airdrop).await;
+                            }
                             continue;
                         }
 

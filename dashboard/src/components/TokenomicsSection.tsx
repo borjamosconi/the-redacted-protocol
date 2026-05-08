@@ -19,85 +19,93 @@ export function TokenomicsSection() {
   // The supply below is the genesis allocation that funds the protocol.
   const allocations = [
     {
-      label:   'Launchpad Liquidity',
-      pct:     30,
-      amount:  '300M',
-      vesting: 'Locked at launch',
-      detail:  'Bonding curve seed + Raydium pool at graduation',
-      color:   'bg-rd-red',
-    },
-    {
-      label:   'Autonomous Agent',
-      pct:     20,
-      amount:  '200M',
-      vesting: 'Continuous spend',
-      detail:  'RDX-AGENT uses these to mint NFTs from censored news, fund infra, pay verifiers',
-      color:   'bg-rd-purple',
-    },
-    {
-      label:   'Community Missions',
-      pct:     20,
-      amount:  '200M',
-      vesting: 'Earn on claim',
-      detail:  'Conspiracy Points + tier rewards — earn by buying tokens',
+      label:   'Community & Airdrop',
+      pct:     25,
+      amount:  '250M',
+      vesting: 'Earn on claim / Immediate',
+      detail:  'Airdrop allocation for early testers, document submitters, and conspiracy points.',
       color:   'bg-blue-500',
     },
     {
-      label:   'Staking Rewards',
+      label:   'Presale (Preventa)',
       pct:     15,
       amount:  '150M',
-      vesting: '24 months linear',
-      detail:  'Stakers earn protocol fees + RDX emissions',
+      vesting: '30% TGE, 70% linear 12mo',
+      detail:  'Early funding for development and initial liquidity.',
+      color:   'bg-orange-500',
+    },
+    {
+      label:   'Launchpad Liquidity',
+      pct:     15,
+      amount:  '150M',
+      vesting: 'Locked at launch',
+      detail:  'Bonding curve seed liquidity and Raydium pool upon graduation.',
+      color:   'bg-rd-red',
+    },
+    {
+      label:   'Staking Rewards',
+      pct:     20,
+      amount:  '200M',
+      vesting: '36 months linear',
+      detail:  'Stakers earn protocol fees + RDX emissions.',
       color:   'bg-green-500',
     },
     {
-      label:   'DAO Treasury',
+      label:   'Agent & Ecosystem',
       pct:     10,
       amount:  '100M',
-      vesting: 'DAO vote',
-      detail:  'Governance-controlled, funds proposals + the agent\'s research targets',
-      color:   'bg-yellow-500',
+      vesting: 'Continuous spend',
+      detail:  'RDX-AGENT gas, AI API costs (OpenRouter/Muapi), and developer grants.',
+      color:   'bg-rd-purple',
     },
     {
-      label:   'Team (Vested)',
+      label:   'Team & Contributors',
+      pct:     10,
+      amount:  '100M',
+      vesting: '12mo cliff + 24mo vest',
+      detail:  'Long-term alignment for core contributors.',
+      color:   'bg-gray-500',
+    },
+    {
+      label:   'DAO Treasury',
       pct:     5,
       amount:  '50M',
-      vesting: '12mo cliff + 24mo vest',
-      detail:  'Long-term alignment',
-      color:   'bg-gray-500',
+      vesting: 'DAO vote',
+      detail:  'Governance-controlled, funds proposals + agent targets.',
+      color:   'bg-yellow-500',
     },
   ]
 
   const utility = [
     {
-      icon:   '\u{1F310}',
-      title:  'Launch a Token',
-      desc:   'Pay 0.02 SOL or stake RDX to spawn a bonding-curve token for any classified file, banned article, or conspiracy thread.',
+      icon:   '\u{1F525}',
+      title:  'Buyback & Burn',
+      desc:   '20% of all protocol fees (token launches + agent scans) are used to buy back RDX and burn it, creating permanent deflationary pressure.',
     },
     {
-      icon:   '\u{1F916}',
-      title:  'Direct the Agent',
-      desc:   'Spend RDX to make RDX-AGENT chase a specific news angle, redaction, or whistleblower lead. Output: minted NFTs.',
-    },
-    {
-      icon:   '\u{1F5F3}\u{FE0F}',
-      title:  'DAO Governance',
-      desc:   'Vote on which censored topics the agent prioritises, fee splits, listing rules, and treasury spend.',
+      icon:   '\u{26FD}',
+      title:  'AI Compute Sink',
+      desc:   'RDX acts as the raw fuel for AI inference. Each declassification cycle consumes RDX to pay for neural reconstruction and image generation.',
     },
     {
       icon:   '\u{1F512}',
-      title:  'Stake for Rewards',
-      desc:   'Lock RDX to earn 70% of every token-launch fee + protocol emissions. Higher tiers vote with more weight.',
+      title:  'Staking & Governance',
+      desc:   'Lock RDX to earn 70% of protocol fees. Higher tiers vote on which censored leaks the agent targets next.',
+    },
+    {
+      icon:   '\u{1F310}',
+      title:  'Launchpad Access',
+      desc:   'Paying the launch fee in RDX provides a 15% discount compared to SOL, incentivising the swap and hold of the native token.',
     },
     {
       icon:   '\u{1F5BC}\u{FE0F}',
-      title:  'Mint Archivo 0 NFTs',
-      desc:   'Each declassified fragment surfaced by the agent is mintable as a 1/1 NFT — the on-chain record of a redacted truth.',
+      title:  'NFT Archivo 0',
+      desc:   'Each declassified fragment is an NFT. RDX holders get exclusive early access to mint these historical records.',
     },
     {
       icon:   '\u{1F381}',
-      title:  'Mission Rewards',
-      desc:   'Submit fragments, verify others, refer users, share proofs. Each token launched reserves 5% for missions.',
+      title:  'Contributor Rewards',
+      desc:   'Earn RDX by providing manual "human-in-the-loop" verification for complex redactions that the AI cannot solve alone.',
     },
   ]
 
@@ -125,8 +133,8 @@ export function TokenomicsSection() {
             Anyone launches a token for any redacted file, banned article, or
             conspiracy thread. The autonomous <span className="text-rd-red">RDX-AGENT</span>{' '}
             continuously scrapes news for censored content and mints it on-chain.
-            RDX is the gas of the protocol — no public presale, the genesis
-            supply funds liquidity, the agent, and the community.
+            RDX is the gas of the protocol — private presale for early adopters,
+            with the remaining supply funding liquidity, the agent, and the community.
           </p>
         </div>
 

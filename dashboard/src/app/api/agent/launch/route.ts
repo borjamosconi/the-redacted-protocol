@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
 
   // ── Logo URL ──
   const logo = image_url || `https://image.pollinations.ai/prompt/${encodeURIComponent(
-    `${name} classified document token dark cyberpunk redacted`
+    `${name} classified document fragment dark cyberpunk redacted 8k photorealistic ultra-detailed cinematic lighting`
   )}`
 
   // ── Register to Redis ──

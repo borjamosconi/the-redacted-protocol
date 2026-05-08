@@ -20,6 +20,7 @@ pub const REWARD_TYPE_DOCUMENT: u8 = 0;
 pub const REWARD_TYPE_VERIFY: u8 = 1;
 pub const REWARD_TYPE_PUBLISH: u8 = 2;
 pub const REWARD_TYPE_REFERRAL: u8 = 3;
+pub const REWARD_TYPE_MISSION: u8 = 4;
 
 #[program]
 pub mod rd_rewards {
@@ -36,6 +37,7 @@ pub mod rd_rewards {
         config.verify_reward = 50_000_000_000;          // 50 RDX
         config.publish_reward = 25_000_000_000;         // 25 RDX
         config.referral_reward = 50_000_000_000;        // 50 RDX
+        config.mission_reward = 200_000_000_000;        // 200 RDX
         config.bump = ctx.bumps.reward_config;
         Ok(())
     }
@@ -131,6 +133,34 @@ pub mod rd_rewards {
         emit!(PublishRewarded {
             user: ctx.accounts.signer.key(),
             fragment_hash,
+            amount,
+        });
+        Ok(())
+    }
+
+    pub fn reward_mission(ctx: Context<DistributeRewardMission>, fragment_hash: [u8; 32]) -> Result<()> {
+        let amount = ctx.accounts.reward_config.mission_reward;
+        let now = Clock::get()?.unix_timestamp;
+
+        let record = &mut ctx.accounts.reward_record;
+        record.fragment_hash = fragment_hash;
+        record.user = ctx.accounts.signer.key();
+        record.reward_type = REWARD_TYPE_MISSION;
+        record.amount = amount;
+        record.claimed_at = now;
+
+        transfer_from_vault(
+            &ctx.accounts.reward_config,
+            &ctx.accounts.reward_vault,
+            &ctx.accounts.user_reward_account,
+            &ctx.accounts.token_program,
+            amount,
+        )?;
+        bump_total_distributed(&mut ctx.accounts.reward_config, amount)?;
+
+        emit!(MissionRewarded {
+            user: ctx.accounts.signer.key(),
+            mission_id: fragment_hash,
             amount,
         });
         Ok(())
@@ -272,6 +302,29 @@ pub struct DistributeRewardPublish<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+#[instruction(mission_id: [u8; 32])]
+pub struct DistributeRewardMission<'info> {
+    #[account(mut, seeds = [b"reward_config"], bump = reward_config.bump)]
+    pub reward_config: Account<'info, RewardConfig>,
+    #[account(mut)]
+    pub signer: Signer<'info>,
+    #[account(mut)]
+    pub reward_vault: Account<'info, anchor_spl::token::TokenAccount>,
+    #[account(mut)]
+    pub user_reward_account: Account<'info, anchor_spl::token::TokenAccount>,
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + RewardRecord::SPACE,
+        seeds = [b"reward", mission_id.as_ref(), signer.key().as_ref(), &[REWARD_TYPE_MISSION]],
+        bump,
+    )]
+    pub reward_record: Account<'info, RewardRecord>,
+    pub token_program: Program<'info, anchor_spl::token::Token>,
+    pub system_program: Program<'info, System>,
+}
+
 #[account]
 pub struct RewardConfig {
     pub authority: Pubkey,
@@ -283,11 +336,12 @@ pub struct RewardConfig {
     pub verify_reward: u64,
     pub publish_reward: u64,
     pub referral_reward: u64,
+    pub mission_reward: u64,
     pub bump: u8,
 }
 
 impl RewardConfig {
-    pub const SPACE: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 1;
+    pub const SPACE: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 1;
 }
 
 #[account]
@@ -309,6 +363,8 @@ pub struct DocumentRewarded { pub user: Pubkey, pub fragment_hash: [u8; 32], pub
 pub struct VerifyRewarded { pub user: Pubkey, pub fragment_hash: [u8; 32], pub amount: u64 }
 #[event]
 pub struct PublishRewarded { pub user: Pubkey, pub fragment_hash: [u8; 32], pub amount: u64 }
+#[event]
+pub struct MissionRewarded { pub user: Pubkey, pub mission_id: [u8; 32], pub amount: u64 }
 
 #[error_code]
 pub enum RewardsError {

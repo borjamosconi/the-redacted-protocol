@@ -488,76 +488,89 @@ export function LaunchpadPanel() {
       </div>
 
       {/* Quick Picks */}
-      <div className="mb-6">
-        <p className="text-[9px] text-gray-600 font-mono uppercase tracking-[0.3em] mb-3">
-          — Quick launch a famous document —
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <div className="mb-8 lg:mb-10">
+        <div className="flex items-center gap-4 mb-4">
+          <span className="text-[10px] text-red-600 font-black uppercase tracking-[0.4em]">QUICK_TEMPLATES</span>
+          <div className="flex-1 h-[1px] bg-white/5" />
+        </div>
+        <div className="flex sm:grid sm:grid-cols-3 overflow-x-auto sm:overflow-x-visible gap-2 sm:gap-0 border-0 sm:border border-white/10 no-scrollbar pb-4 sm:pb-0">
           {PRESETS.map(p => (
             <button
               key={p.symbol}
               type="button"
               disabled={launching}
               onClick={() => { setName(p.name); setSymbol(p.symbol); setDescription(p.desc); generateAI() }}
-              className="text-left px-3 py-2.5 border border-white/[0.05] bg-white/[0.02] hover:border-red-900/40 hover:bg-red-950/10 transition-all duration-200 group disabled:opacity-40"
+              className="flex-shrink-0 w-[140px] sm:w-auto text-left p-4 border sm:border-0 sm:border-r sm:border-b last:border-r-0 border-white/10 bg-white/[0.03] sm:bg-white/[0.01] hover:bg-white hover:border-white transition-all group disabled:opacity-40"
             >
-              <div className="text-[11px] font-black text-white font-mono group-hover:text-red-400 transition-colors">${p.symbol}</div>
-              <div className="text-[9px] text-gray-600 truncate mt-0.5">{p.name}</div>
+              <div className="text-[11px] font-black text-white group-hover:text-black transition-colors uppercase tracking-widest">${p.symbol}</div>
+              <div className="text-[8px] text-white/30 group-hover:text-black/50 truncate mt-1 uppercase font-mono tracking-tighter">{p.name}</div>
             </button>
           ))}
         </div>
       </div>
 
       {/* Divider */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex-1 h-px bg-white/[0.05]" />
-        <span className="text-[9px] text-gray-700 font-mono uppercase tracking-widest">or fill manually</span>
-        <div className="flex-1 h-px bg-white/[0.05]" />
+      <div className="flex items-center gap-6 mb-8 lg:mb-10">
+        <div className="flex-1 h-[1px] bg-red-600/20" />
+        <span className="text-[10px] text-white/20 font-mono uppercase tracking-[0.5em] whitespace-nowrap">OR CUSTOM TOKEN</span>
+        <div className="flex-1 h-[1px] bg-red-600/20" />
       </div>
 
       {/* Form card */}
-      <div className="rd-card p-6 border-red-500/10">
+      <div className="relative p-6 sm:p-8 border border-white/10 bg-white/[0.02] overflow-hidden group">
+        {/* Corner Accents */}
+        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-red-600/50" />
+        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-red-600/50" />
+        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-red-600/50" />
+        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-red-600/50" />
+        
+        {/* Technical Grid Overlay */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none" />
 
         {/* NAME + SYMBOL row */}
-        <div className="grid grid-cols-[1fr_auto] gap-3 mb-4">
-          <Field label="Document / Token name">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 sm:gap-6 mb-6">
+          <Field label="Token Name">
             <input type="text" value={name} onChange={e => setName(e.target.value)}
-              placeholder="e.g. Epstein Flight Logs Vol.II"
+              placeholder="e.g. Epstein Files"
               className="rd-input" disabled={launching} />
           </Field>
           <Field label="Ticker">
             <input type="text" value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase().slice(0, 10))}
-              placeholder="EPST" style={{ width: '90px' }}
-              className="rd-input text-center font-black" disabled={launching} />
+              placeholder="TICKER"
+              className="rd-input text-center font-black sm:w-[110px]" disabled={launching} />
           </Field>
         </div>
 
         {/* DESCRIPTION */}
-        <Field label="Document summary / narrative">
-          <textarea rows={3} value={description} onChange={e => setDescription(e.target.value)}
-            placeholder="What does this document reveal? Why was it censored?"
+        <Field label="Document Summary">
+          <textarea rows={4} value={description} onChange={e => setDescription(e.target.value)}
+            placeholder="Describe the content and narrative..."
             className="rd-input resize-none" disabled={launching} />
         </Field>
 
         {/* LOGO */}
-        <Field label="Token image">
-          <div className="flex gap-3 items-start">
+        <Field label="Token Logo">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-start">
             <div
-              className="w-20 h-20 flex-shrink-0 bg-black/60 border-2 border-dashed border-red-900/25 flex items-center justify-center overflow-hidden cursor-pointer hover:border-red-500/40 transition-colors"
+              className="w-24 h-24 flex-shrink-0 bg-black border border-white/10 flex items-center justify-center overflow-hidden cursor-pointer hover:border-red-600 transition-all relative group/logo"
               onClick={() => fileRef.current?.click()}
             >
               {logo
                 ? <img src={logo} alt="logo" className="w-full h-full object-cover" />
-                : <span className="text-red-500/20 text-3xl select-none">██</span>}
+                : <div className="flex flex-col items-center gap-1 opacity-20 group-hover/logo:opacity-50 transition-opacity">
+                    <span className="text-2xl">+</span>
+                    <span className="text-[8px] font-mono uppercase">UPLOAD</span>
+                  </div>}
+              {generating && <div className="absolute inset-0 bg-black/80 flex items-center justify-center"><div className="w-6 h-6 border-2 border-red-600 border-t-transparent animate-spin rounded-full" /></div>}
             </div>
-            <div className="flex-1 flex flex-col gap-2">
+            <div className="flex-1 flex flex-col gap-3 w-full">
               <button type="button" onClick={() => fileRef.current?.click()} disabled={launching}
-                className="py-2 px-3 text-[10px] font-mono uppercase tracking-widest border border-red-900/30 text-gray-400 hover:text-white hover:border-red-500/40 transition-all disabled:opacity-40">
-                {logo ? 'Change image' : 'Upload image'}
+                className="py-3 px-6 text-[9px] font-black uppercase tracking-[0.3em] border border-white/10 bg-white/[0.03] text-white/40 hover:bg-white hover:text-black transition-all disabled:opacity-40">
+                {logo ? 'Change Image' : 'Upload File'}
               </button>
               <button type="button" onClick={generateAI} disabled={launching || generating}
-                className="py-2 px-3 text-[10px] font-mono uppercase tracking-widest border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-40">
-                {generating ? '◌ Generating AI image…' : '✦ Generate AI image'}
+                className="py-3 px-6 text-[9px] font-black uppercase tracking-[0.3em] border border-red-600/30 bg-red-600/5 text-red-500 hover:bg-red-600 hover:text-white transition-all disabled:opacity-40">
+                {generating ? 'Generating...' : 'Generate with AI'}
               </button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
             </div>
@@ -565,39 +578,77 @@ export function LaunchpadPanel() {
         </Field>
 
         {/* OPTIONAL LINKS */}
-        <div className="mb-5">
+        <div className="mb-8">
           <button type="button" onClick={() => setShowOptional(s => !s)}
-            className="text-[10px] font-mono uppercase tracking-widest text-gray-600 hover:text-red-400 transition-colors">
-            {showOptional ? '− Hide' : '+'} Optional links (X / Website)
+            className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 hover:text-red-500 transition-colors flex items-center gap-2">
+            <span>{showOptional ? '[−]' : '[+]'}</span>
+            <span>Optional Links (X / Web)</span>
           </button>
           {showOptional && (
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <input type="text" value={twitter} onChange={e => setTwitter(e.target.value)}
-                placeholder="https://x.com/…" className="rd-input text-xs" disabled={launching} />
+                placeholder="X (Twitter) URL" className="rd-input text-[10px]" disabled={launching} />
               <input type="text" value={website} onChange={e => setWebsite(e.target.value)}
-                placeholder="https://…" className="rd-input text-xs" disabled={launching} />
+                placeholder="Website URL" className="rd-input text-[10px]" disabled={launching} />
             </div>
           )}
         </div>
 
+        {/* GAMIFICATION REWARD PREVIEW */}
+        <div className="mb-8 p-6 border border-red-500/30 bg-red-600/5 relative overflow-hidden group/reward">
+           <div className="absolute inset-0 bg-red-600/10 translate-x-[-100%] group-hover/reward:translate-x-[100%] transition-transform duration-[2000ms] ease-in-out" />
+           <div className="flex items-center justify-between relative z-10">
+              <div className="flex flex-col gap-1">
+                 <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em] mb-1">MISSION_REWARD</span>
+                 <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                       <span className="text-xl font-black text-white">+500</span>
+                       <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">XP</span>
+                    </div>
+                    <div className="w-[1px] h-4 bg-white/10" />
+                    <div className="flex items-center gap-2">
+                       <span className="text-xl font-black text-red-600">+100</span>
+                       <span className="text-[10px] font-mono text-red-600/40 uppercase tracking-widest">RDX</span>
+                    </div>
+                 </div>
+              </div>
+              <div className="w-12 h-12 rounded-full border border-red-500/20 flex items-center justify-center bg-red-500/5">
+                 <span className="text-xl animate-bounce">🎁</span>
+              </div>
+           </div>
+           <p className="mt-4 text-[9px] text-white/30 font-mono uppercase tracking-widest leading-relaxed">
+              Upon successful on-chain validation, your operator rank will be updated and $RDX assets will be credited to your testnet balance.
+           </p>
+        </div>
+
         {/* LAUNCH BUTTON */}
         <button onClick={handleLaunchClick} disabled={!canLaunch}
-          className="w-full py-5 bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-[0.4em] transition-all shadow-[0_0_20px_rgba(255,26,26,0.2)] hover:shadow-[0_0_50px_rgba(255,26,26,0.45)]">
-          {launching ? (
-            <span className="flex items-center justify-center gap-3">
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {step || 'Launching…'}
-            </span>
-          ) : !publicKey ? 'Connect wallet to launch' : LAUNCH_MODE === 'onchain' ? '⊕ Launch on Bonding Curve' : '⊕ Tokenize this document'}
+          className="w-full relative py-6 bg-red-600 hover:bg-white text-white hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-all group overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%] group-hover:animate-shimmer" />
+          <span className="relative z-10 font-black text-sm uppercase tracking-[0.4em] sm:tracking-[0.6em]">
+            {launching ? (
+              <span className="flex items-center justify-center gap-4">
+                <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                {step || 'Processing...'}
+              </span>
+            ) : !publicKey ? 'Connect Wallet' : LAUNCH_MODE === 'onchain' ? 'Launch Token' : 'Create Token'}
+          </span>
         </button>
 
         {error && (
-          <p className="mt-4 text-[10px] font-mono text-red-400 text-center break-all">⚠ {error}</p>
+          <div className="mt-6 p-4 border border-red-600/30 bg-red-600/10 text-[9px] font-mono text-red-500 uppercase tracking-widest text-center">
+             ⚠ Error: {error}
+          </div>
         )}
 
-        <p className="mt-4 text-center text-[9px] text-gray-700 font-mono">
-          {LAUNCH_MODE === 'onchain' ? 'Bonding Curve (Pump.fun style)' : '0.02 SOL Fee'} · Solana {process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'} · SPL token · {LAUNCH_MODE === 'onchain' ? 'Graduation at 85 SOL' : 'Fixed supply'}
-        </p>
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between text-[8px] text-white/20 font-mono uppercase tracking-[0.4em] gap-4">
+           <div className="flex items-center gap-4">
+              <span>{LAUNCH_MODE === 'onchain' ? 'Bonding Curve' : '0.02 SOL Fee'}</span>
+              <span className="hidden sm:block w-1 h-1 bg-white/10" />
+              <span>Solana {process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}</span>
+           </div>
+           <span>1B $RDX Supply</span>
+        </div>
       </div>
 
       <style jsx>{`

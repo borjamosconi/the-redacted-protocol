@@ -10,6 +10,7 @@ rd-muapi = { path = "../rd-muapi" }
 rd-providers = { path = "../rd-providers" }
 rd-config = { path = "../rd-config" }
 rd-arweave = { path = "../rd-arweave" }
+rd-hooks = { path = "../rd-hooks" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -27,3 +28,5 @@ bs58 = "0.5"
 base64 = "0.22"
 solana-sdk = "1.18"
 solana-client = "1.18"
+oauth1 = "1.0"
+dotenvy = "0.15"

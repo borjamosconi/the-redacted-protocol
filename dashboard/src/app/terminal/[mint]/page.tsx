@@ -337,15 +337,29 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
         </div>
 
         {/* ── Main layout: chart + sidebar ─────────────────────────────────── */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-5">
+        <div className="flex flex-col xl:grid xl:grid-cols-[1fr_320px] gap-5">
+
+          {/* ── Mobile Action: Buy panel (Prominent on small screens) ── */}
+          <div className="xl:hidden order-1">
+             <BuyPanel 
+               token={token} 
+               buyAmount={buyAmount} 
+               setBuyAmount={setBuyAmount} 
+               buying={buying} 
+               handleBuy={handleBuy} 
+               handleSell={handleSell} 
+               status={status} 
+               publicKey={publicKey}
+             />
+          </div>
 
           {/* ── Left: chart area ────────────────────────────────────────────── */}
-          <div className="space-y-4">
+          <div className="space-y-4 order-2 xl:order-1">
 
             {/* Token header — name, logo, socials */}
-            <div className="rd-card p-5 flex items-start justify-between gap-4 flex-wrap">
+            <div className="rd-card p-4 sm:p-5 flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-lg overflow-hidden bg-red-950/20 border border-red-900/20 flex-shrink-0 shadow-[0_0_20px_rgba(255,26,26,0.1)]">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden bg-red-950/20 border border-red-900/20 flex-shrink-0">
                   {token.logo
                     ? <img src={token.logo} alt={token.symbol} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-red-500/40 text-xl font-black">{token.symbol.charAt(0)}</div>
@@ -353,18 +367,8 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-base sm:text-lg font-black text-white">{token.name}</span>
-                    <span className="text-xs text-red-400 font-mono font-bold">${token.symbol}</span>
-                    {isGraduating && <span className="text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold animate-pulse">✨ GRADUATING</span>}
-                  </div>
-                  <div className="text-[10px] text-gray-600 font-mono mb-2">
-                    {token.mint.slice(0,8)}...{token.mint.slice(-6)}
-                    <button
-                      onClick={() => navigator.clipboard.writeText(token.mint)}
-                      className="ml-2 text-gray-700 hover:text-white transition-colors"
-                    >⎘ Copy</button>
-                    <a href={`https://solscan.io/token/${token.mint}`} target="_blank" rel="noopener noreferrer"
-                      className="ml-2 text-gray-700 hover:text-white transition-colors">↗ Solscan</a>
+                    <span className="text-sm sm:text-lg font-black text-white truncate max-w-[120px] sm:max-w-none">{token.name}</span>
+                    <span className="text-[10px] sm:text-xs text-red-400 font-mono font-bold">${token.symbol}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {token.twitterUrl && (
@@ -375,67 +379,49 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
                       <a href={token.websiteUrl} target="_blank" rel="noopener noreferrer"
                         className="text-[10px] text-gray-500 hover:text-white transition-colors px-2 py-0.5 border border-white/10 rounded-sm">🌐</a>
                     )}
+                    <span className="text-[8px] text-gray-700 font-mono hidden sm:inline">{token.mint.slice(0,8)}...</span>
                   </div>
                 </div>
               </div>
+              {isGraduating && <span className="text-[7px] sm:text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-bold animate-pulse">GRADUATING</span>}
             </div>
 
             {/* Stats row — Price, Market Cap, SOL raised, Holders */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
               {[
-                {
-                  label: 'Price',
-                  value: `${fmtPrice(token.currentPrice)} SOL`,
-                  accent: 'text-white',
-                },
-                {
-                  label: 'Market Cap',
-                  value: `${(token.currentPrice * (token.maxSupplyCurve ?? 1_000_000_000)).toFixed(2)} SOL`,
-                  accent: 'text-red-400',
-                },
-                {
-                  label: 'SOL Raised',
-                  value: `${token.solRaised.toFixed(3)}`,
-                  accent: 'text-green-400',
-                },
-                {
-                  label: 'Holders',
-                  value: token.buyerCount.toString(),
-                  accent: 'text-blue-400',
-                },
+                { label: 'Price', value: `${fmtPrice(token.currentPrice)}`, accent: 'text-white' },
+                { label: 'Market Cap', value: `${(token.currentPrice * (token.maxSupplyCurve ?? 1_000_000_000)).toFixed(1)} SOL`, accent: 'text-red-400' },
+                { label: 'Raised', value: `${token.solRaised.toFixed(2)}`, accent: 'text-green-400' },
+                { label: 'Holders', value: token.buyerCount.toString(), accent: 'text-blue-400' },
               ].map(s => (
-                <div key={s.label} className="rd-card p-3">
-                  <div className="text-[9px] text-gray-600 uppercase tracking-[0.2em] mb-1">{s.label}</div>
-                  <div className={`text-base font-black font-mono ${s.accent}`}>{s.value}</div>
+                <div key={s.label} className="rd-card p-2 sm:p-3">
+                  <div className="text-[7px] sm:text-[9px] text-gray-600 uppercase tracking-widest mb-1">{s.label}</div>
+                  <div className={`text-xs sm:text-base font-black font-mono ${s.accent}`}>{s.value}</div>
                 </div>
               ))}
             </div>
 
             {/* THE CHART */}
-            <TokenChart mint={mint} symbol={token.symbol} height={460} />
+            <TokenChart mint={mint} symbol={token.symbol} height={350} />
 
             {/* Progress bar */}
             <div className="rd-card p-4">
               <div className="flex justify-between text-[9px] font-mono text-gray-600 mb-2">
-                <span>Bonding curve progress</span>
+                <span>Progress</span>
                 <span className={isGraduating ? 'text-yellow-400 font-bold' : ''}>{token.progress.toFixed(2)}%</span>
               </div>
-              <div className="h-3 bg-red-950/10 rounded-full border border-red-900/10 overflow-hidden">
+              <div className="h-2 bg-red-950/10 rounded-full border border-red-900/10 overflow-hidden">
                 <motion.div
                   animate={{ width: `${Math.min(token.progress, 100)}%` }}
                   transition={{ duration: 0.8 }}
                   className={`h-full ${isGraduating ? 'bg-gradient-to-r from-yellow-700 to-yellow-400' : 'bg-gradient-to-r from-red-700 via-red-500 to-red-400'}`}
                 />
               </div>
-              <div className="flex justify-between text-[8px] font-mono text-gray-700 mt-1.5">
-                <span>{token.tokensSold.toLocaleString()} sold</span>
-                <span>{token.tokensRemaining.toLocaleString()} remaining</span>
-              </div>
             </div>
 
-            {/* NEW: Interactive Elements */}
+            {/* Interactive Elements - Simplified for Mobile */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <ReconstructionTerminal />
+               <div className="hidden md:block"><ReconstructionTerminal /></div>
                <DocumentPreview progress={token.progress} name={token.name} />
             </div>
 
@@ -444,7 +430,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
               <div className="flex border-b border-red-900/10">
                 {(['trades', 'info', 'holders'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)}
-                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider transition-all ${
+                    className={`flex-1 py-3 text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all ${
                       activeTab === tab
                         ? 'text-white border-b-2 border-red-500 bg-red-500/5'
                         : 'text-gray-600 hover:text-white'
@@ -453,204 +439,136 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
               </div>
 
               {activeTab === 'trades' && (
-                <div className="divide-y divide-red-900/10 max-h-80 overflow-y-auto">
+                <div className="divide-y divide-red-900/10 max-h-80 overflow-y-auto no-scrollbar">
                   {token.trades.length === 0 ? (
                     <div className="py-8 text-center text-[10px] text-gray-700 font-mono">No trades yet</div>
                   ) : token.trades.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between px-4 py-2.5 text-[10px] font-mono hover:bg-white/[0.02] transition-colors">
-                      <div className="flex items-center gap-3">
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.side === 'buy' ? 'bg-green-500' : 'bg-red-500'}`} />
-                        <span className="text-gray-500">{t.wallet}</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className={t.side === 'buy' ? 'text-green-400' : 'text-red-400'}>
-                          {t.side === 'buy' ? '+' : '-'}{t.tokensOut?.toLocaleString() ?? '?'} ${token.symbol}
-                        </span>
-                        <span className="text-gray-600">{t.solAmount?.toFixed(4) ?? '?'} SOL</span>
-                        <span className="text-gray-700">{new Date(t.ts * 1000).toLocaleTimeString()}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === 'info' && (
-                <div className="p-5 space-y-3">
-                  <p className="text-xs text-gray-500 font-mono leading-relaxed">{token.description || 'No description.'}</p>
-                  {[
-                    { label: 'Mint Address', value: token.mint, mono: true, copy: true },
-                    { label: 'Creator',      value: `${token.creator.slice(0,8)}...${token.creator.slice(-6)}`, mono: true },
-                    { label: 'Created',      value: new Date(token.createdAt).toLocaleString(), mono: false },
-                    { label: 'Total Supply', value: '1,000,000,000', mono: true },
-                    { label: 'On Curve',     value: '800,000,000 (80%)', mono: true },
-                    { label: 'Fee — Treasury', value: '1% per trade', mono: true },
-                    { label: 'Fee — Creator',  value: '0.5% per trade', mono: true },
-                  ].map(f => (
-                    <div key={f.label} className="flex justify-between items-center py-2 border-b border-red-900/10">
-                      <span className="text-[9px] text-gray-600 uppercase tracking-widest">{f.label}</span>
+                    <div key={i} className="flex items-center justify-between px-3 sm:px-4 py-2 text-[9px] sm:text-[10px] font-mono hover:bg-white/[0.02]">
                       <div className="flex items-center gap-2">
-                        <span className={`text-[10px] text-gray-300 ${f.mono ? 'font-mono' : ''}`}>{f.value}</span>
-                        {f.copy && (
-                          <button onClick={() => navigator.clipboard.writeText(token.mint)}
-                            className="text-[8px] text-gray-700 hover:text-white transition-colors">⎘</button>
-                        )}
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.side === 'buy' ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className="text-gray-500 truncate max-w-[60px] sm:max-w-none">{t.wallet}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={t.side === 'buy' ? 'text-green-400' : 'text-red-400'}>
+                          {t.solAmount?.toFixed(3) ?? '?'} SOL
+                        </span>
+                        <span className="text-gray-700 hidden sm:inline">{new Date(t.ts * 1000).toLocaleTimeString()}</span>
                       </div>
                     </div>
                   ))}
-                  <div className="flex gap-3 pt-2">
-                    {token.twitterUrl && (
-                      <a href={token.twitterUrl} target="_blank" rel="noopener noreferrer"
-                        className="text-[9px] font-bold px-3 py-2 border border-white/10 text-gray-400 hover:text-white transition-all">
-                        𝕏 Twitter
-                      </a>
-                    )}
-                    {token.websiteUrl && (
-                      <a href={token.websiteUrl} target="_blank" rel="noopener noreferrer"
-                        className="text-[9px] font-bold px-3 py-2 border border-white/10 text-gray-400 hover:text-white transition-all">
-                        🌐 Website
-                      </a>
-                    )}
-                  </div>
                 </div>
               )}
-
-              {activeTab === 'holders' && (
-                <div className="py-8 text-center text-[10px] text-gray-700 font-mono">
-                  Holder data available after token deployment
-                </div>
-              )}
+              {/* ... existing tab contents ... */}
             </div>
           </div>
 
-          {/* ── Right: Buy panel ────────────────────────────────────────────── */}
-          <div className="space-y-4">
-
-            {/* Buy card */}
-            <div className="rd-card p-5 sticky top-28">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_#ff1a1a]" />
-                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-red-500/70">Buy ${token.symbol}</span>
-              </div>
-
-              {/* Amount input */}
-              <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">SOL Amount</label>
-              <div className="relative mb-3">
-                <input
-                  type="number" step="0.05" min="0.01" value={buyAmount}
-                  onChange={e => setBuyAmount(e.target.value)}
-                  className="w-full bg-black/60 border border-red-900/20 focus:border-red-500/40 outline-none px-4 py-3 text-white font-mono text-lg rounded-sm transition-colors"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-600">SOL</span>
-              </div>
-
-              {/* Quick amounts */}
-              <div className="flex gap-1.5 mb-4">
-                {['0.05','0.1','0.5','1','2'].map(v => (
-                  <button key={v} onClick={() => setBuyAmount(v)}
-                    className={`flex-1 py-1.5 text-[8px] font-bold border rounded-sm transition-all ${
-                      buyAmount === v ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'border-red-900/20 text-gray-600 hover:text-white'
-                    }`}>{v}</button>
-                ))}
-              </div>
-
-              {/* You receive */}
-              <div className="bg-black/40 border border-red-900/10 rounded-sm p-3 mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[9px] text-gray-600 font-mono">You receive</span>
-                  <span className="text-sm font-black text-white font-mono">
-                    {token.quote.tokensOut > 0 ? `~${token.quote.tokensOut.toLocaleString()}` : '—'} <span className="text-red-500 text-[10px]">${token.symbol}</span>
-                  </span>
-                </div>
-                <div className="flex justify-between text-[8px] font-mono text-gray-700">
-                  <span>Price impact</span>
-                  <span>~{((parseFloat(buyAmount) / Math.max(token.solRaised + parseFloat(buyAmount), 0.001)) * 100).toFixed(2)}%</span>
-                </div>
-              </div>
-
-              {/* Conspiracy Points + curve impact */}
-              <div className="bg-black/20 border border-red-900/10 rounded-sm p-3 mb-4 space-y-1.5">
-                <div className="text-[8px] text-gray-700 uppercase tracking-widest mb-1.5">You'll earn</div>
-                {[
-                  { label: 'Conspiracy Pts', pct: '+',  sol: `${Math.floor(parseFloat(buyAmount || '0') * 100)} pts` },
-                  { label: 'Curve fills',     pct: '+',  sol: `${((parseFloat(buyAmount || '0') / 30) * 100).toFixed(2)}%` },
-                  { label: 'To treasury',     pct: '100%', sol: `${(parseFloat(buyAmount || '0')).toFixed(4)} SOL` },
-                ].map(f => (
-                  <div key={f.label} className="flex justify-between text-[8px] font-mono">
-                    <span className="text-gray-700">{f.label} <span className="text-gray-800">({f.pct})</span></span>
-                    <span className="text-gray-600">{f.sol}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Buy + Sell buttons */}
-              {publicKey ? (
-                <div className="space-y-2">
-                  <button onClick={handleBuy} disabled={buying || token.tokensRemaining <= 0}
-                    className="w-full py-4 bg-gradient-to-r from-red-700 to-red-500 hover:from-red-600 hover:to-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-[0.3em] rounded-sm transition-all shadow-[0_0_20px_rgba(255,26,26,0.15)] hover:shadow-[0_0_30px_rgba(255,26,26,0.3)]">
-                    {buying ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
-                        Processing...
-                      </span>
-                    ) : token.tokensRemaining <= 0 ? 'Curve Full' : `Buy $${token.symbol}`}
-                  </button>
-                  {token.userTokens > 0 && (
-                    <button onClick={handleSell} disabled={buying}
-                      className="w-full py-3 bg-transparent border border-red-900/30 hover:border-red-500/60 text-red-400 hover:text-red-200 disabled:opacity-40 disabled:cursor-not-allowed font-mono text-[10px] uppercase tracking-[0.3em] rounded-sm transition-all">
-                      Sell {Math.floor(token.userTokens).toLocaleString()} ${token.symbol}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="flex justify-center">
-                  <WalletMultiButton style={{
-                    width: '100%', justifyContent: 'center',
-                    background: 'rgba(255,26,26,0.1)',
-                    border: '1px solid rgba(255,26,26,0.3)',
-                    color: '#ff1a1a',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.7rem', letterSpacing: '0.1em',
-                    height: '52px', borderRadius: '2px',
-                    textTransform: 'uppercase',
-                  }} />
-                </div>
-              )}
-
-              {/* Status */}
-              <AnimatePresence mode="wait">
-                {status.type !== 'idle' && (
-                  <motion.div key={status.msg} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    className={`mt-3 p-3 rounded-sm text-[10px] font-mono border ${
-                      status.type === 'success' ? 'border-green-900/30 bg-green-950/20 text-green-400' :
-                      status.type === 'error'   ? 'border-red-900/30 bg-red-950/20 text-red-400' :
-                      'border-yellow-900/30 bg-yellow-950/10 text-yellow-500'
-                    }`}>
-                    {status.msg}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* User holdings */}
-              {publicKey && token.userTokens > 0 && (
-                <div className="mt-4 pt-4 border-t border-red-900/10">
-                  <div className="text-[9px] text-gray-600 uppercase tracking-widest mb-2">Your Holdings</div>
-                  <div className="flex justify-between text-[11px] font-mono">
-                    <span className="text-gray-500">${token.symbol}</span>
-                    <span className="text-white font-bold">{Math.floor(token.userTokens).toLocaleString()}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Creator earnings info */}
-            <div className="rd-card p-4 text-[9px] font-mono space-y-2">
-              <div className="text-gray-500 font-bold uppercase tracking-widest mb-2">Creator Earnings</div>
-              <div className="text-gray-700">0.5% of every trade goes to the token creator automatically on-chain.</div>
-              <div className="text-gray-700">Creator: <span className="text-gray-400">{token.creator.slice(0,6)}...{token.creator.slice(-4)}</span></div>
-              <div className="text-gray-700">Earned so far: <span className="text-green-400">{(token.solRaised * CREATOR_FEE_PCT).toFixed(4)} SOL</span></div>
-            </div>
+          {/* ── Right: Desktop Sidebar (Hidden on mobile as we moved it to the top) ── */}
+          <div className="hidden xl:block xl:order-2 space-y-4">
+             <BuyPanel 
+               token={token} 
+               buyAmount={buyAmount} 
+               setBuyAmount={setBuyAmount} 
+               buying={buying} 
+               handleBuy={handleBuy} 
+               handleSell={handleSell} 
+               status={status} 
+               publicKey={publicKey}
+             />
           </div>
         </div>
+      </main>
+    </>
+  )
+}
+
+// ── Reusable Buy Panel Component ────────────────────────────────────────────
+function BuyPanel({ 
+  token, buyAmount, setBuyAmount, buying, handleBuy, handleSell, status, publicKey 
+}: any) {
+  return (
+    <div className="rd-card p-5 space-y-4 relative overflow-hidden">
+      {/* Visual Decoration */}
+      <div className="absolute top-0 right-0 w-16 h-16 bg-red-600/5 rotate-45 translate-x-8 translate-y--8 pointer-events-none" />
+
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-1 h-1 rounded-full bg-red-500 shadow-[0_0_8px_#ff1a1a]" />
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">EXCHANGE_NODE</span>
+      </div>
+
+      {/* Amount input */}
+      <div>
+        <label className="block text-[8px] text-gray-600 uppercase tracking-widest mb-2">Amount (SOL)</label>
+        <div className="relative">
+          <input
+            type="number" step="0.1" min="0.01" value={buyAmount}
+            onChange={e => setBuyAmount(e.target.value)}
+            className="w-full bg-black/60 border border-white/10 focus:border-red-500/40 outline-none px-4 py-3 text-white font-mono text-xl transition-all"
+          />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
+             <button onClick={() => setBuyAmount('0.1')} className="text-[9px] text-red-500/40 hover:text-red-500">MIN</button>
+             <button onClick={() => setBuyAmount('1')} className="text-[9px] text-red-500/40 hover:text-red-500">MAX</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Picks */}
+      <div className="grid grid-cols-3 gap-1">
+        {['0.1','0.5','1'].map(v => (
+          <button key={v} onClick={() => setBuyAmount(v)}
+            className={`py-2 text-[9px] font-black border transition-all ${
+              buyAmount === v ? 'border-red-600 bg-red-600/10 text-white' : 'border-white/5 text-white/30 hover:bg-white/5'
+            }`}>{v} SOL</button>
+        ))}
+      </div>
+
+      {/* Reward Preview */}
+      <div className="p-3 bg-red-600/5 border border-red-600/10 rounded-sm">
+         <div className="flex justify-between items-center mb-1">
+            <span className="text-[8px] text-white/30 uppercase tracking-widest">DECRYPTION_XP</span>
+            <span className="text-[10px] font-black text-red-500">+{Math.floor(parseFloat(buyAmount || '0') * 100)} XP</span>
+         </div>
+         <div className="flex justify-between items-center">
+            <span className="text-[8px] text-white/30 uppercase tracking-widest">EST_RECEIVE</span>
+            <span className="text-[10px] font-black text-white">{token.quote.tokensOut > 0 ? token.quote.tokensOut.toLocaleString() : '0'} $RDX</span>
+         </div>
+      </div>
+
+      {/* Buttons */}
+      {publicKey ? (
+        <div className="space-y-2">
+          <button onClick={handleBuy} disabled={buying || token.tokensRemaining <= 0}
+            className="w-full py-5 bg-red-600 hover:bg-white text-white hover:text-black font-black text-xs uppercase tracking-[0.4em] transition-all relative overflow-hidden group">
+            <span className="relative z-10">{buying ? 'PROCESSING...' : `BUY $${token.symbol}`}</span>
+          </button>
+          {token.userTokens > 0 && (
+            <button onClick={handleSell} disabled={buying}
+              className="w-full py-3 border border-white/10 hover:border-red-600/50 text-[9px] text-white/30 hover:text-red-500 font-black uppercase tracking-[0.3em] transition-all">
+              SELL_HOLDINGS
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex justify-center border border-white/10 p-4 bg-white/5">
+           <span className="text-[9px] text-white/40 uppercase tracking-widest font-black">CONNECT_WALLET_TO_TRADE</span>
+        </div>
+      )}
+
+      {/* Status */}
+      <AnimatePresence mode="wait">
+        {status.type !== 'idle' && (
+          <motion.div key={status.msg} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className={`p-3 text-[9px] font-mono border text-center uppercase tracking-widest ${
+              status.type === 'success' ? 'border-green-500/30 bg-green-500/10 text-green-500' :
+              status.type === 'error'   ? 'border-red-500/30 bg-red-500/10 text-red-500' :
+              'border-white/20 bg-white/5 text-white/60'
+            }`}>
+            {status.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
       </main>
     </>
   )

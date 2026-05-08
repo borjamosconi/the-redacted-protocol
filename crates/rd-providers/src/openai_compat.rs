@@ -13,7 +13,7 @@ impl OpenAiCompatProvider {
             ProviderKind::OpenAi => "https://api.openai.com",
             ProviderKind::Xai => "https://api.x.ai",
             ProviderKind::DashScope => "https://dashscope.aliyuncs.com",
-            ProviderKind::OpenRouter => "https://openrouter.ai",
+            ProviderKind::OpenRouter => "https://openrouter.ai/api",
             _ => "https://api.openai.com",
         }.to_string();
         Self { http: Client::new(), api_key: api_key.into(), base_url, model: model.into(), kind }

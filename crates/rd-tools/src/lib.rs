@@ -9,6 +9,7 @@ pub mod token_config;
 pub mod rate_limiter;
 pub mod launch_token;
 pub mod muapi_tools;
+pub mod twitter;
 pub use spec::*;
 pub use registry::*;
 pub use builtins::*;

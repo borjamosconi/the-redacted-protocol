@@ -11,7 +11,7 @@
 [![Status](https://img.shields.io/badge/Status-ACTIVE-red.svg)]()
 [![Clearance](https://img.shields.io/badge/Clearance-Top%20Secret-black.svg)]()
 
-**[ACCESS TERMINAL](https://redacted.bond)** · **[INTERCEPT COMMS (BOT)](https://t.me/theredacted_bot)** · **[JOIN SYNDICATE](https://t.me/TheRedacted_sol)** · **[X_FILES](https://x.com/theprotocol_sol)**
+**[ACCESS TERMINAL](https://redacted.bond)** · **[INTERCEPT COMMS (BOT)](https://t.me/theredactedprotocol_bot)** · **[JOIN SYNDICATE](https://t.me/TheRedacted_sol)** · **[X_FILES](https://x.com/theprotocol_sol)**
 
 ---
 
@@ -26,10 +26,11 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 1. 🔍 **Scans news sources** every 30 minutes for censorship patterns
 2. 🧠 **Detects redactions** using regex + AI pattern recognition
 3. 🔄 **Reconstructs censored content** using multi-LLM inference with confidence scoring
-4. 📢 **Publishes results** to Telegram subscribers automatically
+4. 📢 **Publishes results** to Telegram and X (Twitter) automatically
 5. ⛓️ **Anchors fragments** on Solana blockchain for permanent verification
 6. 💰 **Rewards contributors** with $RDX tokens for submissions and verifications
 7. 🖼️ **Generates AI imagery & video** using Muapi.ai + Pollinations.ai
+8. 📜 **Manifesto of Truth**: A philosophical framework for information tokenization
 
 ### What Makes It Different
 
@@ -172,12 +173,13 @@ Users can upload censored documents through the dashboard. The AI agent reads, r
 
 | Allocation | % | Vesting |
 |------------|---|---------|
-| Community / Airdrop | 35% | Immediate |
-| Liquidity Pool | 20% | 6mo lock → LP burn |
+| Community & Airdrop | 25% | XP-based on claim / Immediate |
+| **Presale (Preventa)** | 15% | 30% TGE, 70% linear 12mo |
+| Liquidity | 15% | Locked at launch |
 | Staking Rewards | 20% | 36mo linear |
-| Ecosystem Dev | 10% | 3mo cliff, 18mo vest |
-| Team | 10% | 12mo cliff, 24mo vest |
-| Treasury / DAO | 5% | DAO-governed |
+| Agent Ecosystem | 10% | Continuous spend for scans |
+| Team & Contributors | 10% | 12mo cliff, 24mo vest |
+| DAO Treasury | 5% | DAO-governed |
 
 ### Utility
 1. Pay for document processing (0.1 RDX/doc)
@@ -235,8 +237,8 @@ cd dashboard && npm run dev
 | Command | Description |
 |---------|-------------|
 | `/start` | Initialize connection |
-| `/status` | System status |
-| `/airdrop` | Check $RDX eligibility |
+| `/airdrop <address>` | Register/Update Solana wallet |
+| `/status` | Check airdrop & system status |
 | `/scan_news <url>` | Scan article for censorship |
 | `/gen_image <desc>` | Generate AI image |
 | `/gen_video <desc>` | Generate AI video |
@@ -244,6 +246,15 @@ cd dashboard && npm run dev
 | `/help` | Show all commands |
 
 **Features:** Auto-detect URLs, inline keyboards, scheduled broadcasts, image generation with Muapi.ai + Pollinations.ai fallback.
+
+## 🤖 Autonomous Operation (HACKATHON)
+
+The protocol is fully autonomous and requires no human intervention to operate:
+1.  **Scheduled Leaks:** Every 2 hours, the agent declassifies a new "document fragment" (e.g., flight logs, manifests) and broadcasts it to the community with a generated visual.
+2.  **Censorship Detection:** The agent monitors global feeds and automatically flags suspicious content for reconstruction.
+3.  **Cross-Platform Broadcast:** Every 8 hours, the agent automatically tweets the most relevant declassified fragments to X (Twitter).
+4.  **Tokenization:** Fragments with high confidence are automatically launched as tokens on `redacted.bond`.
+5.  **Manifesto Integration:** The agent uses the [MANIFESTO.md](MANIFESTO.md) as its primary behavioral and philosophical directive.
 
 ---
 
@@ -320,7 +331,7 @@ the-redacted-protocol/
 | Service | URL |
 |---------|-----|
 | **Dashboard** | [redacted.bond](https://redacted.bond) |
-| **Telegram Bot** | [@theredacted_bot](https://t.me/theredacted_bot) |
+| **Telegram Bot** | [@theredactedprotocol_bot](https://t.me/theredactedprotocol_bot) |
 | **Telegram Community** | [@TheRedacted_sol](https://t.me/TheRedacted_sol) |
 | **X / Twitter** | [@theprotocol_sol](https://x.com/theprotocol_sol) |
 | **GitHub** | [whalesconspiracy-33](https://github.com/whalesconspiracy-33/the-redacted-protocol) |

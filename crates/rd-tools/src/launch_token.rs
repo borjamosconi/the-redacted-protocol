@@ -48,9 +48,9 @@ pub async fn launch_document_token(
     let payload = serde_json::json!({
         "name":        name,
         "symbol":      symbol,
-        "description": description,
+        "description": if description.is_empty() { "Declassified document fragment anchored via Redacted Protocol." } else { description },
         "category":    category,
-        "image_url":   image_url.unwrap_or(""),
+        "image_url":   if image_url.unwrap_or("").is_empty() { "https://redacted.bond/logo.png" } else { image_url.unwrap() },
         "source_url":  source_url.unwrap_or(""),
         "confidence":  confidence,
     });
@@ -115,12 +115,62 @@ pub async fn launch_document_token(
         );
     }
 
+    let mut telegram_sent = body.get("telegram_sent").and_then(|v| v.as_bool()).unwrap_or(false);
+
+    // ── Fallback Telegram broadcast ──
+    // If the dashboard API failed to send (likely due to missing env vars on the server),
+    // the agent attempts to send it directly using its own local env.
+    if !telegram_sent && !duplicate {
+        let bot_token = std::env::var("TELEGRAM_BOT_TOKEN").ok();
+        let chat_id   = std::env::var("TELEGRAM_CHAT_ID").ok();
+
+        if let (Some(token), Some(chat)) = (bot_token, chat_id) {
+            info!("[LaunchToken] Dashboard Telegram failed, attempting direct broadcast...");
+            
+            // Escape special chars for MarkdownV2 (simple version)
+            let safe_name = name.replace(|c: char| "_*[]()~`>#+-=|{}.!".contains(c), "\\$0");
+            let emoji = "🟢"; // Default for declassified
+            let msg = format!(
+                "{} *AGENT AUTO\\-LAUNCH*\n\n\
+                📄 *{}*\n\
+                🏷️ \\${} \\| CLASSIFIED\n\
+                🔬 Confidence: {}%\n\n\
+                ⛓️ `{}`\n\n\
+                🚀 [Trade \\${}]({})",
+                emoji, safe_name, sym, confidence, mint, sym, terminal_url
+            );
+
+            let tg_url = format!("https://api.telegram.org/bot{}/sendMessage", token);
+            let tg_res = client.post(&tg_url)
+                .json(&serde_json::json!({
+                    "chat_id": chat,
+                    "text": msg,
+                    "parse_mode": "MarkdownV2"
+                }))
+                .send()
+                .await;
+
+            match tg_res {
+                Ok(resp) if resp.status().is_success() => {
+                    info!("[LaunchToken] Direct Telegram broadcast successful.");
+                    telegram_sent = true;
+                }
+                Ok(resp) => {
+                    warn!("[LaunchToken] Direct Telegram failed: {}", resp.status());
+                }
+                Err(e) => {
+                    warn!("[LaunchToken] Direct Telegram exception: {}", e);
+                }
+            }
+        }
+    }
+
     Ok(TokenLaunchResult {
         mint,
         symbol: sym,
         name: name.to_string(),
         terminal_url,
-        telegram_sent: body.get("telegram_sent").and_then(|v| v.as_bool()).unwrap_or(false),
+        telegram_sent,
         on_chain: body.get("on_chain").and_then(|v| v.as_bool()).unwrap_or(false),
         tx_signature: body.get("tx_signature").and_then(|v| v.as_str()).map(String::from),
         duplicate,

@@ -16,7 +16,7 @@
 
 **Live Demo:** https://redacted.bond
 
-**Telegram Bot:** https://t.me/theredacted_bot
+**Telegram Bot:** https://t.me/theredactedprotocol_bot
 
 ---
 
@@ -41,10 +41,11 @@ Every day, governments and organizations censor thousands of documents. Redacted
 1. **Monitors** 7 major news sources every 30 minutes
 2. **Detects** censorship patterns (████, [REDACTED], etc.)
 3. **Reconstructs** censored content using LLM inference with confidence scoring
-4. **Publishes** results to Telegram subscribers automatically
+4. **Publishes** results to Telegram and X (Twitter) automatically
 5. **Anchors** verified fragments on Solana blockchain
 6. **Tokenizes** high-value declassified documents via a Bonding Curve (Pump.fun mechanics)
 7. **Rewards** community contributors with $RDX tokens
+8. **Manifesto** — Operates under a strict philosophical framework for truth declassification
 
 ### What Makes It Unique
 
@@ -125,8 +126,9 @@ Stake RDX → Earn protocol fees from document trading volume
 | Staking APY | 40% base + 10% long-term bonus |
 
 ### Distribution
-- 35% Community/Airdrop (immediate)
-- 20% Liquidity Pool (6mo lock → burn)
+- 25% Community/Airdrop (immediate)
+- 15% **Presale (Preventa)** (30% TGE, 70% linear 12mo)
+- 15% Liquidity Pool (6mo lock → burn)
 - 20% Staking Rewards (36mo linear)
 - 10% Ecosystem Development (3mo cliff)
 - 10% Team (12mo cliff, 24mo vest)
@@ -205,7 +207,7 @@ MIT
 ## 👤 Contact
 
 - **GitHub:** https://github.com/whalesconspiracy-33
-- **Telegram:** https://t.me/theredacted_bot
+- **Telegram:** https://t.me/theredactedprotocol_bot
 - **Dashboard:** https://redacted.bond
 - **Community:** https://t.me/TheRedacted_sol
 - **X / Twitter:** https://x.com/theprotocol_sol

@@ -158,6 +158,7 @@ pub mod rd_presale {
         buyer.total_sol_contributed = buyer.total_sol_contributed.saturating_add(sol_amount);
         buyer.rdx_allocated = buyer.rdx_allocated.saturating_add(rdx_amount);
         buyer.claimed = false;
+        buyer.claimed_amount = 0;
         buyer.claim_time = now;
         // Stamp the phase the buyer entered in. Once true, never flipped to
         // false on subsequent buys (early-bird buyers retain the longer
@@ -204,15 +205,35 @@ pub mod rd_presale {
         
         // Check vesting
         let now = Clock::get()?.unix_timestamp;
-        let vesting_cliff = if buyer.is_early_bird { 
-            presale.start_time + PRESALE_DURATION_SECS + (30 * 24 * 3600) // 30 days after presale
-        } else { 
-            presale.start_time + PRESALE_DURATION_SECS + (14 * 24 * 3600) // 14 days after presale
+        let presale_end = presale.end_time;
+        
+        // 30% TGE (immediate after launch)
+        // 70% Linear over 12 months
+        let total_amount = buyer.rdx_allocated;
+        let tge_amount = total_amount.checked_mul(3000).unwrap() / 10000;
+        let vesting_amount = total_amount.checked_sub(tge_amount).unwrap();
+        
+        let months_12_secs: i64 = 365 * 24 * 3600;
+        let vested_so_far = if now <= presale_end {
+            0
+        } else if now >= presale_end + months_12_secs {
+            vesting_amount
+        } else {
+            let elapsed = now - presale_end;
+            (vesting_amount as u128 * elapsed as u128 / months_12_secs as u128) as u64
         };
-        require!(now >= vesting_cliff, PresaleError::VestingCliffNotReached);
 
-        // Mark as claimed
-        buyer.claimed = true;
+        let total_releasable = tge_amount.checked_add(vested_so_far).unwrap();
+        let already_claimed = buyer.claimed_amount; // Need to add this field to BuyerStats
+        let to_claim = total_releasable.checked_sub(already_claimed).unwrap();
+        
+        require!(to_claim > 0, PresaleError::NothingToClaim);
+
+        // Update state
+        buyer.claimed_amount = buyer.claimed_amount.checked_add(to_claim).unwrap();
+        if buyer.claimed_amount == total_amount {
+            buyer.claimed = true;
+        }
         buyer.claimed_at = now;
 
         emit!(TokensClaimed {
@@ -540,6 +561,7 @@ pub struct BuyerStats {
     pub total_sol_contributed: u64,
     pub rdx_allocated: u64,
     pub claimed: bool,
+    pub claimed_amount: u64,
     pub claim_time: i64,
     pub claimed_at: i64,
     pub is_early_bird: bool,

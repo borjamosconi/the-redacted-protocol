@@ -421,7 +421,8 @@ I reconstruct what was redacted\\.
 I preserve what they tried to erase\\.
 
 \u{1F381} *\\$RDX AIRDROP* — `500 RDX`
-Register: [redacted\\-protocol\\.vercel\\.app](https://redacted-protocol.vercel.app)
+To register, use: `/airdrop <solana_address>`
+Check status anytime with the button below.
 
 Paste any news URL and I'll scan it automatically\\.
 Or use the buttons below\\.
@@ -517,7 +518,8 @@ Allocation: `{} RDX`
 Status: `{}`
 {}
 
-Register wallet: [redacted\\-protocol\\.vercel\\.app](https://redacted-protocol.vercel.app)
+Register/Update wallet: `/airdrop <address>`
+Dashboard: [redacted\\-protocol\\.vercel\\.app](https://redacted-protocol.vercel.app)
 
 _The file is breathing\\._",
             if eligible { "\u{2705} YES" } else { "\u{274C} NO" },

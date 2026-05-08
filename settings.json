@@ -1,0 +1,6 @@
+{
+  "model": "google/gemini-2.0-flash-001",
+  "permission_mode": "declassifier",
+  "solana_rpc_url": "https://api.devnet.solana.com",
+  "confidence_threshold": 0.85
+}

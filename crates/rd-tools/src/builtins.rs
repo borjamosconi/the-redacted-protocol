@@ -284,6 +284,29 @@ impl ToolHandler for ScanNewsTool {
 
 // Muapi tools are declared in lib.rs
 
+pub struct TwitterPostTool;
+#[async_trait]
+impl ToolHandler for TwitterPostTool {
+    async fn execute(&self, input: serde_json::Value) -> Result<String, ToolError> {
+        let text = input.get("message").and_then(|v| v.as_str())
+            .ok_or_else(|| ToolError::InvalidInput("missing 'message'".into()))?;
+        
+        // Try OAuth 1.0a first (full user context, required for most v2 posting)
+        if let Some(v1_client) = crate::twitter::TwitterClientV1::from_env() {
+            let id = v1_client.post_tweet(text).await
+                .map_err(|e| ToolError::ExecutionFailed(format!("Twitter v1.0a: {}", e)))?;
+            return Ok(format!("Published to X \u{2705} (ID: {})", id));
+        }
+
+        // Fallback to Bearer Token (v2 App-only, usually read-only)
+        let client = crate::twitter::TwitterClient::from_env()
+            .ok_or_else(|| ToolError::ExecutionFailed("TWITTER_ACCESS_TOKEN or TWITTER_BEARER_TOKEN not set".into()))?;
+        let id = client.post_tweet(text).await
+            .map_err(|e| ToolError::ExecutionFailed(format!("Twitter Bearer: {}", e)))?;
+        Ok(format!("Published to X \u{2705} (ID: {})", id))
+    }
+}
+
 pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("read_file", "Read a file.", file_schema(), PermissionLevel::Observer), Box::new(ReadFileTool));
     registry.register(ToolSpec::builtin("write_file", "Write a file.", write_schema(), PermissionLevel::Reconstructor), Box::new(WriteFileTool));
@@ -305,6 +328,7 @@ pub fn register_builtins(registry: &mut ToolRegistry) {
         crate::launch_token::launch_token_schema(),
         PermissionLevel::Declassifier,
     ), Box::new(crate::launch_token::LaunchTokenTool));
+    registry.register(ToolSpec::builtin("twitter_post", "Publish a tweet to X.", twitter_schema(), PermissionLevel::Declassifier), Box::new(TwitterPostTool));
 }
 
 /// Register news scanning tool (needs shared scanner).
@@ -325,6 +349,7 @@ fn search_schema() -> serde_json::Value { serde_json::json!({"type":"object","pr
 fn shell_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"command":{"type":"string"},"workdir":{"type":"string"}},"required":["command"]}) }
 fn frag_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"fragment_id":{"type":"string"},"action":{"type":"string","enum":["reconstruct","verify","anchor","publish"]}},"required":["fragment_id","action"]}) }
 fn telegram_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"message":{"type":"string","description":"Message to send"}},"required":["message"]}) }
+fn twitter_schema() -> serde_json::Value { serde_json::json!({"type":"object","properties":{"message":{"type":"string","description":"Tweet text"}},"required":["message"]}) }
 
 pub fn tool_aliases() -> HashMap<String, String> {
     HashMap::from([
@@ -333,6 +358,7 @@ pub fn tool_aliases() -> HashMap<String, String> {
         ("run".into(),"shell".into()),("inspect".into(),"inspect_fragment".into()),
         ("tg".into(),"telegram_publish".into()),("tg_status".into(),"telegram_status".into()),
         ("image".into(),"gen_image".into()),("video".into(),"gen_video".into()),("cinema".into(),"gen_cinema".into()),
+        ("tweet".into(),"twitter_post".into()),
     ])
 }
 pub fn resolve_tool_name(name: &str) -> String {
