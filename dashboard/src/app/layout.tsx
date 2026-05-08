@@ -3,6 +3,8 @@ import { Space_Grotesk, Space_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/Providers'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { Header } from '@/components/Header'
+import { Footer } from '@/components/Footer'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],

@@ -863,7 +863,6 @@
   .btn-rd-ultra:hover::before {
     @apply translate-x-0;
   }
-}
 
 .wallet-adapter-button-premium {
   background: rgba(10, 10, 10, 0.4) !important;
