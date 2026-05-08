@@ -569,7 +569,3 @@ function BuyPanel({
     </div>
   )
 }
-      </main>
-    </>
-  )
-}

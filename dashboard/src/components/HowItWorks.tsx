@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 
 const STEPS = [
   {
@@ -123,7 +124,7 @@ export function HowItWorks() {
                href="/terminal/RDX"
                className="relative flex items-center gap-4 px-12 py-4 bg-black text-white font-black text-sm uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all border border-white/10"
              >
-               ACCESS_TERMINAL_>>
+               ACCESS_TERMINAL_&gt;&gt;
              </Link>
           </div>
           <span className="mt-4 text-[9px] font-mono text-white/20 uppercase tracking-[0.5em]">SYSTEM_READY_FOR_INPUT</span>
