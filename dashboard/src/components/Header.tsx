@@ -80,62 +80,56 @@ export function Header() {
       <div className="max-w-[1920px] mx-auto">
         <div className="flex items-center justify-between h-20 sm:h-24 px-6 sm:px-12">
           
-          {/* Logo Section */}
-          <Link href="/" className="flex items-center gap-6 group">
-             <div className="relative w-12 h-12 flex items-center justify-center">
-                <div className="absolute inset-0 border-2 border-white/10 group-hover:border-red-600 group-hover:rotate-90 transition-all duration-700" />
-                <div className="absolute inset-2 border border-white/20 group-hover:border-red-500 group-hover:-rotate-45 transition-all duration-1000" />
-                <span className="text-2xl font-black text-white group-hover:text-red-600 transition-colors">R</span>
-                <div className="absolute inset-0 bg-red-600/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+          {/* Branding Section — REDESIGNED LOGO */}
+          <Link href="/" className="flex items-center gap-4 sm:gap-6 group">
+             <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
+                <div className="absolute inset-0 border border-red-600 group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-1 border border-white/20 group-hover:-rotate-12 transition-transform duration-700" />
+                <div className="absolute inset-2 border border-red-900/30 group-hover:rotate-12 transition-transform duration-1000" />
+                <div className="w-1 h-6 bg-red-600 rotate-45 group-hover:rotate-[225deg] transition-transform duration-1000" />
+                <div className="w-6 h-1 bg-white/40 -rotate-45 group-hover:-rotate-[225deg] transition-transform duration-1000" />
+                <div className="absolute inset-0 bg-red-600/10 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
              </div>
              <div className="flex flex-col leading-none">
-                <span className="text-xl font-black text-white tracking-tighter uppercase group-hover:text-red-500 transition-colors">THE_REDACTED</span>
-                <span className="text-[9px] font-mono text-red-500 font-black tracking-[0.5em] mt-1 uppercase">PROTOCOL_v2.0</span>
+                <div className="flex items-baseline gap-1">
+                   <span className="text-lg sm:text-2xl font-black text-white tracking-[-0.05em] uppercase group-hover:text-red-500 transition-colors">REDACTED</span>
+                   <span className="text-[10px] sm:text-xs font-mono text-red-600 font-black animate-pulse">PROT.</span>
+                </div>
+                <span className="text-[8px] sm:text-[9px] font-mono text-white/30 uppercase tracking-[0.4em] mt-1">SECURE_LEVEL_ALPHA</span>
              </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden xl:flex items-center gap-4">
+          {/* Desktop Navigation — REFINED */}
+          <nav className="hidden xl:flex items-center gap-2">
              {NAV_LINKS.map(link => {
                 const isActive = pathname === link.href
                 return (
-                  <Link key={link.href} href={link.href} className="relative group px-6 py-3 overflow-hidden">
-                     <div className={`absolute inset-0 ${isActive ? 'bg-red-600/10' : 'bg-white/0 group-hover:bg-white/5'} transition-all duration-500`} />
+                  <Link key={link.href} href={link.href} className="relative group px-6 py-2 overflow-hidden">
                      <div className="relative flex flex-col items-center">
-                        <span className={`text-[8px] font-mono ${isActive ? 'text-red-500' : 'text-white/20'} tracking-[0.4em] mb-1 transition-colors`}>[{link.code}]</span>
-                        <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${isActive ? 'text-white' : 'text-white/40 group-hover:text-white'} transition-colors`}>
+                        <span className={`text-[10px] font-black tracking-[0.2em] uppercase transition-all duration-300 ${
+                          isActive ? 'text-white' : 'text-white/30 group-hover:text-red-500 group-hover:tracking-[0.4em]'
+                        }`}>
                            {link.label}
                         </span>
+                        {isActive && <div className="mt-1 w-1 h-1 bg-red-600 shadow-[0_0_8px_#ff0000]" />}
                      </div>
-                     <div className={`absolute bottom-0 left-0 h-[2px] bg-red-600 transition-all duration-500 ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
                   </Link>
                 )
              })}
           </nav>
 
-          {/* Wallet / Action Area */}
+          {/* Wallet / Action Area — OPTIMIZED FOR HEIGHT */}
           <div className="flex items-center h-full">
              
-             {/* Wallet Terminal — PREMIUM BRUTALIST */}
-             <div className="relative h-24 sm:h-32 border-x border-white/5 hidden sm:flex items-center px-8 lg:px-12 bg-white/[0.01] group overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-full bg-red-600/0 group-hover:bg-red-600/5 transition-colors duration-700" />
-                
-                {/* Technical Readouts */}
-                <div className="absolute top-4 left-4 flex flex-col gap-1 pointer-events-none opacity-20 group-hover:opacity-60 transition-opacity">
-                   <span className="text-[7px] font-mono text-white uppercase tracking-widest">SECURE_LINK_ACTIVE</span>
-                   <span className="text-[7px] font-mono text-white uppercase tracking-widest">ENCRYPTION: 256_AES</span>
-                </div>
-                
-                <div className="flex flex-col gap-4">
-                   <div className="flex items-center gap-6">
-                      <div className="flex flex-col text-right">
-                         <span className="text-[8px] font-mono text-white/30 uppercase tracking-[0.3em] mb-1">AUTH_TERMINAL</span>
-                         <span className="text-[10px] font-black text-white uppercase tracking-widest">RESTRICTED_ACCESS</span>
-                      </div>
-                      <div className="relative">
-                         <div className="absolute -inset-4 bg-red-600/10 blur-xl opacity-0 group-hover:opacity-100 animate-pulse transition-opacity" />
-                         <WalletMultiButton className="rdx-premium-wallet-btn" />
-                      </div>
+             {/* Wallet Terminal — REFINED DESKTOP */}
+             <div className="relative h-20 sm:h-24 border-x border-white/5 hidden sm:flex items-center px-6 lg:px-10 bg-white/[0.01] group overflow-hidden">
+                <div className="flex items-center gap-6">
+                   <div className="hidden lg:flex flex-col text-right">
+                      <span className="text-[8px] font-mono text-white/20 uppercase tracking-[0.4em] mb-1">OPERATOR_AUTH</span>
+                      <span className="text-[9px] font-black text-red-600 uppercase tracking-widest animate-pulse">PENDING...</span>
+                   </div>
+                   <div className="relative">
+                      <WalletMultiButton className="rdx-premium-wallet-btn !h-10 !px-8 !text-[10px]" />
                    </div>
                 </div>
 
