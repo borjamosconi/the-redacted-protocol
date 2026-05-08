@@ -277,9 +277,36 @@ export function Hero() {
                 <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em]">QUALIFICATION_STATUS: ACTIVE</span>
                 <p className="text-xs sm:text-sm text-white/60 font-mono uppercase tracking-widest leading-relaxed">Only activity on the official testnet dashboard is recorded for the genesis airdrop. <br className="hidden lg:block" /> Secure your position before the supply is redacted.</p>
              </div>
-             <a href="/dashboard" className="w-full lg:w-auto px-16 py-5 bg-red-600 hover:bg-white text-white hover:text-black font-black uppercase text-xs tracking-[0.4em] transition-all shadow-[8px_8px_0px_rgba(255,0,0,0.2)] hover:shadow-none hover:translate-x-1 hover:translate-y-1">
-                START_DECRYPTION
-             </a>
+             <div className="relative z-10 flex flex-col items-center justify-center min-h-[40vh] text-center px-6">
+               <motion.div
+                 initial={{ opacity: 0, y: 20 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="space-y-6 sm:space-y-8 max-w-5xl"
+               >
+                 <div className="flex flex-col items-center gap-3 sm:gap-4">
+                   <span className="text-[10px] sm:text-xs font-mono text-red-600 font-black tracking-[0.6em] uppercase animate-pulse">
+                     STATUS: DECLASSIFYING_INTEL
+                   </span>
+                   <h1 className="text-4xl sm:text-7xl lg:text-9xl font-black text-white tracking-tighter leading-[0.9] uppercase italic">
+                     TRUTH_<span className="text-red-600">DECRYPTED</span>
+                   </h1>
+                 </div>
+
+                 <p className="text-xs sm:text-sm lg:text-lg text-white/40 font-mono max-w-2xl mx-auto leading-relaxed uppercase tracking-widest px-4">
+                   The world's first autonomous zero-knowledge AI agent dedicated to document declassification on the Solana blockchain. 
+                   <span className="hidden sm:inline"> Access the redacted. Reveal the hidden. Participate in the $RDX genesis.</span>
+                 </p>
+
+                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 pt-8 sm:pt-12">
+                    <Link href="/dashboard" className="w-full sm:w-auto px-12 sm:px-16 py-5 sm:py-6 bg-red-600 hover:bg-white text-white hover:text-black font-black uppercase text-xs sm:text-sm tracking-[0.4em] transition-all shadow-[10px_10px_0px_rgba(255,0,0,0.2)] hover:shadow-none hover:translate-x-1 hover:translate-y-1">
+                      LAUNCH_OPERATION
+                    </Link>
+                    <Link href="/terminal/Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj" className="w-full sm:w-auto px-12 sm:px-16 py-5 sm:py-6 border border-white/20 hover:border-red-600 text-white font-black uppercase text-xs sm:text-sm tracking-[0.4em] transition-all hover:bg-red-600/5">
+                      ACCESS_TERMINAL
+                    </Link>
+                 </div>
+               </motion.div>
+             </div>
           </div>
         </div>
       </div>
