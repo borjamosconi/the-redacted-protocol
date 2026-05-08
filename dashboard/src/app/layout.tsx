@@ -55,12 +55,16 @@ export default function RootLayout({
       <body className="antialiased font-grotesk">
         <ErrorBoundary>
           <Providers>
-            <div className="grid-bg min-h-screen relative">
-              <div className="scanline" />
-              <div className="vhs-overlay" />
-              {children}
-            </div>
-          </Providers>
+          <div className="grid-bg min-h-screen relative overflow-x-hidden">
+            {/* Atmosphere Overlays */}
+            <div className="scanline-premium" />
+            <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none z-[1000]" />
+            
+            <Header />
+            {children}
+            <Footer />
+          </div>
+        </Providers>
         </ErrorBoundary>
       </body>
     </html>

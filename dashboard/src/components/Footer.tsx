@@ -1,23 +1,22 @@
+import Link from 'next/link'
+
 export function Footer() {
   return (
-    <footer className="border-t border-white/5 py-24 relative overflow-hidden bg-black">
-      {/* Background decorations */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-[0.03] pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-red-600/30 to-transparent" />
+    <footer className="relative bg-black border-t border-white/5 pt-24 pb-12 overflow-hidden">
+      {/* Decorative background technical text */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.02] text-[10px] font-mono leading-none overflow-hidden select-none px-4">
+         {Array.from({ length: 20 }).map((_, i) => (
+            <div key={i} className="whitespace-nowrap mb-2">
+               {Array.from({ length: 15 }).map((_, j) => (
+                  <span key={j} className="mr-8">REDACTED_PROTOCOL_V2_RELAY_NODE_{i}_{j} // AUTH_KEY_SECURE //</span>
+               ))}
+            </div>
+         ))}
+      </div>
 
-      <div className="max-w-[1400px] mx-auto px-6 relative z-10">
-        <div className="grid lg:grid-cols-4 gap-16 mb-20">
+      <div className="max-w-[1700px] mx-auto px-6 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 mb-20">
           
-          {/* Identity Section */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="flex items-center gap-3">
-               <div className="w-8 h-8 bg-red-600 flex items-center justify-center font-black text-white text-xl rotate-45">
-                  <span className="-rotate-45">R</span>
-               </div>
-               <div className="flex flex-col leading-none">
-                  <span className="text-xl font-black text-white tracking-tighter uppercase">THE_REDACTED</span>
-                  <span className="text-[8px] font-mono text-red-500 tracking-[0.4em] mt-1 font-black">PROTOCOL_V2.0</span>
-               </div>
             </div>
             <p className="text-[10px] text-white/30 tracking-[0.2em] leading-relaxed uppercase">
               The first autonomous news reconstruction protocol on Solana. 

@@ -802,6 +802,69 @@
 }
 
 /* === WALLET ADAPTER OVERRIDES (PREMIUM GLASSMORPHISM) === */
+  /* === GLOBAL DECRYPTION ANIMATION === */
+  .decrypt-reveal {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .decrypt-reveal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--rd-red);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+    z-index: 10;
+  }
+
+  .decrypt-reveal:hover::after {
+    transform: scaleX(1);
+    opacity: 0;
+    transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.6s 0.2s;
+  }
+
+  /* REFINED SCANLINE OVERLAY */
+  .scanline-premium {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 2px;
+    background: linear-gradient(to right, transparent, rgba(255, 26, 26, 0.2), transparent);
+    z-index: 200;
+    pointer-events: none;
+    animation: scan-v2 6s linear infinite;
+  }
+
+  @keyframes scan-v2 {
+    0% { transform: translateY(-10vh); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(110vh); opacity: 0; }
+  }
+
+  /* SQUARED PREMIUM BUTTON */
+  .btn-rd-ultra {
+    @apply relative px-10 py-5 bg-black border border-white/10 text-white font-black text-xs uppercase tracking-[0.4em] transition-all overflow-hidden;
+    box-shadow: 4px 4px 0px rgba(255, 26, 26, 0.3);
+  }
+
+  .btn-rd-ultra:hover {
+    @apply border-red-600 text-red-500;
+    box-shadow: 8px 8px 0px rgba(255, 26, 26, 0.6);
+    transform: translate(-2px, -2px);
+  }
+
+  .btn-rd-ultra::before {
+    content: '';
+    @apply absolute inset-0 bg-red-600/5 translate-x-[-100%];
+    transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  .btn-rd-ultra:hover::before {
+    @apply translate-x-0;
+  }
+}
+
 .wallet-adapter-button-premium {
   background: rgba(10, 10, 10, 0.4) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
