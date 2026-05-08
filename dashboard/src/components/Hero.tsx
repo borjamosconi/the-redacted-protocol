@@ -55,12 +55,55 @@ function TechnicalGlyphs() {
 }
 
 const FEATURED = [
-  { label: 'MADURO DOSSIER', ticker: '$MADURO', price: '+942%', color: '#ff1a1a' },
-  { label: 'EPSTEIN DOCS', ticker: '$EPST', price: '+284%', color: '#ff1a1a' },
-  { label: 'JFK FILES',    ticker: '$JFK63', price: '+132%', color: '#f97316' },
-  { label: 'UFO BRIEFINGS',ticker: '$UAP51', price: '+441%', color: '#a855f7' },
-  { label: 'NSA LEAKS',    ticker: '$NSA13', price: '+193%', color: '#22d3ee' },
+  { label: 'MARS BLUEPRINTS', ticker: '$MARS', price: '+1242%', color: '#ff1a1a' },
+  { label: 'EPSTEIN LOGS',   ticker: '$EPST', price: '+584%', color: '#ff1a1a' },
+  { label: 'ANTARCTICA ICE', ticker: '$ICE',  price: '+2132%', color: '#f97316' },
+  { label: 'UFO BRIEFINGS',  ticker: '$UAP',  price: '+841%', color: '#a855f7' },
+  { label: 'QUANTUM DATA',   ticker: '$QTUM', price: '+493%', color: '#22d3ee' },
 ]
+
+function WhaleAlert() {
+  const [alert, setAlert] = useState<{ msg: string, type: 'BUY' | 'SYSTEM' } | null>(null)
+  
+  useEffect(() => {
+    const alerts = [
+      { msg: 'WHALE BOUGHT 50 SOL OF $MARS', type: 'BUY' as const },
+      { msg: 'SYSTEM: NEW LEAK DETECTED - SECTOR 9', type: 'SYSTEM' as const },
+      { msg: 'WHALE BOUGHT 22 SOL OF $EPST', type: 'BUY' as const },
+      { msg: 'AGENT-OMEGA: DECRYPTING $ICE DATA', type: 'SYSTEM' as const },
+      { msg: 'TRENDING: $QTUM VOLUME UP 300%', type: 'BUY' as const },
+    ]
+    
+    const trigger = () => {
+      setAlert(alerts[Math.floor(Math.random() * alerts.length)])
+      setTimeout(() => setAlert(null), 4000)
+    }
+    
+    const timer = setInterval(() => {
+      if (Math.random() > 0.6) trigger()
+    }, 8000)
+    
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <AnimatePresence>
+      {alert && (
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          className={`fixed bottom-10 right-10 z-[100] px-6 py-4 border font-black uppercase text-[10px] tracking-[0.3em] flex items-center gap-4 ${
+            alert.type === 'BUY' ? 'bg-green-600/10 border-green-500 text-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]' : 'bg-red-600/10 border-red-500 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]'
+          }`}
+        >
+          <div className={`w-2 h-2 rotate-45 ${alert.type === 'BUY' ? 'bg-green-500 animate-ping' : 'bg-red-500 animate-pulse'}`} />
+          {alert.msg}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
 
 export function Hero() {
   const ref = useRef<HTMLElement>(null)
@@ -79,6 +122,7 @@ export function Hero() {
 
   return (
     <section ref={ref} className="relative w-full overflow-hidden bg-black flex flex-col min-h-screen">
+      <WhaleAlert />
       {/* Background Video for Premium Feel */}
       <div className="absolute inset-0 z-0 overflow-hidden opacity-30">
         <video

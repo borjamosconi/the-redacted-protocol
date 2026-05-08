@@ -18,7 +18,12 @@ const TOKENS = [
     { name: 'Pentagon UAP Report', symbol: 'UAP', desc: 'Classified briefings on unidentified aerial phenomena.' },
     { name: 'Area 51 Personnel', symbol: 'AREA51', desc: 'Employee records and clearance levels from Groom Lake.' },
     { name: 'Project MKUltra', symbol: 'MKUL', desc: 'CIA mind control experiment archives.' },
-    { name: 'Snowden Archive', symbol: 'SNOW', desc: 'Full uncut leaks regarding global surveillance.' }
+    { name: 'Snowden Archive', symbol: 'SNOW', desc: 'Full uncut leaks regarding global surveillance.' },
+    { name: 'Mars Colonization Base', symbol: 'MARS', desc: 'Leaked blueprints of secret subterranean bases on Mars.' },
+    { name: 'Deep State Comms', symbol: 'DEEP', desc: 'Encrypted email threads between high-ranking intelligence officials.' },
+    { name: 'Antarctica Base 211', symbol: 'ICE', desc: 'Photographic evidence of pre-human structures under the ice.' },
+    { name: 'Quantum Immortality', symbol: 'QTUM', desc: 'Top-secret research on consciousness transfer during death.' },
+    { name: 'JFK Final Bullet', symbol: 'JFK', desc: 'Forensic analysis of the missing bullet from the Dallas motorcade.' }
 ]
 
 async function seed() {

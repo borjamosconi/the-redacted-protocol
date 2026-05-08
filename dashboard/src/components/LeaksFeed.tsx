@@ -14,8 +14,11 @@ interface Leak {
 
 const INITIAL_LEAKS: Leak[] = [
   { id: '1', source: 'SIGNAL-STATION-A', content: 'The package has been delivered to ██████. The ████████ is complete. Awaiting $RDX.', status: 'REDACTED', timestamp: 'JUST NOW', type: 'SIGNAL' },
+  { id: 'whale-1', source: 'ON-CHAIN-WATCHER', content: '🚨 WHALE ALERT: 150 SOL buy detected on $EPST. Supply draining fast. Liquidity locked.', status: 'DECLASSIFIED', timestamp: '1m ago', type: 'INTEL' },
   { id: '2', source: 'CIA-ARCHIVE-LEAK', content: 'Project ██████ has entered phase 2. All personnel are advised to [DATA EXPUNGED].', status: 'PARTIAL', timestamp: '12m ago', type: 'DOCUMENT' },
+  { id: 'agent-1', source: 'AGENT-OMEGA', content: 'Neutralizing censorship filters in Sector 7. Next leak in 300 seconds. Prepare for $MARS launch.', status: 'DEEP_LEAK', timestamp: '15m ago', type: 'SIGNAL' },
   { id: '3', source: 'DEEP-WEB-INTERCEPT', content: 'They are watching the bonding curve. Do not move the ██████ until 22-05.', status: 'DEEP_LEAK', timestamp: '45m ago', type: 'INTEL' },
+  { id: 'fomo-1', source: 'SYSTEM-SCANNER', content: '🔥 $UAP is trending on X. 500+ new holders in last hour. Resistance is futile.', status: 'DECLASSIFIED', timestamp: '52m ago', type: 'INTEL' },
   { id: '4', source: 'REDACTED-PROTOCOL', content: 'RDX Tokenomics declassified: 1B Supply. Fixed. 0% Tax. 100% Truth.', status: 'DECLASSIFIED', timestamp: '2h ago', type: 'INTEL' },
 ]
 
