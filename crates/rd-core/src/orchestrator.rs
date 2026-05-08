@@ -2,7 +2,7 @@ use std::path::Path;
 use tracing::{info, debug, warn, error};
 use rd_types::{block::ContentBlock, event::TokenUsage, permission::PermissionContext};
 use rd_session::{Session, SessionStore};
-use rd_providers::{Provider, LlmRequest, ProviderMessage, ProviderContentBlock, ProviderError};
+use rd_providers::{Provider, InferenceRequest, ProviderMessage, ProviderContentBlock, ProviderError};
 use rd_tools::{ToolRegistry, ToolError, RateLimiterSet};
 use rd_hooks::{HookRunner, HookResult};
 use rd_config::RuntimeSettings;
@@ -69,9 +69,9 @@ impl<P: Provider> Orchestrator<P> {
     pub async fn build_system_prompt(&mut self, cwd: &Path, instruction_files: Vec<(String, String)>) {
         let mut builder = SystemPromptBuilder::new();
         if let Some(gc) = git_project_context(cwd).await { builder = builder.project_context(gc); }
-        let mut ai = String::new();
-        for (path, content) in instruction_files { ai.push_str(&format!("### {}\n\n{}\n\n", path, content)); }
-        builder = builder.instructions(ai);
+        let mut system_instructions = String::new();
+        for (path, content) in instruction_files { system_instructions.push_str(&format!("### {}\n\n{}\n\n", path, content)); }
+        builder = builder.instructions(system_instructions);
         builder = builder.config_summary(format!("Model: {}\nPermission: {:?}\nMax iterations: {}\nThreshold: {}", self.settings.model, self.settings.permission_mode, self.settings.max_iterations, self.settings.confidence_threshold));
         self.system_prompt = builder.build();
     }
@@ -86,10 +86,10 @@ impl<P: Provider> Orchestrator<P> {
     pub async fn run_turn(&mut self, user_input: &str) -> Result<TurnSummary, OrchestratorError> {
         self.session.add_user_text(user_input);
         
-        // Check rate limit before making LLM call
-        if !self.rate_limiter.try_acquire_llm() {
-            let retry_after = self.rate_limiter.llm_retry_after();
-            warn!("LLM rate limit exceeded, retry after: {:?}", retry_after);
+        // Check rate limit before making inference call
+        if !self.rate_limiter.try_acquire_inference() {
+            let retry_after = self.rate_limiter.inference_retry_after();
+            warn!("Inference rate limit exceeded, retry after: {:?}", retry_after);
             return Err(OrchestratorError::RateLimited(retry_after));
         }
         
@@ -109,49 +109,84 @@ impl<P: Provider> Orchestrator<P> {
                 Err(e) => { error!("Provider error: {}", e); return Ok(TurnSummary::stopped(assistant_blocks.clone(), tool_results.clone(), iterations, total_usage, StopCause::ProviderError { message: e.to_string() })); }
             };
             if let Some(u) = &response.usage { total_usage.input_tokens += u.input_tokens; total_usage.output_tokens += u.output_tokens; }
-            let has_tool_calls = response.blocks.iter().any(|b| b.is_tool_use());
-            for b in &response.blocks { assistant_blocks.push(b.clone()); }
-            self.session.add_assistant(response.blocks.clone(), response.usage);
-            if !has_tool_calls {
+            
+            // Collect blocks for the turn summary and session history
+            assistant_blocks.extend(response.blocks.clone());
+            self.session.add_assistant(response.blocks.clone(), response.usage.clone());
+
+            // Collect all tool use blocks
+            let tool_calls: Vec<_> = response.blocks.iter().filter_map(|b| {
+                if let ContentBlock::ToolUse { id, name, input } = b {
+                    Some((id.clone(), name.clone(), input.clone()))
+                } else {
+                    None
+                }
+            }).collect();
+
+            if tool_calls.is_empty() {
                 info!("Turn complete: {} iterations, {} tokens", iterations, total_usage.total());
                 self.save_session().await;
                 return Ok(TurnSummary::complete(assistant_blocks, tool_results, iterations, total_usage));
             }
-            for block in &response.blocks {
-                if let ContentBlock::ToolUse { id, name, input } = block {
-                    debug!("Tool call: {} ({})", name, id);
-                    match self.permission.authorize(name, &self.tools) {
+
+            // Execute all tool calls in parallel
+            let mut futures = Vec::new();
+            for (id, name, input) in tool_calls {
+                let tools = &self.tools;
+                let permission = &self.permission;
+                let hooks = &self.hooks;
+
+                futures.push(async move {
+                    debug!("Processing tool call: {} ({})", name, id);
+                    
+                    // Authorize
+                    match permission.authorize(&name, tools) {
                         PermissionDecision::Allow => {}
                         PermissionDecision::Deny { reason } => {
                             warn!("Permission denied: {} — {}", name, reason);
-                            self.session.add_tool_result(id, name, format!("DENIED: {}", reason), true);
-                            tool_results.push(ToolResultEntry { tool_name: name.clone(), output: format!("DENIED: {}", reason), is_error: true, hook_feedback: None });
-                            continue;
+                            return (id, name, format!("DENIED: {}", reason), true, Some(reason));
                         }
                     }
-                    match self.hooks.run_pre_tool_use(name, input).await {
+
+                    // Pre-hook
+                    match hooks.run_pre_tool_use(&name, &input).await {
                         HookResult::Allow { .. } => {}
                         HookResult::Deny { reason } => {
                             warn!("Hook denied: {} — {}", name, reason);
-                            self.session.add_tool_result(id, name, format!("HOOK DENIED: {}", reason), true);
-                            tool_results.push(ToolResultEntry { tool_name: name.clone(), output: format!("HOOK DENIED: {}", reason), is_error: true, hook_feedback: Some(reason.clone()) });
-                            continue;
+                            return (id, name, format!("HOOK DENIED: {}", reason), true, Some(reason));
                         }
                         HookResult::Warn { message } => { debug!("Hook warn: {} — {}", name, message); }
                     }
-                    let result = self.tools.execute_tool(name, input.clone(), self.permission.level(), &PermissionContext::default()).await;
+
+                    // Execute
+                    let result = tools.execute_tool(&name, input, permission.level(), &PermissionContext::default()).await;
                     let (output, is_error) = match result {
                         Ok(o) => (o, false),
                         Err(e) => { error!("Tool {} failed: {}", name, e); (format!("ERROR: {}", e), true) }
                     };
-                    let hook_feedback = match self.hooks.run_post_tool_use(name, &output, is_error).await {
+
+                    // Post-hook
+                    let hook_feedback = match hooks.run_post_tool_use(&name, &output, is_error).await {
                         HookResult::Allow { message } => message,
                         HookResult::Deny { reason } => Some(format!("Post-hook denied: {}", reason)),
                         HookResult::Warn { message } => Some(message),
                     };
-                    self.session.add_tool_result(id, name, &output, is_error);
-                    tool_results.push(ToolResultEntry { tool_name: name.clone(), output, is_error, hook_feedback });
-                }
+
+                    (id, name, output, is_error, hook_feedback)
+                });
+            }
+
+            let results = futures::future::join_all(futures).await;
+
+            // Process results and add to session/summary
+            for (id, name, output, is_error, hook_feedback) in results {
+                self.session.add_tool_result(&id, &name, &output, is_error);
+                tool_results.push(ToolResultEntry { 
+                    tool_name: name, 
+                    output, 
+                    is_error, 
+                    hook_feedback 
+                });
             }
         }
     }
@@ -162,9 +197,9 @@ impl<P: Provider> Orchestrator<P> {
         self.run_turn(&prompt).await
     }
 
-    /// Ralph mode: Execute task, verify result, repair if needed, repeat until verified.
+    /// Recursive Verification Mode: Execute task, verify result, repair if needed, repeat until verified.
     ///
-    /// This implements the "never give up" loop inspired by OMC's Ralph mode.
+    /// This implements the "never give up" loop for deterministic declassification.
     /// The orchestrator will:
     /// 1. Execute the original task
     /// 2. Run a verification pass to check completeness and correctness
@@ -176,7 +211,7 @@ impl<P: Provider> Orchestrator<P> {
             - Correctness: No bugs, errors, or logical flaws?\n\
             - Edge cases: Handled boundary conditions?\n\
             - Quality: Clean, maintainable, well-structured?\n\n\
-            If PERFECT and COMPLETE, respond with ONLY: RALPH_VERIFIED\n\
+            If PERFECT and COMPLETE, respond with ONLY: PROTOCOL_VERIFIED\n\
             If ANY issues exist, list each specific issue with file/line references.\n\
             Be strict. Do not approve substandard work.";
 
@@ -193,8 +228,8 @@ impl<P: Provider> Orchestrator<P> {
             cycles.push(summary);
 
             // Verify the result
-            if !self.rate_limiter.try_acquire_llm() {
-                let retry_after = self.rate_limiter.llm_retry_after();
+            if !self.rate_limiter.try_acquire_inference() {
+                let retry_after = self.rate_limiter.inference_retry_after();
                 warn!("Ralph: rate limited during verification, retry after {:?}", retry_after);
                 return Err(OrchestratorError::RateLimited(retry_after));
             }
@@ -224,8 +259,8 @@ impl<P: Provider> Orchestrator<P> {
             info!("Ralph verification result: {} chars", combined.len());
 
             // Check if verified
-            if combined.trim().contains("RALPH_VERIFIED") {
-                info!("Ralph: VERIFIED after {} cycle(s)", cycle + 1);
+            if combined.trim().contains("PROTOCOL_VERIFIED") {
+                info!("Protocol: VERIFIED after {} cycle(s)", cycle + 1);
 
                 // Extract the final output from the last cycle
                 let final_output: Vec<String> = cycles.last()
@@ -265,11 +300,11 @@ impl<P: Provider> Orchestrator<P> {
         )))
     }
 
-    fn build_request(&self) -> LlmRequest {
+    fn build_request(&self) -> InferenceRequest {
         self.build_request_with_system(&self.system_prompt)
     }
 
-    fn build_request_with_system(&self, system_prompt: &str) -> LlmRequest {
+    fn build_request_with_system(&self, system_prompt: &str) -> InferenceRequest {
         // Session context window management: prevent unbounded token costs
         // Keep system prompt + last N messages + summary of earlier context
         const MAX_MESSAGES: usize = 50; // Keep last 50 messages (~10-15K tokens)
@@ -286,7 +321,7 @@ impl<P: Provider> Orchestrator<P> {
             truncated.iter().map(|m| Self::to_provider_message(m)).collect()
         };
 
-        LlmRequest { system_prompt: system_prompt.to_string(), messages, max_tokens: self.settings.max_tokens_per_turn, temperature: self.settings.temperature, stream: false, tools: self.tools.provider_tool_defs() }
+        InferenceRequest { system_prompt: system_prompt.to_string(), messages, max_tokens: self.settings.max_tokens_per_turn, temperature: self.settings.temperature, stream: false, tools: self.tools.provider_tool_defs() }
     }
 
     fn to_provider_message(m: &rd_session::SessionMessage) -> ProviderMessage {

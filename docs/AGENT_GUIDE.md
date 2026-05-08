@@ -1,6 +1,6 @@
 # 🧠 Redacted Protocol: The Autonomous Agent Guide
 
-The heart of the Redacted Protocol is a sophisticated, autonomous AI agent built 100% in Rust. Unlike simple chatbots, this agent is a proactive system that monitors the world, analyzes censorship, and takes action without human intervention.
+The heart of the Redacted Protocol is a sophisticated, autonomous inference engine built 100% in Rust. Unlike simple chatbots, this system is a proactive engine that monitors the world, analyzes censorship, and takes action without human intervention.
 
 ---
 

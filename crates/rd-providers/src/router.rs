@@ -53,7 +53,7 @@ impl OpenRouterMultiKey {
     }
 
     /// Send with automatic rotation and fallback across all keys
-    async fn send_with_rotation(&self, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+    async fn send_with_rotation(&self, request: InferenceRequest) -> Result<InferenceResponse, ProviderError> {
         let start_index = self.next_key_index();
         let mut last_error: Option<ProviderError> = None;
 
@@ -96,11 +96,11 @@ impl OpenRouterMultiKey {
 
 #[async_trait]
 impl Provider for OpenRouterMultiKey {
-    async fn send(&self, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+    async fn send(&self, request: InferenceRequest) -> Result<InferenceResponse, ProviderError> {
         self.send_with_rotation(request).await
     }
 
-    async fn stream(&self, request: LlmRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
+    async fn stream(&self, request: InferenceRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
         // Use first available key for streaming
         if let Some((_, provider)) = self.providers.iter().next() {
             provider.stream(request).await
@@ -134,13 +134,13 @@ impl ProviderRouter {
     pub fn registered_kinds(&self) -> Vec<ProviderKind> { self.providers.keys().cloned().collect() }
 
     /// Send a request using a specific provider (per-request provider selection).
-    pub async fn send_with(&self, kind: ProviderKind, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+    pub async fn send_with(&self, kind: ProviderKind, request: InferenceRequest) -> Result<InferenceResponse, ProviderError> {
         let p = self.get(kind).ok_or_else(|| ProviderError::NotAvailable(format!("Provider {:?} not available", kind)))?;
         p.send(request).await
     }
 
     /// Send with fallback: try the requested provider, fall back to default.
-    pub async fn send_with_fallback(&self, preferred: ProviderKind, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+    pub async fn send_with_fallback(&self, preferred: ProviderKind, request: InferenceRequest) -> Result<InferenceResponse, ProviderError> {
         if let Some(p) = self.get(preferred) {
             match p.send(request.clone()).await {
                 Ok(resp) => return Ok(resp),
@@ -157,11 +157,11 @@ impl ProviderRouter {
 
 #[async_trait]
 impl Provider for ProviderRouter {
-    async fn send(&self, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+    async fn send(&self, request: InferenceRequest) -> Result<InferenceResponse, ProviderError> {
         let p = self.default_provider().ok_or_else(|| ProviderError::NotAvailable(format!("No default provider")))?;
         p.send(request).await
     }
-    async fn stream(&self, request: LlmRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
+    async fn stream(&self, request: InferenceRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
         let p = self.default_provider().ok_or_else(|| ProviderError::NotAvailable(format!("No default provider")))?;
         p.stream(request).await
     }
@@ -215,7 +215,7 @@ pub fn from_env(default: ProviderKind) -> Result<ProviderRouter, String> {
     }
 
     if router.registered_kinds().is_empty() {
-        return Err("No LLM API keys found. For 100% free usage:\n  1. Sign up at https://openrouter.ai (free tier)\n  2. Get your API key\n  3. Set OPENROUTER_API_KEY=<your_key>\n  4. Optionally set OPENROUTER_MODEL=google/gemini-2.5-flash:free".into());
+        return Err("No inference relay keys found. For 100% free usage:\n  1. Sign up at https://openrouter.ai (free tier)\n  2. Get your API key\n  3. Set OPENROUTER_API_KEY=<your_key>".into());
     }
     Ok(router)
 }

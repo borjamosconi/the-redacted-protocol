@@ -23,7 +23,7 @@ impl OpenAiCompatProvider {
 
 #[async_trait]
 impl Provider for OpenAiCompatProvider {
-    async fn send(&self, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+    async fn send(&self, request: InferenceRequest) -> Result<InferenceResponse, ProviderError> {
         let endpoint = format!("{}/v1/chat/completions", self.base_url);
         let body = build_openai_body(&request, &self.model);
         let mut req = self.http.post(&endpoint).header("Content-Type", "application/json");
@@ -37,9 +37,9 @@ impl Provider for OpenAiCompatProvider {
         if !status.is_success() { return Err(ProviderError::Api { code: status.as_u16().to_string(), message: text }); }
         parse_openai_response(&text)
     }
-    async fn stream(&self, request: LlmRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
+    async fn stream(&self, request: InferenceRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
         let endpoint = format!("{}/v1/chat/completions", self.base_url);
-        let mut body = build_openai_body(&LlmRequest { stream: true, ..request.clone() }, &self.model);
+        let mut body = build_openai_body(&InferenceRequest { stream: true, ..request.clone() }, &self.model);
         body["stream"] = serde_json::json!(true);
         body["stream_options"] = serde_json::json!({"include_usage": true});
 
@@ -62,7 +62,7 @@ impl Provider for OpenAiCompatProvider {
     fn kind(&self) -> ProviderKind { self.kind }
 }
 
-fn build_openai_body(request: &LlmRequest, model: &str) -> serde_json::Value {
+fn build_openai_body(request: &InferenceRequest, model: &str) -> serde_json::Value {
     let mut messages = Vec::new();
     if !request.system_prompt.is_empty() { messages.push(serde_json::json!({"role": "system", "content": request.system_prompt})); }
     for msg in &request.messages {
@@ -81,7 +81,7 @@ fn build_openai_body(request: &LlmRequest, model: &str) -> serde_json::Value {
     body
 }
 
-fn parse_openai_response(text: &str) -> Result<LlmResponse, ProviderError> {
+fn parse_openai_response(text: &str) -> Result<InferenceResponse, ProviderError> {
     let json: serde_json::Value = serde_json::from_str(text)?;
     let mut blocks = Vec::new();
     if let Some(choices) = json.get("choices").and_then(|c| c.as_array()) {
@@ -106,7 +106,7 @@ fn parse_openai_response(text: &str) -> Result<LlmResponse, ProviderError> {
                 input_tokens: u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0),
                 output_tokens: u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0),
             });
-            return Ok(LlmResponse { blocks, usage, stop_reason });
+            return Ok(InferenceResponse { blocks, usage, stop_reason });
         }
     }
     Err(ProviderError::Api { code: "parse".into(), message: "No choices in response".into() })

@@ -39,7 +39,7 @@ export function Footer() {
             <h4 className="text-[10px] font-black text-white uppercase tracking-[0.5em] mb-8 border-b border-white/5 pb-4">MODULE_REGISTRY</h4>
             <div className="flex flex-col gap-4">
               {[
-                { label: 'EXEC_TERMINAL', href: '/terminal/Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj' },
+                { label: 'EXEC_TERMINAL', href: `/terminal/${process.env.NEXT_PUBLIC_RDX_TOKEN_MINT || 'HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU'}` },
                 { label: 'LAUNCH_TOKEN', href: '/dashboard' },
                 { label: 'AIRDROP_REWARDS', href: '/missions' },
                 { label: 'DOC_ARCHIVE', href: '/terminal' },
@@ -100,7 +100,7 @@ export function Footer() {
         {/* Technical Footer Bar */}
         <div className="pt-12 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-8">
           <span className="text-[9px] font-mono text-white/10 uppercase tracking-widest">
-            © 2026 THE_REDACTED_PROTOCOL // FILE_BREATHING // NO_REDACTION
+            © 2026 THE_REDACTED_PROTOCOL // Creado por Moskoni // FILE_BREATHING // NO_REDACTION
           </span>
           <div className="flex items-center gap-10">
              <div className="flex items-center gap-3">

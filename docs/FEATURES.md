@@ -1,6 +1,6 @@
 # Redacted Protocol — Complete Feature Documentation
 
-> **Autonomous, privacy-preserving, zero-knowledge AI agent for document declassification on Solana.**
+> **Autonomous, privacy-preserving, zero-knowledge inference engine for document declassification on Solana.**
 >
 > 100% Rust · Clean-room implementation · MIT Licensed · **Zero Cost to Run**
 

@@ -93,6 +93,19 @@ const REDACTION_PATTERNS = [
   /redacted|expunged|sealed|classified/i,
 ];
 
+// Bias Detection Databases
+const LEFT_BIAS_KEYWORDS = [
+  'systemic', 'marginalized', 'redistribution', 'equity', 'intersectionality',
+  'social safety net', 'collective action', 'progressive tax', 'corporate greed',
+  'climate justice', 'empowerment', 'solidarity', 'inclusion', 'diversity',
+];
+
+const RIGHT_BIAS_KEYWORDS = [
+  'sovereignty', 'free market', 'liberty', 'innovation', 'individual responsibility',
+  'deregulation', 'government overreach', 'traditional values', 'national security',
+  'patriotism', 'fiscal responsibility', 'border security', 'heritage',
+];
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
@@ -176,7 +189,7 @@ function analyzeContent(title: string, content: string): NewsFlag[] {
   const flags: NewsFlag[] = [];
   const fullText = `${title} ${content}`.toLowerCase();
 
-  // Check redaction patterns
+  // 1. Check redaction patterns
   for (const pattern of REDACTION_PATTERNS) {
     const match = fullText.match(pattern);
     if (match) {
@@ -189,7 +202,7 @@ function analyzeContent(title: string, content: string): NewsFlag[] {
     }
   }
 
-  // Check classified terms
+  // 2. Check classified terms
   for (const term of CLASSIFIED_TERMS) {
     if (fullText.includes(term.toLowerCase())) {
       flags.push({
@@ -201,31 +214,25 @@ function analyzeContent(title: string, content: string): NewsFlag[] {
     }
   }
 
-  // Check cover-up phrases
-  for (const phrase of COVERUP_PHRASES) {
-    if (fullText.includes(phrase.toLowerCase())) {
-      flags.push({
-        flag_type: 'CoverUpPattern',
-        description: `Cover-up language: '${phrase}'`,
-        confidence: 0.65,
-        context: phrase,
-      });
-    }
+  // 3. Bias Analysis (The Request)
+  let leftScore = 0;
+  let rightScore = 0;
+  for (const k of LEFT_BIAS_KEYWORDS) if (fullText.includes(k)) leftScore++;
+  for (const k of RIGHT_BIAS_KEYWORDS) if (fullText.includes(k)) rightScore++;
+  
+  const dominantBias = leftScore > rightScore ? 'LEFT' : rightScore > leftScore ? 'RIGHT' : 'NEUTRAL';
+  const biasConfidence = Math.min(0.9, (Math.abs(leftScore - rightScore) / Math.max(1, leftScore + rightScore)) + 0.3);
+
+  if (dominantBias !== 'NEUTRAL') {
+    flags.push({
+      flag_type: 'IdeologicalFraming',
+      description: `Detected ${dominantBias}-leaning narrative focus`,
+      confidence: biasConfidence,
+      context: dominantBias === 'LEFT' ? 'Social/Collective focus' : 'Liberty/Individual focus',
+    });
   }
 
-  // Check keywords
-  for (const keyword of KEYWORDS) {
-    if (fullText.includes(keyword.toLowerCase())) {
-      flags.push({
-        flag_type: 'PatternMatch',
-        description: `Conspiracy keyword match: '${keyword}'`,
-        confidence: 0.6,
-        context: keyword,
-      });
-    }
-  }
-
-  // Passive voice analysis
+  // 4. Passive voice analysis
   const passiveIndicators = ['was', 'were', 'been', 'has been', 'had been'];
   const passiveCount = passiveIndicators.filter(w => fullText.includes(w)).length;
   if (passiveCount >= 5) {

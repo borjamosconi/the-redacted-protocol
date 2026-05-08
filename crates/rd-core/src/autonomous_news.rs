@@ -11,7 +11,7 @@
 //! All steps run autonomously — zero human intervention after startup.
 
 use crate::orchestrator::Orchestrator;
-use rd_arweave::{ArweaveClient, AnchoredContent, ArweaveTxId};
+use rd_arweave::{ArweaveClient, AnchoredContent};
 use rd_muapi::{MuapiClient, ImageModel, AspectRatio};
 use rd_providers::Provider;
 use rd_tools::solana::{SolanaClient, FragmentSubmitResult};
@@ -38,7 +38,7 @@ pub struct AnchoredArticle {
     pub confidence: u8,
     pub threat_level: String,
     pub redaction_count: usize,
-    /// AI-generated image
+    /// Neural-synthesized image
     pub image_url: Option<String>,
     pub image_model: Option<String>,
     /// On-chain anchoring
@@ -119,7 +119,7 @@ impl AutonomousNewsEngine {
     /// `bot` — Telegram for broadcasting
     /// `user_ids` — registered users to notify
     /// `scanner` — news scanner with censorship detection
-    /// `muapi` — optional AI image generation
+    /// `muapi` — optional neural media synthesis
     /// `arweave` — optional Arweave client for permanent storage
     /// `solana` — optional Solana client for on-chain anchoring
     ///
@@ -192,7 +192,7 @@ impl AutonomousNewsEngine {
                         }
                     };
 
-                    // ── Step 3: Generate AI image (optional, non-blocking) ──
+                    // ── Step 3: Synthesize neural media (optional, non-blocking) ──
                     let (image_url, image_model) = if let Some(client) = muapi {
                         match self.generate_image(client, &title, &reconstruction.reconstructed_content).await {
                             Ok((u, m)) => (Some(u), Some(m)),
@@ -374,45 +374,35 @@ impl AutonomousNewsEngine {
 
     /// Parse JSON from LLM response
     fn parse_llm_json(text: &str) -> Result<(String, u8, String), String> {
-        let json_str = text
-            .trim_start_matches("```json")
-            .trim_start_matches("```")
-            .trim_end_matches("```")
-            .trim();
+        let text = text.trim();
+        
+        // Find the first '{'
+        let start = text.find('{').ok_or_else(|| {
+            format!("No JSON object found in response: {}", &text[..text.len().min(100)])
+        })?;
+        let json_part = &text[start..];
 
-        // Try direct parse first, then try finding JSON in text
-        let json_val = match serde_json::from_str::<serde_json::Value>(json_str) {
-            Ok(v) => v,
-            Err(_) => {
-                let start = match json_str.find('{') {
-                    Some(i) => i,
-                    None => return Err(format!("No JSON object found in response: {}", &text[..text.len().min(100)])),
-                };
-                let end = match json_str.rfind('}') {
-                    Some(i) => i,
-                    None => return Err(format!("No closing brace in response: {}", &text[..text.len().min(100)])),
-                };
-                serde_json::from_str(&json_str[start..=end])
-                    .map_err(|e| format!("JSON parse error: {}", e))?
-            }
-        };
+        let mut stream = serde_json::Deserializer::from_str(json_part).into_iter::<serde_json::Value>();
+        if let Some(Ok(json_val)) = stream.next() {
+            let reconstruction = json_val.get("reconstruction")
+                .and_then(|v| v.as_str())
+                .unwrap_or("[RECONSTRUCTION FAILED]")
+                .to_string();
 
-        let reconstruction = json_val.get("reconstruction")
-            .and_then(|v| v.as_str())
-            .unwrap_or("[RECONSTRUCTION FAILED]")
-            .to_string();
+            let confidence = json_val.get("confidence")
+                .and_then(|v| v.as_u64())
+                .map(|c| c.min(100) as u8)
+                .unwrap_or(50);
 
-        let confidence = json_val.get("confidence")
-            .and_then(|v| v.as_u64())
-            .map(|c| c.min(100) as u8)
-            .unwrap_or(50);
+            let reasoning = json_val.get("reasoning")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
 
-        let reasoning = json_val.get("reasoning")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+            return Ok((reconstruction, confidence, reasoning));
+        }
 
-        Ok((reconstruction, confidence, reasoning))
+        Err("Failed to parse JSON object from LLM response".to_string())
     }
 
     /// Generate a short ticker symbol from a document title
@@ -487,7 +477,7 @@ impl AutonomousNewsEngine {
         hex::encode(hasher.finalize())
     }
 
-    /// Step 3: Generate AI image
+    /// Step 3: Synthesize neural media
     async fn generate_image(
         &self,
         client: &MuapiClient,
@@ -606,7 +596,7 @@ impl AutonomousNewsEngine {
         };
 
         let img_note = article.image_url.as_ref()
-            .map(|u| format!("\n🖼️ AI Image: {}", u))
+            .map(|u| format!("\n🖼️ Neural Image: {}", u))
             .unwrap_or_default();
 
         let arweave_note = article.arweave_tx_id.as_ref()
@@ -639,7 +629,7 @@ impl AutonomousNewsEngine {
             === RECONSTRUCTED ===\n{}{}{}{}{}\n\n\
             🔑 Content Hash: {}\n\n\
             {}\n\n\
-            ⚠️ AI reconstruction — verify independently\n\
+            ⚠️ Inference-powered reconstruction — verify independently\n\
             _The file is breathing._",
             threat_emoji,
             article.threat_level,
@@ -683,7 +673,7 @@ impl AutonomousNewsEngine {
         // Broadcast to X (Twitter)
         if let Some(x_client) = twitter {
             let x_msg = format!(
-                "{} DECLASSIFIED: {}\n\n{}\n\nConfidence: {}%\n\n_The file is breathing._ #Solana #AI #Redacted",
+                "{} DECLASSIFIED: {}\n\n{}\n\nConfidence: {}%\n\n_The file is breathing._ #Solana #Neural #Redacted",
                 threat_emoji,
                 article.title,
                 if article.reconstructed_content.len() > 180 {
@@ -699,6 +689,7 @@ impl AutonomousNewsEngine {
 }
 
 /// Intermediate reconstruction result
+#[allow(dead_code)]
 struct ReconstructedArticle {
     reconstructed_content: String,
     confidence: u8,

@@ -404,7 +404,7 @@ impl TelegramBot {
                 InlineButton { text: "\u{2753} Help".into(), callback_data: "cmd:help".into(), url: None },
             ])
             .row(vec![
-                InlineButton { text: "\u{1F310} Dashboard".into(), callback_data: "".into(), url: Some("https://redacted-protocol.vercel.app".into()) },
+                InlineButton { text: "\u{1F310} Dashboard".into(), callback_data: "".into(), url: Some("https://redacted.bond".into()) },
             ])
     }
 
@@ -519,7 +519,7 @@ Status: `{}`
 {}
 
 Register/Update wallet: `/airdrop <address>`
-Dashboard: [redacted\\-protocol\\.vercel\\.app](https://redacted-protocol.vercel.app)
+Dashboard: [redacted\\.bond](https://redacted.bond)
 
 _The file is breathing\\._",
             if eligible { "\u{2705} YES" } else { "\u{274C} NO" },
@@ -542,7 +542,7 @@ Users registered: `{}`
 Feeds monitored: `7`
 
 $RDX Airdrop: `LIVE`
-Dashboard: [redacted\\-protocol\\.vercel\\.app](https://redacted-protocol.vercel.app)
+Dashboard: [redacted\\.bond](https://redacted.bond)
 
 _The file is breathing\\._",
             user_count

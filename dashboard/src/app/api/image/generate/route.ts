@@ -40,24 +40,26 @@ export async function POST(request: Request) {
 
     // Build prompt with style
     const stylePresets: Record<string, string> = {
-      censoredFigure: ', dark dystopian figure with holographic rainbow censor bars, red and orange iridescent interference, floating redacted documents, dark grid background, cinematic lighting, cyberpunk',
-      accessDenied: ', red ACCESS DENIED rubber stamp on dark background, glitch effect, VHS distortion, holographic interference, classified documents, cyberpunk dystopian, dramatic lighting',
-      floatingDocuments: ', floating redacted documents with black bars and censorship symbols, dark grid background, holographic light, classified papers scattered in void, dark aesthetic, ultra detailed',
-      circuitBoard: ', circuit board pattern with redacted elements, glowing red traces, holographic interference, dark background with grid overlay, cyberpunk tech, macro photography',
-      classifiedDoc: ', classified document with black redaction bars, TOP SECRET stamp, holographic light effects, dark moody lighting, floating in void, grid background, photorealistic',
-      glitchInterference: ', digital glitch interference pattern, holographic rainbow distortion, red and orange tones, VHS tracking error, dark background, classified document fragments, cyberpunk',
+      censoredFigure: ', dark dystopian figure with holographic rainbow censor bars, red and orange iridescent interference, floating redacted documents, dark grid background, cinematic lighting, cyberpunk, brutalist architecture, high contrast, noir aesthetic',
+      accessDenied: ', red ACCESS DENIED rubber stamp on dark background, glitch effect, VHS distortion, holographic interference, classified documents, cyberpunk dystopian, dramatic lighting, brutalist textures, gritty',
+      floatingDocuments: ', floating redacted documents with black bars and censorship symbols, dark grid background, holographic light, classified papers scattered in void, dark aesthetic, ultra detailed, brutalist minimalism',
+      circuitBoard: ', circuit board pattern with redacted elements, glowing red traces, holographic interference, dark background with grid overlay, cyberpunk tech, macro photography, industrial brutalism',
+      classifiedDoc: ', classified document with black redaction bars, TOP SECRET stamp, holographic light effects, dark moody lighting, floating in void, grid background, photorealistic, brutalist design',
+      glitchInterference: ', digital glitch interference pattern, holographic rainbow distortion, red and orange tones, VHS tracking error, dark background, classified document fragments, cyberpunk, high contrast brutalist',
+      brutalistMonolith: ', massive dark concrete monolith in a void, glowing red runes, holographic interference, redacted documents swirling around, dark atmospheric, cinematic, 8k, brutalist architecture',
+      covertSurveillance: ', grainy CCTV footage aesthetic, dark room, green and red phosphor glow, classified stamps, redacted faces, high contrast, gritty, noir thriller',
     };
 
     let finalPrompt = prompt;
     if (style && stylePresets[style]) {
       finalPrompt = prompt + stylePresets[style];
     } else {
-      finalPrompt = prompt + ', dark grid background, red and orange tones, holographic interference, cyberpunk, redacted protocol aesthetic, cinematic lighting, highly detailed, 8k';
+      finalPrompt = prompt + ', dark grid background, red and orange tones, holographic interference, cyberpunk, redacted protocol aesthetic, cinematic lighting, highly detailed, 8k, brutalist, high contrast, noir';
     }
 
     // Pollinations.ai URL (100% free, no API key)
     const seed = Math.floor(Math.random() * 999999);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=1024&height=1024&seed=${seed}&nologo=true`;
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
 
     return Response.json({
       success: true,

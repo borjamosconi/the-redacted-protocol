@@ -14,7 +14,7 @@ async function main() {
     const program = anchor.workspace.RdStaking as Program<RdStaking>;
     const wallet = provider.wallet as anchor.Wallet;
 
-    const rdxMint = new PublicKey("7av7nFSMDaQWF4WPCAptZw8n7gDsGmHchcUuKDFzQ4Gf");
+    const rdxMint = new PublicKey("HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU");
     const [poolPda] = PublicKey.findProgramAddressSync([Buffer.from("staking_pool")], program.programId);
     
     // User Stake PDA

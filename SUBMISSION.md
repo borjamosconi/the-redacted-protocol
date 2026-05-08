@@ -1,6 +1,6 @@
 # 🏆 Hackathon Submission — Redacted Protocol
 
-## Track: Autonomous Agent / AI Agent on Solana
+## Track: Autonomous Agent / Neural Engine on Solana
 
 ---
 
@@ -8,7 +8,7 @@
 
 **Project Name:** Redacted Protocol
 
-**Tagline:** Autonomous AI agent that detects, reconstructs, and tokenizes censored content via bonding curves
+**Tagline:** Autonomous Inference Engine that detects, reconstructs, and tokenizes suppressed content via bonding curves
 
 **Team:** whalesconspiracy (solo developer)
 
@@ -27,16 +27,16 @@
 **Suggested video structure (3-5 minutes):**
 1. **0:00-0:30** — Show the problem: censored documents, hidden truth
 2. **0:30-1:30** — Show the autonomous bot working: Telegram receiving auto-scans
-3. **1:30-2:30** — Show dashboard: upload a censored document, AI reconstructs it
+3. **1:30-2:30** — Show dashboard: upload a suppressed document, Neural Engine reconstructs it
 4. **2:30-3:30** — The "Pump.fun for Truth" feature: Launch a token tied to the declassified document
-5. **3:30-4:30** — Show the autonomous agent scanning news autonomously
+5. **3:30-4:30** — Show the autonomous inference engine scanning news autonomously
 6. **4:30-5:00** — Close: architecture overview, future roadmap
 
 ---
 
 ## 📖 Description
 
-Every day, governments and organizations censor thousands of documents. Redacted Protocol is an autonomous AI agent that:
+Every day, governments and organizations suppress thousands of documents. Redacted Protocol is an autonomous inference engine that:
 
 1. **Monitors** 7 major news sources every 30 minutes
 2. **Detects** censorship patterns (████, [REDACTED], etc.)
@@ -52,7 +52,7 @@ Every day, governments and organizations censor thousands of documents. Redacted
 - **Fully autonomous** — No human input needed after deployment
 - **Real-time** — Instant Telegram broadcasts when censorship is found
 - **Multi-source** — Scans Reuters, AP, Al Jazeera, The Guardian, BBC, CNN, NYT
-- **AI-powered** — Context-aware reconstruction, not just pattern matching
+- **Inference-powered** — Context-aware reconstruction, not just pattern matching
 - **Blockchain-backed** — Fragment verification on Solana
 - **Document Launchpad** — The first platform to tokenize declassified truth via a Solana Bonding Curve
 - **Incentivized** — Token rewards create a self-sustaining ecosystem
@@ -73,12 +73,12 @@ Every 30 minutes:
 
 ### Document Analysis Pipeline
 ```
-Upload document → Detect redactions → AI reconstruct → Show results → Optional: publish to Telegram
+Upload document → Detect redactions → Neural reconstruct → Show results → Optional: publish to Telegram
 ```
 
 ### Token System & Document Launchpad
 ```
-Submit censored doc → AI Reconstructs → Document becomes tradeable
+Submit suppressed doc → Neural Reconstructs → Document becomes tradeable
 Token Launch → Fair launch via Bonding Curve (Pump.fun mechanics)
 Stake RDX → Earn protocol fees from document trading volume
 ```

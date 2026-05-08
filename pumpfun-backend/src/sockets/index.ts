@@ -12,8 +12,9 @@ import { logger } from './logger'
  * /api/tokens/:mint/trade route push into `io.to('mint:<pubkey>').emit('trade', ...)`.
  */
 const socketio = async (server: any): Promise<Server> => {
+  const origins = process.env.CORS_ORIGIN?.split(',') ?? ['http://localhost:3001']
   const io = new Server(server, {
-    cors: { origin: '*', methods: ['GET', 'POST'] },
+    cors: { origin: origins, methods: ['GET', 'POST'] },
   })
 
   io.on('connection', (socket: Socket) => {

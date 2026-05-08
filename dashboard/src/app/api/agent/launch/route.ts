@@ -28,6 +28,8 @@ import {
 } from '@solana/spl-token'
 import bs58 from 'bs58'
 
+import { TwitterApi } from 'twitter-api-v2'
+
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
@@ -35,6 +37,14 @@ const redis = new Redis({
   url: process.env.UPSTASH_REDIS_URL!,
   token: process.env.UPSTASH_REDIS_TOKEN!,
 })
+
+// Initialize Twitter Client
+const twitterClient = process.env.TWITTER_CONSUMER_KEY ? new TwitterApi({
+  appKey:      process.env.TWITTER_CONSUMER_KEY!,
+  appSecret:   process.env.TWITTER_CONSUMER_SECRET!,
+  accessToken: process.env.TWITTER_ACCESS_TOKEN!,
+  accessSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET!,
+}).readWrite : null
 
 const KEY_INDEX  = 'rdx:tokens'
 const KEY_TOKEN  = (m: string) => `rdx:token:${m}`
@@ -205,7 +215,6 @@ export async function POST(req: NextRequest) {
 
   if (botToken && chatId) {
     try {
-      // Escape special chars for MarkdownV2
       const safeName = String(name).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&')
       const msg =
         `${emoji} *AGENT AUTO\\-LAUNCH*\n\n` +
@@ -231,9 +240,29 @@ export async function POST(req: NextRequest) {
         }
       )
       telegramSent = tgRes.ok
-      if (!tgRes.ok) console.error('[AgentLaunch] Telegram error:', await tgRes.text())
     } catch (e) {
-      console.error('[AgentLaunch] Telegram exception:', e)
+      console.error('[AgentLaunch] Telegram failed:', e)
+    }
+  }
+
+  // ── Twitter broadcast ──
+  let twitterSent = false
+  if (twitterClient) {
+    try {
+      const tweetText = 
+        `${emoji} NEW DECLASSIFICATION DETECTED\n\n` +
+        `DOCUMENT: ${name.toUpperCase()}\n` +
+        `SYMBOL: $${ticker}\n` +
+        `CONFIDENCE: ${confidence}%\n\n` +
+        `UNCOVER THE TRUTH:\n` +
+        `${terminalUrl}\n\n` +
+        `#RedactedProtocol #Solana #AI`
+      
+      await twitterClient.v2.tweet(tweetText)
+      twitterSent = true
+      console.log(`[AgentLaunch] ✅ Tweeted for ${ticker}`)
+    } catch (e) {
+      console.error('[AgentLaunch] Twitter failed:', e)
     }
   }
 
@@ -244,6 +273,7 @@ export async function POST(req: NextRequest) {
     name,
     terminal_url:  terminalUrl,
     telegram_sent: telegramSent,
+    twitter_sent:  twitterSent,
     on_chain:      onChain,
     tx_signature:  launchTxSignature || null,
   })

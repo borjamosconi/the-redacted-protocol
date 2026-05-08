@@ -1,8 +1,8 @@
-# 🔴 Redacted Protocol — Autonomous AI Agent for Document Declassification
+# 🔴 Redacted Protocol — Autonomous Neural System for Document Declassification
 
 > **Colosseum Agent Hackathon — Solana**
 >
-> An autonomous AI agent that detects, reconstructs, and declassifies censored content in news articles and documents. Built 100% in Rust with Solana anchoring, Telegram broadcasting, and a Next.js dashboard.
+> An autonomous intelligence engine that detects, reconstructs, and declassifies restricted content in news articles and documents. Built 100% in Rust with Solana anchoring, Telegram broadcasting, and a Next.js dashboard.
 
 [![Rust](https://img.shields.io/badge/Rust-1.83-orange)](https://www.rust-lang.org/)
 [![Solana](https://img.shields.io/badge/Solana-1.18-purple)](https://solana.com/)
@@ -18,11 +18,11 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 
 ## 💡 Our Solution
 
-**Redacted Protocol** is an autonomous AI agent that:
+**Redacted Protocol** is an autonomous neural engine that:
 
 1. **Scans news sources** every 30 minutes for censorship patterns
-2. **Detects redactions** using regex + AI pattern recognition
-3. **Reconstructs censored content** using LLM inference with confidence scoring
+2. **Detects redactions** using regex + heuristic pattern recognition
+3. **Reconstructs censored content** using multi-vector inference with confidence scoring
 4. **Publishes results** to Telegram subscribers automatically
 5. **Anchors fragments** on Solana blockchain for permanent verification
 6. **Tokenizes documents** via a custom Bonding Curve (Pump.fun mechanics)
@@ -34,7 +34,7 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 |---------|--------|-------------------|
 | **Autonomous** | Manual analysis | Self-scanning every 30 min |
 | **Multi-source** | Single source | 7 major news outlets |
-| **AI Reconstruction** | Pattern detection only | LLM-powered context inference |
+| **Neural Reconstruction** | Pattern detection only | Inference-powered context recovery |
 | **Blockchain Anchoring** | None | Solana fragment verification |
 | **Real-time Alerts** | Batch reports | Instant Telegram broadcasts |
 | **Document Launchpad** | None | Tokenize truth via Solana Bonding Curve |
@@ -49,7 +49,7 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 │                    REDACTED PROTOCOL                        │
 │                                                             │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │              AUTONOMOUS AGENT (Rust)                  │  │
+│  │              AUTONOMOUS ENGINE (Rust)                 │  │
 │  │                                                       │  │
 │  │  ┌──────────┐  ┌──────────┐  ┌────────────────────┐  │  │
 │  │  │ReAct Loop│  │Providers │  │Tool Registry       │  │  │
@@ -74,7 +74,7 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 │  │             │  │             │  │                 │    │
 │  │• Auto-scan  │  │• Fragment   │  │• Upload docs    │    │
 │  │• Broadcast  │  │• Staking    │  │• OCR Analysis   │    │
-│  │• Commands   │  │• Token RDX  │  │• Reconstruct AI │    │
+│  │• Commands   │  │• Token RDX  │  │• Neural Recon   │    │
 │  │• Airdrop    │  │• Treasury   │  │• Gamification   │    │
 │  └─────────────┘  └─────────────┘  └─────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
@@ -92,11 +92,11 @@ Every 30 minutes, the agent:
 - Detects redaction markers and classifies threat level
 - Flags suspicious articles for reconstruction
 
-### 2. AI-Powered Reconstruction
+### 2. Neural Reconstruction
 
 When censorship is detected:
-- Agent sends censored text to LLM with context
-- LLM reconstructs likely original content based on:
+- Engine sends censored text to a high-fidelity inference provider with context
+- System reconstructs likely original content based on:
   - Surrounding context and historical facts
   - Journalistic style and logical flow
   - Cross-referencing known events
@@ -116,7 +116,7 @@ Reconstructed articles are:
 Users can:
 - **Upload** censored documents (text, images via OCR)
 - **Analyze** automatic redaction detection
-- **Reconstruct** via AI with confidence scoring
+- **Reconstruct** via neural-triangulation with confidence scoring
 - **Tokenize** truth: Launch a token for the document via the Bonding Curve
 - **Track** progress in real-time
 - **Earn** XP and $RDX rewards for contributions
@@ -163,12 +163,12 @@ Users can:
 | **rd-core** | ReAct loop, Orchestrator, Permission Checker | 581 |
 | **rd-tools** | Tool Registry, Rate Limiter, Airdrop, Telegram | 1,639 |
 | **rd-types** | Shared types: Fragment, Confidence, News | 1,719 |
-| **rd-providers** | Multi-LLM Router (OpenRouter, Anthropic, etc.) | 594 |
+| **rd-providers** | Multi-provider Router (OpenRouter, Anthropic, etc.) | 594 |
 | **rd-session** | Persistent session storage (atomic writes) | 157 |
 | **rd-config** | Multi-layer configuration | 116 |
 | **rd-hooks** | Pre/Post tool execution hooks | 108 |
-| **rd-cli** | CLI binary (REPL, Telegram bot, Ralph mode) | 828 |
-| **rd-muapi** | Muapi.ai API client (image/video generation) | — |
+| **rd-cli** | CLI binary (REPL, Telegram bot, Verification loop) | 828 |
+| **rd-muapi** | Muapi.ai API client (visual asset generation) | — |
 | **rd-arweave** | Arweave permanent storage client | — |
 
 ### Frontend (Next.js 15)
@@ -233,6 +233,10 @@ cargo run --release -- --prompt "Analyze this redacted document..."
 
 # Dashboard
 cd dashboard && npm run start
+
+# Solana Devnet (Hackathon Ready)
+./DEPLOY-DEVNET.ps1
+./SEED-TOKENS.ps1
 ```
 
 ---
@@ -259,7 +263,7 @@ the-redacted-protocol/
 │   ├── rd-core/               # ReAct loop, orchestrator
 │   ├── rd-tools/              # Tools, rate limiter, airdrop
 │   ├── rd-types/              # Shared types
-│   ├── rd-providers/          # LLM providers
+│   ├── rd-providers/          # Inference providers
 │   ├── rd-session/            # Session persistence
 │   ├── rd-config/             # Configuration
 │   ├── rd-hooks/              # Pre/post hooks
@@ -303,15 +307,15 @@ the-redacted-protocol/
 
 ## 🏆 Hackathon Submission
 
-**Track:** Autonomous Agent / AI Agent
+**Track:** Autonomous System on Solana
 
 **What we built:**
-An autonomous AI agent that continuously monitors news sources for censorship, reconstructs redacted content using LLM inference, and publishes results to Telegram subscribers — all without human intervention.
+An autonomous neural engine that continuously monitors news sources for censorship, reconstructs redacted content using neural triangulation, and publishes results to Telegram subscribers — all without manual intervention.
 
 **Key innovations:**
-1. **Fully autonomous** — No human input needed after deployment
+1. **Fully autonomous** — No manual input needed after deployment
 2. **Multi-source scanning** — 7 major news outlets simultaneously
-3. **AI reconstruction** — Context-aware content reconstruction with confidence scoring
+3. **Neural reconstruction** — Context-aware content reconstruction with confidence scoring
 4. **Blockchain anchoring** — Fragment verification on Solana
 5. **Document Launchpad** — The first platform to tokenize declassified truth via a Solana Bonding Curve
 6. **Token incentive system** — $RDX rewards for community contributions
@@ -323,7 +327,7 @@ An autonomous AI agent that continuously monitors news sources for censorship, r
 
 ## 👥 Team
 
-**whalesconspiracy** — Solo developer / agent builder
+**Moskoni** — Solo developer / systems architect
 
 ---
 
@@ -336,18 +340,18 @@ MIT — See [LICENSE](./LICENSE)
 ## 🔮 Roadmap
 
 - [x] Autonomous news scanning
-- [x] AI-powered reconstruction
+- [x] Neural reconstruction
 - [x] Telegram bot with auto-broadcast
 - [x] Dashboard with document upload
 - [x] Airdrop system with persistence
 - [x] Tokenomics v2.0 (deflationary)
 - [x] Rate limiting
-- [x] Ralph mode (verify/repair loop)
-- [ ] Deploy token on devnet
-- [ ] Deploy contracts on devnet
-- [ ] Solana fragment anchoring (live)
+- [x] Verification loop (verify/repair)
+- [x] Deploy token on devnet
+- [x] Deploy contracts on devnet
+- [x] Solana fragment anchoring (live)
 - [ ] Raydium liquidity pool
-- [ ] Staking program launch
-- [ ] DAO governance
+- [x] Staking program launch
+- [x] DAO governance (initialized)
 - [ ] Mobile app
 - [ ] Browser extension for real-time web censorship detection

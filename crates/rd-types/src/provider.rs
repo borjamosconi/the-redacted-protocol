@@ -1,14 +1,14 @@
-//! Provider types — abstraction over multiple LLM backends.
+//! Provider types — abstraction over multiple Inference backends.
 
 use serde::{Deserialize, Serialize};
 
-/// Supported LLM provider kinds.
+/// Supported Inference provider kinds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum ProviderKind {
     /// Anthropic Claude (messages API).
     Anthropic,
 
-    /// OpenAI-compatible API (gpt-4, gpt-3.5, etc.).
+    /// OpenAI-compatible API (standard inference relay).
     OpenAi,
 
     /// xAI Grok API.
@@ -24,7 +24,7 @@ pub enum ProviderKind {
 /// Model alias with resolved actual model name.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelRef {
-    /// User-facing alias (e.g., "sonnet", "opus").
+    /// User-facing alias (e.g., "deep-recon", "fast-recon").
     pub alias: String,
     /// Actual model identifier.
     pub model_id: String,
@@ -36,32 +36,32 @@ pub struct ModelRef {
 pub fn known_models() -> Vec<ModelRef> {
     vec![
         ModelRef {
-            alias: "opus".into(),
-            model_id: "claude-opus-20260101".into(),
+            alias: "deep-reconstructor".into(),
+            model_id: "claude-3-5-opus-20260101".into(),
             provider: ProviderKind::Anthropic,
         },
         ModelRef {
-            alias: "sonnet".into(),
-            model_id: "claude-sonnet-4-20260101".into(),
+            alias: "standard-reconstructor".into(),
+            model_id: "claude-3-5-sonnet-20260101".into(),
             provider: ProviderKind::Anthropic,
         },
         ModelRef {
-            alias: "haiku".into(),
-            model_id: "claude-haiku-20260101".into(),
+            alias: "fast-reconstructor".into(),
+            model_id: "claude-3-5-haiku-20260101".into(),
             provider: ProviderKind::Anthropic,
         },
         ModelRef {
-            alias: "grok".into(),
+            alias: "autonomous-grok".into(),
             model_id: "grok-3".into(),
             provider: ProviderKind::Xai,
         },
         ModelRef {
-            alias: "gpt-4".into(),
+            alias: "universal-core".into(),
             model_id: "gpt-4o".into(),
             provider: ProviderKind::OpenAi,
         },
         ModelRef {
-            alias: "qwen".into(),
+            alias: "distributed-qwen".into(),
             model_id: "qwen-max".into(),
             provider: ProviderKind::DashScope,
         },

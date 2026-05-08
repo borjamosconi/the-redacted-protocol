@@ -19,7 +19,7 @@ async function main() {
     console.log("Wallet:", wallet.publicKey.toBase58());
 
     // 1. RDX Token Mint
-    const rdxMint = new PublicKey("7av7nFSMDaQWF4WPCAptZw8n7gDsGmHchcUuKDFzQ4Gf"); 
+    const rdxMint = new PublicKey("HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU"); 
     
     // 2. PDAs
     const [poolPda] = PublicKey.findProgramAddressSync(

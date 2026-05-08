@@ -31,11 +31,19 @@ function GridBackground() {
 }
 
 function TechnicalGlyphs() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768)
+  }, [])
+
+  const rows = isMobile ? 20 : 50
+  const cols = isMobile ? 40 : 100
+
   return (
     <div className="absolute inset-0 pointer-events-none opacity-[0.03] text-[8px] font-mono leading-none overflow-hidden select-none">
-      {Array.from({ length: 50 }).map((_, i) => (
+      {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="whitespace-nowrap">
-          {Array.from({ length: 100 }).map((_, j) => (
+          {Array.from({ length: cols }).map((_, j) => (
             <span key={j} className="mr-4">
               {Math.random() > 0.5 ? '0x' + Math.floor(Math.random()*100).toString(16) : 'REDACTED'}
             </span>
@@ -70,17 +78,30 @@ export function Hero() {
   }, [])
 
   return (
-    <section ref={ref} className="relative min-h-screen pt-20 bg-black overflow-hidden font-mono flex flex-col">
+    <section ref={ref} className="relative w-full overflow-hidden bg-black flex flex-col min-h-screen">
+      {/* Background Video for Premium Feel */}
+      <div className="absolute inset-0 z-0 overflow-hidden opacity-30">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover"
+          src="/videos/videoweb.mp4"
+        />
+        <div className="absolute inset-0 bg-black/60" />
+      </div>
+
       <GridBackground />
       <TechnicalGlyphs />
       
       {/* Scanline Effect */}
       <div className="absolute inset-0 pointer-events-none z-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03))] bg-[size:100%_2px,1px_100%] opacity-40" />
 
-      {/* MAIN HERO CONTENT */}
+      {/* CORE INTERFACE */}
       <motion.div
-        className="relative z-20 w-full max-w-[1700px] mx-auto px-6 flex-1 flex flex-col justify-center py-20"
-        style={{ opacity: opOut }}
+        className="relative z-20 w-full max-w-[1700px] mx-auto px-6 flex flex-col justify-center py-20 sm:py-32 min-h-[80vh] sm:min-h-screen"
+        style={{ opacity: typeof window !== 'undefined' && window.innerWidth < 768 ? 1 : opOut }}
       >
         <div className="flex flex-col items-center justify-center text-center space-y-10 sm:space-y-16">
           <div className="flex flex-col items-center gap-4">
@@ -97,8 +118,9 @@ export function Hero() {
           </div>
 
           <p className="text-[10px] sm:text-sm lg:text-base text-white/50 font-mono max-w-3xl mx-auto leading-relaxed uppercase tracking-[0.2em] px-4">
-            The world's first autonomous zero-knowledge AI agent dedicated to document declassification on Solana. 
-            <span className="text-white/20"> Establish your node. Deploy intel. Qualify for the $RDX genesis airdrop.</span>
+            A high-fidelity document declassification engine utilizing neural-triangulation and consensus-based verification protocols. 
+            <span className="text-red-500"> RDX neutralizes data suppression</span> through multi-vector analysis to recover factual integrity.
+            <span className="text-white/20"> Secure your node to engage in global declassification operations.</span>
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10 pt-10">
@@ -106,7 +128,7 @@ export function Hero() {
                <span className="relative z-10">LAUNCH_OPERATION</span>
                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
              </Link>
-             <Link href="/terminal/Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj" className="w-full sm:w-auto px-16 py-6 border border-white/10 hover:border-red-600 text-white/60 hover:text-white font-black uppercase text-xs tracking-[0.5em] transition-all bg-white/[0.02] hover:bg-red-600/10">
+             <Link href={`/terminal/${process.env.NEXT_PUBLIC_RDX_TOKEN_MINT || 'HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU'}`} className="w-full sm:w-auto px-16 py-6 border border-white/10 hover:border-red-600 text-white/60 hover:text-white font-black uppercase text-xs tracking-[0.5em] transition-all bg-white/[0.02] hover:bg-red-600/10">
                ACCESS_TERMINAL
              </Link>
           </div>
@@ -125,10 +147,21 @@ export function Hero() {
               ))}
            </div>
         </div>
+        
+        {/* Scroll Indicator */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2, duration: 1 }}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none"
+        >
+           <span className="text-[8px] font-mono text-white/20 uppercase tracking-[0.5em]">SCROLL_TO_DECRYPT</span>
+           <div className="w-[1px] h-12 bg-gradient-to-b from-red-600 to-transparent animate-bounce" />
+        </motion.div>
       </motion.div>
 
-      {/* AIRDROP PROTOCOL SECTION */}
-      <div className="bg-black border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
+      {/* SYSTEM OPERATIONS REGISTRY */}
+      <div className="bg-black border-t border-white/5 py-16 sm:py-32 relative overflow-hidden">
         <div className="max-w-[1400px] mx-auto px-6 relative z-10">
           <div className="flex flex-col mb-16 sm:mb-20 items-center lg:items-start text-center lg:text-left">
              <span className="text-red-600 font-black text-[10px] tracking-[0.6em] uppercase mb-4">ALLOCATION_RESERVE</span>

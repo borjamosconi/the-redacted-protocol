@@ -15,10 +15,10 @@ const STEPS = [
   {
     num: '02',
     icon: '🧠',
-    title: 'AI RECONSTRUCTION',
-    desc: 'The RDX agent uses multi-modal intelligence to reconstruct what was hidden and verify its legitimacy.',
+    title: 'NEURAL RECONSTRUCTION',
+    desc: 'The RDX engine uses multi-modal inference to reconstruct what was hidden and verify its legitimacy.',
     accent: '#a855f7',
-    tag: 'LLM · VERIFY · DECLASSIFY',
+    tag: 'INFER · VERIFY · DECLASSIFY',
   },
   {
     num: '03',
@@ -32,7 +32,7 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-32 px-4 relative overflow-hidden bg-black">
+    <section id="how-it-works" className="py-16 sm:py-32 px-4 relative overflow-hidden bg-black">
       {/* Background Orbs */}
       <div className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-red-600/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-1/4 -right-1/4 w-[500px] h-[500px] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />

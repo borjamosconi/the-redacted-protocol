@@ -85,7 +85,6 @@ export default function MissionsPage() {
 
   return (
     <>
-      <Header />
       <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-20">
         <div className="mb-8">
           <p className="text-[10px] font-mono text-gray-600 tracking-[0.3em] uppercase mb-3">

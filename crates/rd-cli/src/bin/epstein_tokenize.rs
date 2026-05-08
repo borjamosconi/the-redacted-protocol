@@ -1,6 +1,6 @@
 use rd_core::Orchestrator;
-use rd_providers::Provider;
-use rd_providers::openrouter::OpenRouterProvider;
+use rd_providers::{Provider, OpenAiCompatProvider};
+use rd_types::provider::ProviderKind;
 use rd_tools::solana::SolanaClient;
 use rd_tools::launch_token::launch_document_token;
 use std::fs;
@@ -20,9 +20,10 @@ async fn main() -> anyhow::Result<()> {
 
     // 2. Setup Orchestrator for Reconstruction
     let api_key = std::env::var("OPENROUTER_API_KEY").expect("OPENROUTER_API_KEY not set");
-    let provider = OpenRouterProvider::new(api_key);
+    let model_name = std::env::var("OPENROUTER_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string());
+    let provider = OpenAiCompatProvider::new(ProviderKind::OpenRouter, api_key, model_name);
     let settings = rd_config::RuntimeSettings::default();
-    let mut orch: Orchestrator<OpenRouterProvider> = Orchestrator::new(
+    let mut orch = Orchestrator::new(
         provider,
         rd_tools::ToolRegistry::new(),
         rd_hooks::HookRunner::from_settings(&settings),

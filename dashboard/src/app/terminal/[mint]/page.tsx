@@ -156,13 +156,19 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
   const [buying,   setBuying]   = useState(false)
   const [status,   setStatus]   = useState<{ type: 'idle'|'pending'|'success'|'error'; msg: string }>({ type: 'idle', msg: '' })
   const [activeTab,setActiveTab]= useState<'trades'|'info'|'holders'>('trades')
+  const [solBalance, setSolBalance] = useState<number>(0)
+  const [showCRT, setShowCRT] = useState(true)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchToken = async (sol?: string) => {
     try {
       const qs  = new URLSearchParams()
       if (sol) qs.set('sol', sol)
-      if (publicKey) qs.set('wallet', publicKey.toString())
+      if (publicKey) {
+        qs.set('wallet', publicKey.toString())
+        // Fetch balance
+        connection.getBalance(publicKey).then(b => setSolBalance(b / LAMPORTS_PER_SOL))
+      }
       const res  = await fetch(`/api/tokens/${mint}?${qs}`)
       if (!res.ok) return
       const data = await res.json()
@@ -300,7 +306,6 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
 
   if (loading) return (
     <>
-      <Header />
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-5 h-5 border border-red-900/30 border-t-red-500 rounded-full animate-spin" />
@@ -312,7 +317,6 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
 
   if (!token) return (
     <>
-      <Header />
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500 font-mono mb-4">Token not found</p>
@@ -326,8 +330,10 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
 
   return (
     <>
-      <Header />
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-24 sm:pt-28 pb-20">
+      {showCRT && (
+        <div className="fixed inset-0 pointer-events-none z-[100] opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,255,0,0.06))] bg-[size:100%_2px,3px_100%]" />
+      )}
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-24 sm:pt-28 pb-20 relative">
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-[10px] font-mono text-gray-600 mb-5">
@@ -341,16 +347,19 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
 
           {/* ── Mobile Action: Buy panel (Prominent on small screens) ── */}
           <div className="xl:hidden order-1">
-             <BuyPanel 
-               token={token} 
-               buyAmount={buyAmount} 
-               setBuyAmount={setBuyAmount} 
-               buying={buying} 
-               handleBuy={handleBuy} 
-               handleSell={handleSell} 
-               status={status} 
-               publicKey={publicKey}
-             />
+             <div className="mb-4">
+               <BuyPanel 
+                 token={token} 
+                 buyAmount={buyAmount} 
+                 setBuyAmount={setBuyAmount} 
+                 buying={buying} 
+                 handleBuy={handleBuy} 
+                 handleSell={handleSell} 
+                 status={status} 
+                 publicKey={publicKey}
+                 solBalance={solBalance}
+               />
+             </div>
           </div>
 
           {/* ── Left: chart area ────────────────────────────────────────────── */}
@@ -375,11 +384,15 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
                       <a href={token.twitterUrl} target="_blank" rel="noopener noreferrer"
                         className="text-[10px] text-gray-500 hover:text-white transition-colors px-2 py-0.5 border border-white/10 rounded-sm">𝕏</a>
                     )}
-                    {token.websiteUrl && (
-                      <a href={token.websiteUrl} target="_blank" rel="noopener noreferrer"
-                        className="text-[10px] text-gray-500 hover:text-white transition-colors px-2 py-0.5 border border-white/10 rounded-sm">🌐</a>
-                    )}
-                    <span className="text-[8px] text-gray-700 font-mono hidden sm:inline">{token.mint.slice(0,8)}...</span>
+                    <button 
+                      onClick={() => { navigator.clipboard.writeText(token.mint); alert('Mint copied!') }}
+                      className="text-[8px] text-gray-600 hover:text-white font-mono border border-white/5 px-2 py-0.5 uppercase tracking-tighter"
+                    >
+                      {token.mint.slice(0,4)}...{token.mint.slice(-4)} [COPY]
+                    </button>
+                    <button onClick={() => setShowCRT(!showCRT)} className={`text-[8px] border px-2 py-0.5 uppercase ${showCRT ? 'border-red-500 text-red-500' : 'border-white/10 text-gray-600'}`}>
+                      CRT: {showCRT ? 'ON' : 'OFF'}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -402,7 +415,9 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
             </div>
 
             {/* THE CHART */}
-            <TokenChart mint={mint} symbol={token.symbol} height={350} />
+            <div className="h-[300px] sm:h-[450px]">
+              <TokenChart mint={mint} symbol={token.symbol} height={typeof window !== 'undefined' && window.innerWidth < 640 ? 300 : 450} />
+            </div>
 
             {/* Progress bar */}
             <div className="rd-card p-4">
@@ -477,23 +492,60 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
           </div>
         </div>
       </main>
+
+      {/* ── Mobile Floating Buy Bar ── */}
+      <div className="xl:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/80 backdrop-blur-md border-t border-red-500/20 safe-area-pb">
+        <div className="flex gap-2">
+           <div className="flex-1">
+             <button onClick={handleBuy} disabled={buying || token.progress >= 100}
+               className="w-full py-4 bg-red-600 text-white font-black text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(255,0,0,0.4)]">
+               {buying ? '...' : `QUICK_BUY $${token.symbol}`}
+             </button>
+           </div>
+           {token.userTokens > 0 && (
+             <button onClick={handleSell} className="px-4 py-4 bg-white/5 border border-white/10 text-white/40">
+               <span className="text-[10px] font-black">SELL</span>
+             </button>
+           )}
+        </div>
+      </div>
     </>
   )
 }
 
 // ── Reusable Buy Panel Component ────────────────────────────────────────────
 function BuyPanel({ 
-  token, buyAmount, setBuyAmount, buying, handleBuy, handleSell, status, publicKey 
+  token, buyAmount, setBuyAmount, buying, handleBuy, handleSell, status, publicKey, solBalance 
 }: any) {
+  // Simple P/L estimation if we assume an entry point (for demo)
+  const hasTokens = (token.userTokens || 0) > 0
   return (
     <div className="rd-card p-5 space-y-4 relative overflow-hidden">
       {/* Visual Decoration */}
       <div className="absolute top-0 right-0 w-16 h-16 bg-red-600/5 rotate-45 translate-x-8 translate-y--8 pointer-events-none" />
 
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-1 h-1 rounded-full bg-red-500 shadow-[0_0_8px_#ff1a1a]" />
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">EXCHANGE_NODE</span>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-1 rounded-full bg-red-500 shadow-[0_0_8px_#ff1a1a]" />
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">EXCHANGE_NODE</span>
+        </div>
+        {publicKey && (
+          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-tighter">BAL: {solBalance.toFixed(3)} SOL</span>
+        )}
       </div>
+
+      {hasTokens && (
+        <div className="p-3 border border-red-900/20 bg-red-950/10 flex justify-between items-center">
+          <div className="flex flex-col">
+            <span className="text-[8px] text-gray-600 uppercase">Your Holdings</span>
+            <span className="text-xs font-black text-white">{token.userTokens.toLocaleString()} ${token.symbol}</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[8px] text-gray-600 uppercase">Value (SOL)</span>
+            <span className="text-xs font-black text-green-500">~{(token.userTokens * token.currentPrice).toFixed(3)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Amount input */}
       <div>
@@ -512,11 +564,11 @@ function BuyPanel({
       </div>
 
       {/* Quick Picks */}
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-3 gap-2">
         {['0.1','0.5','1'].map(v => (
           <button key={v} onClick={() => setBuyAmount(v)}
-            className={`py-2 text-[9px] font-black border transition-all ${
-              buyAmount === v ? 'border-red-600 bg-red-600/10 text-white' : 'border-white/5 text-white/30 hover:bg-white/5'
+            className={`py-4 text-[10px] font-black border transition-all ${
+              buyAmount === v ? 'border-red-600 bg-red-600/20 text-white' : 'border-white/10 text-white/40 hover:bg-white/5'
             }`}>{v} SOL</button>
         ))}
       </div>

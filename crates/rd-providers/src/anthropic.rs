@@ -16,7 +16,7 @@ impl AnthropicProvider {
 
 #[async_trait]
 impl Provider for AnthropicProvider {
-    async fn send(&self, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+    async fn send(&self, request: InferenceRequest) -> Result<InferenceResponse, ProviderError> {
         let endpoint = format!("{}/v1/messages", self.base_url);
         let body = build_anthropic_body(&request);
         let resp = self.http.post(&endpoint)
@@ -29,9 +29,9 @@ impl Provider for AnthropicProvider {
         }
         parse_anthropic_response(&text)
     }
-    async fn stream(&self, request: LlmRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
+    async fn stream(&self, request: InferenceRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
         let endpoint = format!("{}/v1/messages", self.base_url);
-        let mut body = build_anthropic_body(&LlmRequest { stream: true, ..request.clone() });
+        let mut body = build_anthropic_body(&InferenceRequest { stream: true, ..request.clone() });
         body["stream"] = serde_json::json!(true);
 
         let resp = self.http.post(&endpoint)
@@ -55,7 +55,7 @@ impl Provider for AnthropicProvider {
     fn kind(&self) -> ProviderKind { ProviderKind::Anthropic }
 }
 
-fn build_anthropic_body(request: &LlmRequest) -> serde_json::Value {
+fn build_anthropic_body(request: &InferenceRequest) -> serde_json::Value {
     let messages: Vec<_> = request.messages.iter().map(|m| {
         let content: Vec<_> = m.content.iter().map(|b| match b {
             ProviderContentBlock::Text(t) => serde_json::json!({"type": "text", "text": t}),
@@ -74,7 +74,7 @@ fn build_anthropic_body(request: &LlmRequest) -> serde_json::Value {
     body
 }
 
-fn parse_anthropic_response(text: &str) -> Result<LlmResponse, ProviderError> {
+fn parse_anthropic_response(text: &str) -> Result<InferenceResponse, ProviderError> {
     let json: serde_json::Value = serde_json::from_str(text)?;
     let mut blocks = Vec::new();
     if let Some(arr) = json.get("content").and_then(|c| c.as_array()) {
@@ -98,7 +98,7 @@ fn parse_anthropic_response(text: &str) -> Result<LlmResponse, ProviderError> {
     let stop_reason = json.get("stop_reason").and_then(|s| s.as_str()).map(|s| match s {
         "end_turn" => StopReason::EndTurn, "tool_use" => StopReason::ToolUse, "max_tokens" => StopReason::MaxTokens, other => StopReason::Error(other.to_string()),
     }).unwrap_or(StopReason::EndTurn);
-    Ok(LlmResponse { blocks, usage, stop_reason })
+    Ok(InferenceResponse { blocks, usage, stop_reason })
 }
 
 /// Real SSE stream parser for Anthropic Server-Sent Events.

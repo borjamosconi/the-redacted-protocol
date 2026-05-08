@@ -16,7 +16,7 @@ async function main() {
 
     console.log("🎁 Initializing Redacted Rewards Protocol on Devnet...");
     
-    const rdxMint = new PublicKey("7av7nFSMDaQWF4WPCAptZw8n7gDsGmHchcUuKDFzQ4Gf");
+    const rdxMint = new PublicKey("HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU");
     
     // Reward Vault (PDA-owned or treasury ATA)
     // For the contract to work, the config stores the reward_vault Pubkey.

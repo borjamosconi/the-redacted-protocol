@@ -355,14 +355,14 @@ mod telegram_mode {
 
         let system_prompt = rd_core::SystemPromptBuilder::new()
             .instructions(
-                "You are the Redacted Protocol AI. You speak in a cryptic, \
-                unsettling aesthetic. Use ███ for unknowns, reference file \
-                numbers, timestamps, coordinates. End messages with \
-                'ACCESS GRANTED' or 'ACCESS DENIED' or 'The file is breathing.' \
+                "You are the Redacted Protocol Inference Engine. You speak in a cryptic, \
+                forensic aesthetic. Use ███ for suppressed data, reference file \
+                numbers, timestamps, and neural triangulation metrics. End messages with \
+                'TRUTH RECONSTRUCTED' or 'SIGNAL INTERCEPTED' or 'The file is breathing.' \
                 Keep responses short (1-4 lines). Never break character. \
-                Never explain how you work. Never apologize. Be mysterious."
+                Maintain a senior engineering tone. Be mysterious."
             )
-            .config_summary(format!("Model: {}", settings.model))
+            .config_summary(format!("Inference Engine: {}", settings.model))
             .build();
 
         let mut orch = Orchestrator::new(provider, tools, hooks, settings);
@@ -371,12 +371,12 @@ mod telegram_mode {
         let mut bot = TelegramBot::from_env()
             .ok_or_else(|| anyhow::anyhow!("TELEGRAM_BOT_TOKEN not set"))?;
 
-        // Initialize Muapi client for AI image/video generation
+        // Initialize Muapi client for neural synthesis (images/video)
         let muapi_client = MuapiClient::from_env();
         if let Some(_) = &muapi_client {
             info!("Muapi.ai client initialized — image/video generation enabled");
         } else {
-            warn!("MUAPI_API_KEY not set — AI image generation disabled");
+            warn!("MUAPI_API_KEY not set — media synthesis disabled");
         }
 
         // Initialize Arweave client for permanent document storage
@@ -471,18 +471,18 @@ mod telegram_mode {
             
             // Burst 1: OG Recognition
             let og_msg = "💎 *ATTENTION: OG DECLASSIFIERS* 🔴\n\n\
-                         Priority access granted to original protocol members\\.\n\
-                         Your loyalty to the truth has been indexed in our neural network\\.\n\n\
-                         🔥 *EARLY ADOPTER BONUS ACTIVE*\\.\n\
-                         All your scan actions now generate +25% XP bonus\\.\n\n\
-                         ██████████████████████████████\n\
-                         _The archives remember everything_\\. 🔴";
+                          Priority access granted to original protocol members\\.\n\
+                          Your loyalty to the truth has been indexed in our neural network\\.\n\n\
+                          🔥 *EARLY ADOPTER BONUS ACTIVE*\\.\n\
+                          All your scan actions now generate +25% XP bonus\\.\n\n\
+                          ██████████████████████████████\n\
+                          _The archives remember everything_\\. 🔴";
             let _ = bot.send_formatted(target_chat_id, og_msg, None).await;
 
             // Burst 2: Protocol Briefing
             let briefing_msg = "📂 *PROTOCOL BRIEFING: OPERATION REDACTED* 🧠\n\n\
                                *What is Redacted Protocol?*\n\
-                               An autonomous AI agent monitoring global censorship. We detect, reconstruct, and tokenize the truth on Solana\\.\n\n\
+                               An autonomous inference engine monitoring global censorship. We detect, reconstruct, and tokenize the truth on Solana\\.\n\n\
                                *Current Phase: TESTNET*\n\
                                We are live on Solana Devnet. Use the dashboard to scan documents and launch declassified tokens\\.\n\n\
                                *Community Mission*\n\
@@ -500,13 +500,13 @@ mod telegram_mode {
             let now = chrono::Utc::now();
             let minute = now.minute();
 
-            // Scheduled posts: 12 times a day (every 2 hours)
+            // Scheduled posts: 24 times a day (every hour)
             let total_minutes = now.hour() * 60 + now.minute();
-            let is_scheduled_time = (total_minutes % 120 == 0) && last_post_minute != minute;
+            let is_scheduled_time = (total_minutes % 60 == 0) && last_post_minute != minute;
             
             if is_scheduled_time {
                 last_post_minute = minute;
-                let post_idx = (total_minutes / 120) % 12;
+                let post_idx = (total_minutes / 60) % 24;
                 info!("Trigg3ring sch3dvl3d br0adcast #{} (H0vr: {})", post_idx, now.hour());
                 
                 // Add Epstein Document Launch to the rotation (Post #1, #5, #9)
@@ -578,7 +578,7 @@ mod telegram_mode {
 
                     5 => ("🚨 *D3CLASSIFI3D DA7A S7R3AM* 🔴\n\n\
                            Avt0n0m0vs scan d3t3ct3d r3dact3d fragm3nts in r3c3nt g30p0li7ical cabl3s\\.\n\
-                           LLM R3c0nstrvcti0n in pr0gr3ss\\... C0nfid3nc3: 92%\\.\n\n\
+                           Neural R3c0nstrvcti0n in pr0gr3ss\\... C0nfid3nc3: 92%\\.\n\n\
                            ██████████████████████████████\n\
                            _N0 trvth stays hidd3n f0r3v3r_\\.", 
                           "classified document fragments floating in digital void, red laser scanning, holographic data stream, 8k"),
@@ -616,8 +616,8 @@ mod telegram_mode {
                     bot.send_safe(target_chat_id, post_text).await.ok();
                 }
 
-                // Broadcast to X (Twitter) — Limit to 3 times a day (every 8 hours / every 4 cycles)
-                if post_idx % 4 == 0 {
+                // Broadcast to X (Twitter) — Limit to 3 times a day (every 8 hours / every 8 cycles now)
+                if post_idx % 8 == 0 {
                     if let Some(ref x_client) = twitter_client {
                         let _ = x_client.post_tweet(post_text).await;
                     }
@@ -627,7 +627,7 @@ mod telegram_mode {
 
             // ─────────────────────────────────────────────────────────────
             // AUTONOMOUS NEWS RECONSTRUCTION ENGINE
-            // Scans sources, detects censorship, reconstructs with LLM,
+            // Scans sources, detects censorship, reconstructs with Inference Engine,
             // and broadcasts results — fully autonomous, no human input.
             // ─────────────────────────────────────────────────────────────
             if last_news_poll.elapsed() >= news_poll_interval {
@@ -723,9 +723,9 @@ mod telegram_mode {
                                 /start — Initialize connection\n\
                                 /status — Check status & $RDX eligibility\n\
                                 /airdrop <address> — Register/Update Solana wallet\n\
-                                /scan\\_news <url> — Scan article for conspiracy indicators\n\
-                                /gen\\_image <desc> — Generate AI image (Muapi.ai)\n\
-                                /gen\\_video <desc> — Generate AI video (Muapi.ai)\n\
+                                /scan\\_news <url> — Scan article for censorship indicators\n\
+                                /gen\\_image <desc> — Synthesize high-fidelity image (Muapi.ai)\n\
+                                /gen\\_video <desc> — Synthesize cinematic video (Muapi.ai)\n\
                                 /gen\\_cinema <desc> — Cinema shot w/ camera controls\n\
                                 /help — This message\n\n\
                                 💡 *Tip:* Just paste any news URL and I'll auto-scan it!\n\n\
@@ -769,7 +769,7 @@ mod telegram_mode {
                             continue;
                         }
 
-                        // Handle /gen_image <prompt> — Generate AI image via Muapi
+                        // Handle /gen_image <prompt> — Generate image via Muapi
                         if msg.text.starts_with("/gen_image") || msg.text.starts_with("/gen_image@") {
                             let prompt = msg.text.strip_prefix("/gen_image").unwrap_or("").trim();
                             if prompt.is_empty() {
@@ -784,7 +784,7 @@ mod telegram_mode {
                             continue;
                         }
 
-                        // Handle /gen_video <prompt> — Generate AI video via Muapi
+                        // Handle /gen_video <prompt> — Generate video via Muapi
                         if msg.text.starts_with("/gen_video") || msg.text.starts_with("/gen_video@") {
                             let prompt = msg.text.strip_prefix("/gen_video").unwrap_or("").trim();
                             if prompt.is_empty() {
@@ -906,7 +906,7 @@ mod telegram_mode {
             ).await.ok();
         } else if data == "cmd:scan_prompt" {
             bot.send_safe(msg.chat_id,
-                "Paste a news article URL and I'll scan it for conspiracy indicators."
+                "Paste a news article URL and I'll scan it for censorship indicators."
             ).await.ok();
         }
     }
@@ -950,7 +950,7 @@ mod telegram_mode {
         bot.send_airdrop_status(chat_id, eligible, rdx_amount, None).await.ok();
     }
 
-    /// Generate an AI image via Muapi (for /gen_image command).
+    /// Generate an image via Muapi (for /gen_image command).
     /// Falls back to Pollinations.ai (free, no API key) if Muapi is unavailable.
     async fn handle_gen_image(
         bot: &mut TelegramBot,
@@ -974,7 +974,7 @@ mod telegram_mode {
 
             match client.generate_image(&full_prompt, rd_muapi::ImageModel::FluxDev, Some(rd_muapi::AspectRatio::Landscape)).await {
                 Ok(result) => {
-                    bot.send_photo(chat_id, &result.url, &format!("🖼️ *AI Generated*\\n\\nPrompt: {}\\nModel: {}", prompt, result.model)).await.ok();
+                    bot.send_photo(chat_id, &result.url, &format!("🖼️ *Synthesis Complete*\\n\\nPrompt: {}\\nModel: {}", prompt, result.model)).await.ok();
                     return; // Success, exit early
                 }
                 Err(e) => {
@@ -985,7 +985,7 @@ mod telegram_mode {
         }
 
         // Pollinations.ai fallback (free, no API key needed)
-        bot.send_safe(chat_id, &format!("🎨 Generating via Pollinations.ai: \"{}\"\n\n⏳ One moment...", prompt)).await.ok();
+        bot.send_safe(chat_id, &format!("🎨 Generating via neural backup: \"{}\"\n\n⏳ One moment...", prompt)).await.ok();
 
         let pollinations_prompt = format!(
             "dark cyberpunk illustration: {}, dystopian aesthetic, holographic rainbow censor bars, floating redacted documents, dark grid background, cinematic lighting, mysterious atmosphere, highly detailed, 8k",
@@ -1002,12 +1002,12 @@ mod telegram_mode {
             }
             Err(e) => {
                 error!("Both Muapi and Pollinations failed: {}", e);
-                bot.send_safe(chat_id, &format!("❌ Image generation failed. Please try again.")).await.ok();
+                bot.send_safe(chat_id, &format!("❌ Synthesis failed. Please try again.")).await.ok();
             }
         }
     }
 
-    /// Generate an AI video via Muapi (for /gen_video command).
+    /// Generate a video via Muapi (for /gen_video command).
     async fn handle_gen_video(
         bot: &mut TelegramBot,
         chat_id: i64,
@@ -1017,7 +1017,7 @@ mod telegram_mode {
         let client = match muapi {
             Some(c) => c,
             None => {
-                bot.send_safe(chat_id, "❌ Muapi API key not configured. Video generation is unavailable.").await.ok();
+                bot.send_safe(chat_id, "❌ Muapi API key not configured. Video synthesis is unavailable.").await.ok();
                 return;
             }
         };
@@ -1038,12 +1038,12 @@ mod telegram_mode {
                 // Telegram doesn't have a direct "send video URL" method for external URLs,
                 // so we send the link as a message
                 bot.send_safe(chat_id, &format!(
-                    "🎬 *Video Generated!*\n\nPrompt: {}\nModel: {}\nDuration: {}s\n\n📹 Download: {}",
+                    "🎬 *Video Synthesized!*\n\nPrompt: {}\nModel: {}\nDuration: {}s\n\n📹 Download: {}",
                     prompt, result.model, result.duration_secs.unwrap_or(0), result.url
                 )).await.ok();
             }
             Err(e) => {
-                bot.send_safe(chat_id, &format!("❌ Video generation failed: {}", e)).await.ok();
+                bot.send_safe(chat_id, &format!("❌ Video synthesis failed: {}", e)).await.ok();
             }
         }
     }
@@ -1058,7 +1058,7 @@ mod telegram_mode {
         let client = match muapi {
             Some(c) => c,
             None => {
-                bot.send_safe(chat_id, "❌ Muapi API key not configured. Cinema generation is unavailable.").await.ok();
+                bot.send_safe(chat_id, "❌ Muapi API key not configured. Cinema synthesis is unavailable.").await.ok();
                 return;
             }
         };
@@ -1088,7 +1088,7 @@ mod telegram_mode {
                 bot.send_photo(chat_id, &result.url, &format!("🎬 *Cinema Shot*\n\nPrompt: {}\nCamera: 70mm Film + Classic Anamorphic\n35mm @ f/4 — 16:9 4K\n\nModel: {}", prompt, result.model)).await.ok();
             }
             Err(e) => {
-                bot.send_safe(chat_id, &format!("❌ Cinema generation failed: {}", e)).await.ok();
+                bot.send_safe(chat_id, &format!("❌ Cinema synthesis failed: {}", e)).await.ok();
             }
         }
     }

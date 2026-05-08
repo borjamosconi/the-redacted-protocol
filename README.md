@@ -1,9 +1,9 @@
 # ██████████ PROTOCOL: OPERATION REDACTED
 
 > **// CLASSIFIED DOSSIER — LEVEL 5 CLEARANCE REQUIRED //**
-> **// SUBJECT: Autonomous Intelligence Agent on Solana //**
+> **// SUBJECT: Autonomous Intelligence Engine on Solana //**
 > 
-> 🏆 **Colosseum Hackathon 2026** — Track: Autonomous AI Agent
+> 🏆 **Colosseum Hackathon 2026** — Track: Autonomous Neural Engine
 
 [![Rust](https://img.shields.io/badge/Rust-1.83+-orange.svg)](https://www.rust-lang.org/)
 [![Solana](https://img.shields.io/badge/Solana-Mainnet-9945FF.svg)](https://solana.com/)
@@ -21,15 +21,15 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 
 ## 💡 Our Solution
 
-**Redacted Protocol** is a fully autonomous AI agent that:
+**Redacted Protocol** is an autonomous neural engine that detects, reconstructs, and declassifies restricted content in news articles and documents. Built 100% in Rust with Solana anchoring, Telegram broadcasting, and a Next.js dashboard.
 
-1. 🔍 **Scans news sources** every 30 minutes for censorship patterns
-2. 🧠 **Detects redactions** using regex + AI pattern recognition
-3. 🔄 **Reconstructs censored content** using multi-LLM inference with confidence scoring
+1. 🔍 **Scans news sources** regularly for censorship patterns
+2. 🧠 **Detects redactions** using regex + heuristic pattern recognition
+3. 🔄 **Reconstructs censored content** using multi-vector inference with confidence scoring
 4. 📢 **Publishes results** to Telegram and X (Twitter) automatically
 5. ⛓️ **Anchors fragments** on Solana blockchain for permanent verification
 6. 💰 **Rewards contributors** with $RDX tokens for submissions and verifications
-7. 🖼️ **Generates AI imagery & video** using Muapi.ai + Pollinations.ai
+7. 🖼️ **Synthesizes visual assets** using Muapi.ai + Pollinations.ai
 8. 📜 **Manifesto of Truth**: A philosophical framework for information tokenization
 
 ### What Makes It Different
@@ -38,7 +38,7 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 |---------|--------|-------------------|
 | **Autonomous** | Manual analysis | Self-scanning every 30 min |
 | **Multi-source** | Single source | 7 major news outlets |
-| **AI Reconstruction** | Pattern detection only | Multi-LLM context inference |
+| **Neural Reconstruction** | Pattern detection only | Multi-provider context inference |
 | **Blockchain Anchoring** | None | Solana fragment verification |
 | **Real-time Alerts** | Batch reports | Instant Telegram broadcasts |
 | **Incentive System** | None | $RDX token rewards + staking |
@@ -66,7 +66,7 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 │  │  rd-core ─── ReAct loop + orchestrator                 │  │
 │  │  rd-tools ── Telegram, airdrop, scanners, rate limiter │  │
 │  │  rd-types ── Shared types & schemas                    │  │
-│  │  rd-providers ─ Multi-LLM router                       │  │
+│  │  rd-providers ─ Multi-provider inference router            │  │
 │  │  rd-session ── Session persistence                     │  │
 │  │  rd-config ─── Multi-layer configuration               │  │
 │  │  rd-hooks ──── Pre/post hook system                    │  │
@@ -79,8 +79,8 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 │         ┌───────────────────┼───────────────────┐            │
 │         ▼                   ▼                   ▼            │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│  │  OpenRouter  │    │  Muapi.ai    │    │   Solana     │   │
-│  │  (Multi-LLM) │    │  (AI Media)  │    │ (Blockchain) │   │
+│  │ OpenRouter   │    │  Muapi.ai    │    │   Solana     │   │
+│  │ (Inference)  │    │ (Visuals)    │    │ (Blockchain) │   │
 │  └──────────────┘    └──────────────┘    └──────────────┘   │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -93,8 +93,8 @@ Every day, thousands of documents are redacted, censored, or classified by gover
 ### 1. Autonomous News Scanning
 Every 30 minutes, the agent fetches articles from 7 major news sources, analyzes content for censorship patterns (`████`, `[REDACTED]`, etc.), and flags suspicious articles for reconstruction.
 
-### 2. AI-Powered Reconstruction
-When censorship is detected, the agent sends censored text to an LLM with full context. The model reconstructs likely original content based on surrounding context, historical facts, and journalistic style — returning a confidence score (0–100%).
+### 2. Neural Reconstruction
+When censorship is detected, the engine sends censored text to a high-fidelity inference provider with full context. The system reconstructs likely original content based on surrounding context, historical facts, and data patterns — returning a confidence score (0–100%).
 
 ### 3. Blockchain Anchoring
 Reconstructed fragments are hashed and anchored on-chain via Solana, creating an immutable, verifiable record.
@@ -103,7 +103,7 @@ Reconstructed fragments are hashed and anchored on-chain via Solana, creating an
 Results are formatted in the Redacted Protocol aesthetic and broadcast to all Telegram subscribers — no human intervention needed.
 
 ### 5. Document Launchpad (Pump.fun for Truth)
-Users can upload censored documents through the dashboard. The AI agent reads, reconstructs redacted parts, and can launch a Solana token tied to the document using a custom Bonding Curve — *the truth now has a market cap*.
+Users can upload censored documents through the dashboard. The engine reads, reconstructs redacted parts, and can launch a Solana token tied to the document using a custom Bonding Curve — *the truth now has a market cap*.
 
 ---
 
@@ -116,12 +116,12 @@ Users can upload censored documents through the dashboard. The AI agent reads, r
 | `rd-core` | ReAct agent loop, orchestrator, permission checker | 581 |
 | `rd-tools` | Tool registry, rate limiter, Telegram bot, airdrop | 1,639 |
 | `rd-types` | Shared types: Fragment, Confidence, News, OCR | 1,719 |
-| `rd-providers` | Multi-LLM router (OpenRouter, Anthropic, xAI) | 594 |
+| `rd-providers` | Multi-provider inference router (OpenRouter, Anthropic, xAI) | 594 |
 | `rd-session` | Persistent session storage (atomic JSON writes) | 157 |
 | `rd-config` | Multi-layer configuration | 116 |
 | `rd-hooks` | Pre/post tool execution hooks | 108 |
-| `rd-cli` | CLI binary (REPL, Telegram bot, Ralph mode) | 828 |
-| `rd-muapi` | Muapi.ai API client for image/video generation | — |
+| `rd-cli` | CLI binary (REPL, Telegram bot, Protocol verification) | 828 |
+| `rd-muapi` | Muapi.ai API client for visual asset generation | — |
 | `rd-arweave` | Arweave permanent storage client | — |
 
 ### Next.js Dashboard (26 Components)
@@ -130,9 +130,9 @@ Users can upload censored documents through the dashboard. The AI agent reads, r
 - **Framer Motion** — Premium animations throughout
 - **TailwindCSS** — Custom Redacted Protocol design system
 - **Upstash Redis** — Serverless gamification data
-- **AI Gallery** — 15+ generated images via Pollinations.ai
+- **Neural Media Gallery** — 15+ synthesized images via Pollinations.ai
 - **OCR Section** — Upload documents for redaction analysis
-- **Cinema Studio** — AI video generation with camera controls
+- **Cinema Studio** — Neural video synthesis with camera controls
 - **Governance Panel** — On-chain voting system
 - **Launchpad** — Document tokenization pipeline
 
@@ -240,21 +240,21 @@ cd dashboard && npm run dev
 | `/airdrop <address>` | Register/Update Solana wallet |
 | `/status` | Check airdrop & system status |
 | `/scan_news <url>` | Scan article for censorship |
-| `/gen_image <desc>` | Generate AI image |
-| `/gen_video <desc>` | Generate AI video |
-| `/gen_cinema <desc>` | Cinema shot with camera controls |
+| `/gen_image <desc>` | Synthesize high-fidelity image |
+| `/gen_video <desc>` | Synthesize high-fidelity video |
+| `/gen_cinema <desc>` | Cinema shot with forensic camera controls |
 | `/help` | Show all commands |
 
 **Features:** Auto-detect URLs, inline keyboards, scheduled broadcasts, image generation with Muapi.ai + Pollinations.ai fallback.
 
 ## 🤖 Autonomous Operation (HACKATHON)
 
-The protocol is fully autonomous and requires no human intervention to operate:
-1.  **Scheduled Leaks:** Every 2 hours, the agent declassifies a new "document fragment" (e.g., flight logs, manifests) and broadcasts it to the community with a generated visual.
-2.  **Censorship Detection:** The agent monitors global feeds and automatically flags suspicious content for reconstruction.
-3.  **Cross-Platform Broadcast:** Every 8 hours, the agent automatically tweets the most relevant declassified fragments to X (Twitter).
+The protocol is fully autonomous and operates as a self-sustaining engine:
+1.  **Scheduled Leaks:** Every hour, the system declassifies a new "document fragment" (e.g., flight logs, manifests) and broadcasts it with a reconstructed visual.
+2.  **Censorship Detection:** The engine monitors global feeds and automatically flags suspicious content for reconstruction.
+3.  **Cross-Platform Broadcast:** Every 8 hours, the system automatically exports relevant declassified fragments to X (Twitter).
 4.  **Tokenization:** Fragments with high confidence are automatically launched as tokens on `redacted.bond`.
-5.  **Manifesto Integration:** The agent uses the [MANIFESTO.md](MANIFESTO.md) as its primary behavioral and philosophical directive.
+5.  **Manifesto Integration:** The engine uses the [MANIFESTO.md](MANIFESTO.md) as its primary behavioral and philosophical directive.
 
 ---
 
@@ -310,7 +310,7 @@ the-redacted-protocol/
 | **Terminal Components** | 26 React Modules |
 | **Intercept Targets** | 7 Global News Outlets |
 | **Autonomous Scan Rate** | Every 30 Minutes |
-| **Agent Engagements** | 12 Broadcasts/Day |
+| **Agent Engagements** | 24 Broadcasts/Day |
 
 ---
 
@@ -340,15 +340,15 @@ the-redacted-protocol/
 
 ## 🏆 Hackathon Submission
 
-**Track:** Autonomous Agent / AI Agent on Solana
+**Track:** Autonomous Engine on Solana
 
 **Key Innovations:**
-1. **Fully autonomous** — No human input after deployment
+1. **Fully autonomous** — No manual input after deployment
 2. **Multi-source scanning** — 7 major news outlets simultaneously  
-3. **AI reconstruction** — Context-aware content reconstruction with confidence scoring
+3. **Neural reconstruction** — Context-aware content reconstruction with confidence scoring
 4. **Blockchain anchoring** — Fragment verification on Solana
 5. **Token incentive system** — $RDX rewards for community contributions
-6. **Document Launchpad** — Upload → AI analysis → Token launch (Bonding Curve / Pump.fun mechanics for docs)
+6. **Document Launchpad** — Upload → Neural analysis → Token launch (Bonding Curve mechanics)
 7. **Real-time broadcasting** — Instant Telegram alerts
 
 See [HACKATHON.md](HACKATHON.md) for the full submission details.
@@ -365,9 +365,9 @@ MIT — See [LICENSE](LICENSE)
 
 - **Colosseum** — Agent Hackathon 2026
 - **Solana Foundation** — Blockchain infrastructure
-- **OpenRouter** — Multi-LLM routing
-- **Pollinations.ai** — Free image generation
-- **Muapi.ai** — Advanced AI generation APIs
+- **OpenRouter** — Multi-provider inference routing
+- **Pollinations.ai** — Free image synthesis
+- **Muapi.ai** — Advanced Media Synthesis APIs
 - **Anchor** — Solana smart contract framework
 
 ---

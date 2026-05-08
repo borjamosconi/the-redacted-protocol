@@ -51,7 +51,7 @@ impl ToolHandler for GrepTool {
     }
 }
 
-/// Dangerous command patterns to block (prevents LLM prompt injection attacks)
+/// Dangerous command patterns to block (prevents malicious prompt injection attacks)
 const DANGEROUS_PATTERNS: &[&str] = &[
     "rm -rf", "rm -r /", "rm -rf /", "rm -fr /", "rm -fr *",
     "> /dev/", "> /etc/", "> /proc/", "> /sys/",
@@ -219,7 +219,7 @@ pub struct ReconstructTool;
 #[async_trait]
 impl ToolHandler for ReconstructTool {
     async fn execute(&self, _input: serde_json::Value) -> Result<String, ToolError> {
-        Ok("Reconstruction delegated to LLM provider".to_string())
+        Ok("Reconstruction delegated to Inference engine".to_string())
     }
 }
 
@@ -317,10 +317,10 @@ pub fn register_builtins(registry: &mut ToolRegistry) {
     registry.register(ToolSpec::builtin("telegram_publish", "Publish a message to Telegram.", telegram_schema(), PermissionLevel::Declassifier), Box::new(TelegramPublishTool));
     registry.register(ToolSpec::builtin("telegram_status", "Check Telegram bot connection.", serde_json::json!({"type":"object","properties":{}}), PermissionLevel::Observer), Box::new(TelegramStatusTool));
     
-    // Muapi AI Generation Tools
-    registry.register(ToolSpec::builtin("gen_image", "Generate an AI image from a prompt.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenImageTool));
-    registry.register(ToolSpec::builtin("gen_video", "Generate an AI video from a prompt.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenVideoTool));
-    registry.register(ToolSpec::builtin("gen_cinema", "Generate a cinematic AI shot with pro camera controls.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenCinemaTool));
+    // Muapi Media Synthesis Engines
+    registry.register(ToolSpec::builtin("gen_image", "Synthesize high-fidelity image from protocol parameters.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenImageTool));
+    registry.register(ToolSpec::builtin("gen_video", "Synthesize high-fidelity video from protocol parameters.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenVideoTool));
+    registry.register(ToolSpec::builtin("gen_cinema", "Synthesize cinematic shot with forensic camera controls.", serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"]}), PermissionLevel::Observer), Box::new(muapi_tools::GenCinemaTool));
     // Autonomous Token Launcher
     registry.register(ToolSpec::builtin(
         "launch_token",

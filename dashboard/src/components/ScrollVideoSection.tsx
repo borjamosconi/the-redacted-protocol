@@ -21,11 +21,15 @@ export function ScrollVideoSection() {
   // Detect mobile/coarse-pointer/reduced-motion on mount (client only).
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const mqCoarse  = window.matchMedia('(pointer: coarse)')
-    const mqReduce  = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const mqCoarse = window.matchMedia('(pointer: coarse)')
+    const mqReduce = window.matchMedia('(prefers-reduced-motion: reduce)')
     const isNarrow  = window.innerWidth < 768
+    // On high-end mobiles, we might want to try scrubbing, but for maximum 
+    // compatibility/fluidity, we use autoplay if the device is narrow.
     setUseAutoplay(mqCoarse.matches || mqReduce.matches || isNarrow)
   }, [])
+
+  const containerHeight = useAutoplay ? 'h-[120vh]' : 'h-[300vh]'
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -87,7 +91,7 @@ export function ScrollVideoSection() {
   }, [useAutoplay])
 
   return (
-    <section ref={containerRef} className="relative h-[300vh] w-full bg-black">
+    <section ref={containerRef} className={`relative ${containerHeight} w-full bg-black`}>
       <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
         <video
           ref={videoRef}
@@ -107,8 +111,8 @@ export function ScrollVideoSection() {
           <motion.h2
             className="text-4xl sm:text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 tracking-tighter uppercase font-mono"
             style={{
-              opacity: useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0]),
-              scale:   useTransform(scrollYProgress, [0, 0.5, 1], [0.8, 1, 1.2]),
+              opacity: useTransform(scrollYProgress, [0, 0.1, 0.9, 1], [0, 1, 1, 0]),
+              scale:   useTransform(scrollYProgress, [0, 0.5, 1], [0.95, 1, 1.05]),
             }}
           >
             DECRYPTING <span className="text-red-500">REALITY</span>
@@ -116,8 +120,8 @@ export function ScrollVideoSection() {
           <motion.p
             className="mt-6 text-lg md:text-2xl text-gray-400 max-w-2xl font-mono tracking-widest"
             style={{
-              opacity: useTransform(scrollYProgress, [0.3, 0.5, 0.8, 1], [0, 1, 1, 0]),
-              y:       useTransform(scrollYProgress, [0.3, 0.5], [50, 0]),
+              opacity: useTransform(scrollYProgress, [0.2, 0.4, 0.9, 1], [0, 1, 1, 0]),
+              y:       useTransform(scrollYProgress, [0.2, 0.4], [30, 0]),
             }}
           >
             The truth is hidden in the fragments. Scroll to reveal.
@@ -127,6 +131,15 @@ export function ScrollVideoSection() {
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent pointer-events-none z-20" />
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-20" />
       </div>
+
+      <style jsx>{`
+        video {
+          transform: translateZ(0);
+          backface-visibility: hidden;
+          perspective: 1000;
+          will-change: transform;
+        }
+      `}</style>
     </section>
   )
 }

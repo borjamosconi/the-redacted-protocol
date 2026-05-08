@@ -23,9 +23,9 @@ interface GenerationResult {
 
 // ── Config (mirrors server) ────────────────────────────────────────────────────
 const MODELS = [
-  { id: 'nano-banana-2', name: 'Nano Banana 2', type: 'image', icon: '📸', desc: 'Cinematic AI image' },
-  { id: 'wan-2.1',       name: 'Wan 2.1 T2V',  type: 'video', icon: '🎬', desc: 'Text → Video' },
-  { id: 'wan-2.1-i2v',   name: 'Wan 2.1 I2V',  type: 'video', icon: '▶️', desc: 'Image → Video' },
+  { id: 'nano-banana-2', name: 'Nano Banana 2', type: 'image', icon: '📸', desc: 'Neural synthesis' },
+  { id: 'kling-v3',      name: 'Kling v3 T2V',  type: 'video', icon: '🎬', desc: 'Text → Video' },
+  { id: 'wan-2.1',       name: 'Wan 2.1',       type: 'video', icon: '▶️', desc: 'Experimental' },
 ]
 
 const CAMERAS = [
@@ -165,7 +165,7 @@ export function CinemaPanel() {
               <span className="text-[9px] font-black uppercase tracking-[0.3em] text-red-500/70">Muapi.ai — 7 Keys Active</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white">Classified Cinema Studio</h2>
-            <p className="text-[10px] text-gray-600 font-mono mt-1">Generate cinematic images & videos — keys rotate automatically</p>
+            <p className="text-[10px] text-gray-600 font-mono mt-1">Synthesize forensic images & videos — keys rotate automatically</p>
           </div>
           <div className="flex gap-2 flex-wrap justify-end">
             {MODELS.map(m => (

@@ -1,7 +1,7 @@
 //! Rate limiting for agent operations
 //! 
 //! Implements sliding window rate limits for:
-//! - LLM API calls (per hour)
+//! - Inference relay calls (per hour)
 //! - Telegram messages (per hour)
 //! - Web scraping (per hour)
 
@@ -12,7 +12,7 @@ use tracing::{debug, warn};
 
 #[derive(Debug, Clone)]
 pub struct RateLimitConfig {
-    pub max_llm_calls_per_hour: u32,
+    pub max_inference_calls_per_hour: u32,
     pub max_telegram_msgs_per_hour: u32,
     pub max_web_scrapes_per_hour: u32,
 }
@@ -20,7 +20,7 @@ pub struct RateLimitConfig {
 impl Default for RateLimitConfig {
     fn default() -> Self {
         Self {
-            max_llm_calls_per_hour: std::env::var("RATE_LIMIT_X_PER_HOUR")
+            max_inference_calls_per_hour: std::env::var("RATE_LIMIT_X_PER_HOUR")
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(50),
@@ -108,7 +108,7 @@ impl RateLimiter {
 }
 
 pub struct RateLimiterSet {
-    llm_limiter: RateLimiter,
+    inference_limiter: RateLimiter,
     telegram_limiter: RateLimiter,
     web_scrape_limiter: RateLimiter,
 }
@@ -117,7 +117,7 @@ impl RateLimiterSet {
     pub fn new(config: RateLimitConfig) -> Self {
         let window = Duration::from_secs(3600); // 1 hour
         Self {
-            llm_limiter: RateLimiter::new(window, config.max_llm_calls_per_hour),
+            inference_limiter: RateLimiter::new(window, config.max_inference_calls_per_hour),
             telegram_limiter: RateLimiter::new(window, config.max_telegram_msgs_per_hour),
             web_scrape_limiter: RateLimiter::new(window, config.max_web_scrapes_per_hour),
         }
@@ -127,8 +127,8 @@ impl RateLimiterSet {
         Self::new(RateLimitConfig::default())
     }
 
-    pub fn try_acquire_llm(&self) -> bool {
-        self.llm_limiter.try_acquire()
+    pub fn try_acquire_inference(&self) -> bool {
+        self.inference_limiter.try_acquire()
     }
 
     pub fn try_acquire_telegram(&self) -> bool {
@@ -139,8 +139,8 @@ impl RateLimiterSet {
         self.web_scrape_limiter.try_acquire()
     }
 
-    pub fn llm_remaining(&self) -> u32 {
-        self.llm_limiter.remaining()
+    pub fn inference_remaining(&self) -> u32 {
+        self.inference_limiter.remaining()
     }
 
     pub fn telegram_remaining(&self) -> u32 {
@@ -151,8 +151,8 @@ impl RateLimiterSet {
         self.web_scrape_limiter.remaining()
     }
 
-    pub fn llm_retry_after(&self) -> Duration {
-        self.llm_limiter.retry_after()
+    pub fn inference_retry_after(&self) -> Duration {
+        self.inference_limiter.retry_after()
     }
 
     pub fn telegram_retry_after(&self) -> Duration {

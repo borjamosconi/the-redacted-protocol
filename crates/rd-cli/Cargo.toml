@@ -18,6 +18,7 @@ rd-hooks = { path = "../rd-hooks" }
 rd-config = { path = "../rd-config" }
 rd-core = { path = "../rd-core" }
 rd-arweave = { path = "../rd-arweave" }
+sha2.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

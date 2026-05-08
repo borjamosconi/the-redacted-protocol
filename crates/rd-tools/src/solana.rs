@@ -5,7 +5,6 @@
 
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
-use tracing::{info, error};
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},

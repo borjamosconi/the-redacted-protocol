@@ -5,6 +5,7 @@ import { Providers } from '@/components/Providers'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
+import { TerminalEasterEgg } from '@/components/TerminalEasterEgg'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -21,24 +22,30 @@ const spaceMono = Space_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Redacted Protocol — $RDX Airdrop',
-  description: 'Autonomous zero-knowledge AI agent for document declassification on Solana. Register for 700 RDX airdrop.',
-  keywords: ['RDX', 'Redacted Protocol', 'Solana', 'Airdrop', 'AI', 'Zero-Knowledge', 'OCR', 'Declassification'],
+  title: 'REDACTED PROTOCOL // Declassify the Truth',
+  description: 'The world\'s first autonomous inference engine dedicated to document declassification on Solana. $RDX Genesis Airdrop: ACTIVE.',
+  keywords: ['RDX', 'Redacted Protocol', 'Solana', 'Airdrop', 'AI', 'Declassification', 'Truth', 'Epstein', 'JFK'],
   metadataBase: new URL('https://redacted.bond'),
   alternates: { canonical: 'https://redacted.bond' },
   openGraph: {
-    title: 'Redacted Protocol — $RDX Airdrop',
-    description: 'The file is breathing. Register for 700 RDX.',
+    title: 'REDACTED PROTOCOL // TRUTH DECRYPTED',
+    description: 'The file is breathing. Join the global declassification event on Solana.',
     type: 'website',
     url: 'https://redacted.bond',
-    images: ['/logo.png'],
+    images: [{
+      url: '/logo.png',
+      width: 1200,
+      height: 630,
+      alt: 'Redacted Protocol'
+    }],
     siteName: 'Redacted Protocol',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Redacted Protocol — $RDX Airdrop',
-    description: 'The file is breathing. Register for 700 RDX.',
-    creator: '@theredacted_bot',
+    title: 'REDACTED PROTOCOL // TRUTH DECRYPTED',
+    description: 'Autonomous AI declassification agent. $RDX Airdrop phase 1 live.',
+    images: ['/logo.png'],
+    creator: '@redacted_bond',
   },
   robots: 'index, follow',
 }
@@ -65,6 +72,7 @@ export default function RootLayout({
             <Header />
             {children}
             <Footer />
+            <TerminalEasterEgg />
           </div>
         </Providers>
         </ErrorBoundary>

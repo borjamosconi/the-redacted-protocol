@@ -14,6 +14,7 @@ import { ImageGenSection } from '@/components/ImageGenSection'
 import { GallerySection } from '@/components/GallerySection'
 import { FragmentsSection } from '@/components/FragmentsSection'
 import { CinemaStudioSection } from '@/components/CinemaStudioSection'
+import { TruthReconstructor } from '@/components/TruthReconstructor'
 import { NewsSection } from '@/components/NewsSection'
 import { LeaksFeed } from '@/components/LeaksFeed'
 import { TokenomicsSection } from '@/components/TokenomicsSection'
@@ -30,7 +31,6 @@ function HomeContent() {
   const { publicKey } = useWallet()
   return (
     <>
-      <Header />
       <main>
         <Hero />
         <LeaksFeed />
@@ -43,12 +43,12 @@ function HomeContent() {
         <OcrSection />
         <ImageGenSection />
         <GallerySection />
+        <TruthReconstructor />
         <NewsSection />
         <FragmentsSection />
         <CinemaStudioSection />
         <TokenomicsSection />
       </main>
-      <Footer />
     </>
   )
 }

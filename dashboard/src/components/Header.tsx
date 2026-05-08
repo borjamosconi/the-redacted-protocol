@@ -9,7 +9,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const NAV_LINKS = [
-  { href: '/terminal/Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj', label: 'EXEC_TERMINAL', code: '01', desc: 'Secure document trade' },
+  { href: `/terminal/${process.env.NEXT_PUBLIC_RDX_TOKEN_MINT || 'HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU'}`, label: 'EXEC_TERMINAL', code: '01', desc: 'Secure document trade' },
   { href: '/dashboard', label: 'LAUNCH_TOKEN', code: '02', desc: 'Deploy new intel' },
   { href: '/#gamification', label: 'AIRDROP_REWARDS', code: '03', desc: 'Verify XP status' },
   { href: '/#news', label: 'GET_ARCHIVE', code: '04', desc: 'Access leaked history' },
@@ -27,6 +27,21 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [currentTime, setCurrentTime] = useState('')
+
+  const playSound = (type: 'click' | 'success' | 'error') => {
+    const urls = {
+      click: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
+      success: 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3',
+      error: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'
+    }
+    const audio = new Audio(urls[type])
+    audio.volume = 0.1
+    audio.play().catch(() => {})
+  }
+
+  useEffect(() => {
+    (window as any).playSound = playSound
+  }, [])
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20)
@@ -50,6 +65,16 @@ export function Header() {
           : 'bg-transparent border-b border-white/5'
       }`}
     >
+      {/* Global Progress Bar (Top of everything) */}
+      <div className="fixed top-0 left-0 right-0 h-[2px] bg-white/5 z-[200]">
+         <motion.div 
+            initial={{ width: '0%' }}
+            animate={{ width: '91%' }}
+            transition={{ duration: 2, ease: "easeOut" }}
+            className="h-full bg-red-600 shadow-[0_0_10px_#ff0000]"
+         />
+      </div>
+
       {/* Top technical status grid */}
       <div className="hidden lg:grid grid-cols-12 h-8 border-b border-white/5 font-mono text-[9px] bg-black/40 backdrop-blur-sm">
         <div className="col-span-2 flex items-center px-6 border-r border-white/5 text-red-500 font-black">
@@ -57,13 +82,20 @@ export function Header() {
           SYSTEM_DECRYPTION: ACTIVE
         </div>
         <div className="col-span-6 flex items-center px-6 border-r border-white/5 text-white/30 uppercase tracking-[0.3em] overflow-hidden">
-          <motion.div 
-            animate={{ x: [0, -200, 0] }} 
-            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-            className="whitespace-nowrap"
-          >
-            <span className="text-red-500 font-black">[!] ALERT:</span> TESTNET_PHASE_1_IN_PROGRESS // EARN_XP_BY_LAUNCHING_INTEL // $RDX_AIRDROP_QUALIFICATION_RESERVED // NO_REDACTION_POSSIBLE //
-          </motion.div>
+          <div className="flex items-center gap-12 whitespace-nowrap">
+            {[
+              { label: 'FRAGMENTS_PROCESSED', val: '42,912', color: 'text-red-500' },
+              { label: 'TRUTH_CONFIDENCE', val: '98.4%', color: 'text-green-500' },
+              { label: 'ACTIVE_NODES', val: '1,204', color: 'text-blue-500' },
+              { label: 'RDX_LIQUIDITY', val: 'SECURED', color: 'text-red-500' },
+              { label: 'THREAT_LEVEL', val: 'DEGRADED', color: 'text-yellow-500' },
+            ].map((stat, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-[7px] text-white/20">{stat.label}:</span>
+                <span className={`font-black ${stat.color}`}>{stat.val}</span>
+              </div>
+            ))}
+          </div>
         </div>
         <div className="col-span-2 flex items-center px-6 border-r border-white/5 bg-red-600/5">
            <span className="text-[7px] text-white/40 mr-4">RANK_INDEX:</span>
@@ -81,7 +113,7 @@ export function Header() {
         <div className="flex items-center justify-between h-20 sm:h-24 px-6 sm:px-12">
           
           {/* Branding Section — REDESIGNED LOGO WITH NEW IMAGE */}
-          <Link href="/" className="flex items-center gap-4 sm:gap-6 group">
+          <Link href="/" onClick={() => (window as any).playSound?.('click')} className="flex items-center gap-4 sm:gap-6 group">
              <div className="relative w-10 h-10 sm:w-14 sm:h-14 overflow-hidden border border-red-600/50 group-hover:border-red-500 transition-all duration-500">
                 <img src="/logo.png" alt="REDACTED" className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-red-600/20 to-transparent pointer-events-none" />
@@ -142,25 +174,29 @@ export function Header() {
              </div>
 
              {/* Mobile Toggle */}
-             <button 
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="xl:hidden w-20 h-20 flex items-center justify-center bg-white/[0.03] border-l border-white/10 hover:bg-red-600 transition-all duration-500 group"
-             >
-                <div className="w-8 h-8 relative flex flex-col items-center justify-center">
-                   <motion.span 
-                      animate={mobileMenuOpen ? { rotate: 45, y: 0 } : { rotate: 0, y: -8 }}
-                      className="absolute w-full h-[1.5px] bg-white group-hover:bg-black transition-colors"
-                   />
-                   <motion.span 
-                      animate={mobileMenuOpen ? { opacity: 0 } : { opacity: 1 }}
-                      className="absolute w-full h-[1.5px] bg-white group-hover:bg-black transition-colors"
-                   />
-                   <motion.span 
-                      animate={mobileMenuOpen ? { rotate: -45, y: 0 } : { rotate: 0, y: 8 }}
-                      className="absolute w-full h-[1.5px] bg-white group-hover:bg-black transition-colors"
-                   />
-                </div>
-             </button>
+             <div className="xl:hidden flex items-center h-full z-[310] relative">
+               <button 
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className={`w-16 h-16 flex items-center justify-center transition-all duration-500 group ${
+                    mobileMenuOpen ? 'bg-red-600' : 'bg-white/[0.03] hover:bg-red-600'
+                  }`}
+               >
+                  <div className="w-6 h-6 relative flex flex-col items-center justify-center">
+                     <motion.span 
+                        animate={mobileMenuOpen ? { rotate: 45, y: 0, backgroundColor: '#ffffff' } : { rotate: 0, y: -6, backgroundColor: '#ffffff' }}
+                        className="absolute w-full h-[2px] transition-colors"
+                     />
+                     <motion.span 
+                        animate={mobileMenuOpen ? { opacity: 0 } : { opacity: 1, backgroundColor: '#ffffff' }}
+                        className="absolute w-full h-[2px] transition-colors"
+                     />
+                     <motion.span 
+                        animate={mobileMenuOpen ? { rotate: -45, y: 0, backgroundColor: '#ffffff' } : { rotate: 0, y: 6, backgroundColor: '#ffffff' }}
+                        className="absolute w-full h-[2px] transition-colors"
+                     />
+                  </div>
+               </button>
+             </div>
           </div>
         </div>
       </div>
@@ -169,62 +205,79 @@ export function Header() {
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div 
-            initial={{ opacity: 0, scale: 1.1 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.1 }}
-            className="fixed inset-0 bg-black z-[200] p-6 sm:p-8 flex flex-col pt-24 sm:pt-32"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black z-[300] flex flex-col pt-24"
           >
+            {/* Background Effects */}
             <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.05] pointer-events-none" />
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,26,26,0.03)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-red-600/5 via-transparent to-black pointer-events-none" />
             
-            {/* Mobile Wallet Section — NEW */}
-            <div className="mb-10 p-6 border border-red-500/30 bg-red-600/5 relative group overflow-hidden">
-               <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between">
-                     <span className="text-[9px] font-mono text-red-500 font-black tracking-[0.4em]">AUTHENTICATION_REQUIRED</span>
-                     <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-                  </div>
-                  <div className="flex justify-center">
-                     <WalletMultiButton className="rdx-premium-wallet-btn !w-full !justify-center" />
-                  </div>
-               </div>
-               <motion.div 
-                  animate={{ left: ['-100%', '100%'] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                  className="absolute bottom-0 h-[2px] w-full bg-red-600/30"
-               />
-            </div>
+            <div className="flex-1 flex flex-col p-6 sm:p-10 overflow-y-auto no-scrollbar relative z-10">
+              {/* Mobile Wallet Section */}
+              <div className="mb-8 p-6 border border-red-500/30 bg-red-600/5 relative group">
+                 <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between mb-2">
+                       <span className="text-[9px] font-mono text-red-500 font-black tracking-[0.4em]">AUTHENTICATION_REQUIRED</span>
+                       <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+                    </div>
+                    <div className="flex justify-center">
+                       <WalletMultiButton className="rdx-premium-wallet-btn !w-full !justify-center" />
+                    </div>
+                 </div>
+                 <motion.div 
+                    animate={{ left: ['-100%', '100%'] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                    className="absolute bottom-0 h-[2px] w-full bg-red-600/30"
+                 />
+              </div>
 
-            <div className="flex flex-col gap-3 sm:gap-4 relative overflow-y-auto no-scrollbar pr-2">
-               {NAV_LINKS.map((link, i) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="group border border-white/10 bg-white/[0.02] p-6 sm:p-8 flex flex-col gap-1 hover:bg-red-600 hover:border-red-600 transition-all duration-500"
-                  >
-                     <span className="text-[9px] font-mono text-red-600 group-hover:text-white/60 tracking-[0.5em] mb-1 font-black">CHANNEL_00{i+1}</span>
-                     <span className="text-xl font-black text-white tracking-tighter uppercase">{link.label}</span>
-                     <span className="text-[9px] font-mono text-white/30 group-hover:text-white/80 uppercase tracking-widest">{link.desc}</span>
-                  </Link>
-               ))}
-            </div>
+              {/* Nav Links */}
+              <div className="flex flex-col gap-3">
+                 {NAV_LINKS.map((link, i) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="group border border-white/10 bg-white/[0.02] p-6 flex flex-col gap-1 hover:bg-red-600 hover:border-red-600 transition-all duration-300"
+                    >
+                       <div className="flex justify-between items-center mb-1">
+                          <span className="text-[9px] font-mono text-red-600 group-hover:text-white/60 tracking-[0.5em] font-black">CHANNEL_00{i+1}</span>
+                          <span className="text-[8px] font-mono text-white/20 group-hover:text-white/40">READY_</span>
+                       </div>
+                       <span className="text-xl font-black text-white tracking-tighter uppercase">{link.label}</span>
+                       <span className="text-[9px] font-mono text-white/30 group-hover:text-white/80 uppercase tracking-widest">{link.desc}</span>
+                    </Link>
+                 ))}
+              </div>
 
-            <div className="mt-auto flex flex-col gap-4 sm:gap-6 pt-8">
-               <div className="flex items-center justify-between border-t border-white/5 pt-6">
-                  <span className="text-[9px] font-mono text-white/20 uppercase tracking-[0.5em]">RELAYS</span>
-                  <div className="flex gap-6">
-                     {SOCIAL_LINKS.map(s => (
-                        <a key={s.label} href={s.href} target="_blank" className="text-xl text-white/40 hover:text-red-500 transition-colors">{s.icon}</a>
-                     ))}
-                  </div>
-               </div>
-               <button 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-6 sm:py-8 border border-white/10 bg-white/[0.01] text-[10px] font-black text-white uppercase tracking-[0.6em] hover:bg-white hover:text-black transition-all"
-               >
-                  TERMINATE_SESSION
-               </button>
+              {/* Bottom Actions */}
+              <div className="mt-auto pt-10 flex flex-col gap-6">
+                 <div className="flex items-center justify-between border-t border-white/10 pt-6">
+                    <span className="text-[9px] font-mono text-white/20 uppercase tracking-[0.5em]">EXTERNAL_RELAYS</span>
+                    <div className="flex gap-6">
+                       {SOCIAL_LINKS.map(s => (
+                          <a key={s.label} href={s.href} target="_blank" className="text-xl text-white/40 hover:text-red-500 transition-colors">{s.icon}</a>
+                       ))}
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="py-5 border border-white/10 bg-white/[0.01] text-[9px] font-black text-white uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all"
+                    >
+                      RETURN
+                    </button>
+                    <button 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="py-5 border border-red-600/50 bg-red-600/10 text-[9px] font-black text-red-600 uppercase tracking-[0.4em] hover:bg-red-600 hover:text-white transition-all"
+                    >
+                      TERMINATE
+                    </button>
+                 </div>
+              </div>
             </div>
           </motion.div>
         )}

@@ -95,23 +95,25 @@ const RESOLUTIONS   = ['1K', '2K', '4K']
 
 // Available generation models
 const MODELS = [
-  { id: 'nano-banana-2', name: 'Nano Banana 2', type: 'image', desc: 'Cinematic AI image generation' },
-  { id: 'wan-2.1',       name: 'Wan 2.1',       type: 'video', desc: 'AI video generation (text-to-video)' },
-  { id: 'wan-2.1-i2v',   name: 'Wan 2.1 I2V',   type: 'video', desc: 'Image-to-video (animated)' },
+  { id: 'nano-banana-2', name: 'Nano Banana 2', type: 'image', icon: '📸', desc: 'Cinematic AI image' },
+  { id: 'kling-v3',      name: 'Kling v3 T2V',  type: 'video', icon: '🎬', desc: 'Text → Video' },
+  { id: 'wan-2.1',       name: 'Wan 2.1',       type: 'video', icon: '▶️', desc: 'Experimental' },
 ]
 
 // Redacted Protocol cinema presets
 const CINEMA_PRESETS: Record<string, string> = {
-  classified_brief:  'a classified intelligence brief in a dimly lit underground facility, folders stamped TOP SECRET scattered on a metal desk, harsh fluorescent lighting, moody atmosphere',
-  surveillance:      'covert surveillance footage aesthetic, dark control room with multiple monitors showing grainy footage, red classified stamps, mysterious government facility',
-  declassified:      'a declassified document emerging from shadows, holographic light revealing redacted text, floating papers in a void, dramatic cinematic lighting',
-  access_denied:     'ACCESS DENIED terminal screen with glitch effects, dark server room, red emergency lighting, classified data corruption, cyberpunk aesthetic',
-  black_ops:         'a black operations briefing room, shadowy figures around a holographic table, classified maps and satellite imagery, dramatic rim lighting, cinematic composition',
-  whistleblower:     'a lone figure holding leaked documents in a dark alley, rain reflections, neon signs in background, noir thriller aesthetic, volumetric fog',
-  deep_state:        'conspiracy board with red string connecting photos, classified documents pinned to corkboard, dim interrogation room lighting, mysterious shadows',
-  signal_intercept:  'signal intelligence interception, radio equipment in abandoned bunker, waveform displays, green phosphor monitors, cold war aesthetic reimagined',
-  rdx_launch:        'futuristic crypto protocol launch event, holographic RDX token logo floating in dark space, red energy particles, cinematic reveal, 8K quality',
-  blockchain_node:   'Solana blockchain node visualization, glowing red data streams, distributed network grid, dark cyberpunk aesthetic, cinematic wide shot',
+  classified_brief:  'a classified intelligence brief in a dimly lit underground facility, folders stamped TOP SECRET scattered on a metal desk, harsh fluorescent lighting, moody atmosphere, high contrast brutalist design',
+  surveillance:      'covert surveillance footage aesthetic, dark control room with multiple monitors showing grainy footage, red classified stamps, mysterious government facility, gritty texture, high contrast noir',
+  declassified:      'a declassified document emerging from shadows, holographic light revealing redacted text, floating papers in a void, dramatic cinematic lighting, brutalist minimalism',
+  access_denied:     'ACCESS DENIED terminal screen with glitch effects, dark server room, red emergency lighting, classified data corruption, cyberpunk aesthetic, high contrast',
+  black_ops:         'a black operations briefing room, shadowy figures around a holographic table, classified maps and satellite imagery, dramatic rim lighting, cinematic composition, brutalist interior',
+  whistleblower:     'a lone figure holding leaked documents in a dark alley, rain reflections, neon signs in background, noir thriller aesthetic, volumetric fog, high contrast gritty',
+  deep_state:        'conspiracy board with red string connecting photos, classified documents pinned to corkboard, dim interrogation room lighting, mysterious shadows, brutalist textures',
+  signal_intercept:  'signal intelligence interception, radio equipment in abandoned bunker, waveform displays, green phosphor monitors, cold war aesthetic reimagined, high contrast',
+  rdx_launch:        'futuristic crypto protocol launch event, holographic RDX token logo floating in dark space, red energy particles, cinematic reveal, 8K quality, brutalist monolith background',
+  blockchain_node:   'Solana blockchain node visualization, glowing red data streams, distributed network grid, dark cyberpunk aesthetic, cinematic wide shot, industrial brutalism',
+  redacted_monolith: 'a giant black concrete monolith with glowing red RDX symbols, floating in a dark digital void with holographic data streams, brutalist architecture, cinematic 8k',
+  ghost_agent:       'a translucent agent figure made of digital glitch artifacts, standing in a dark brutalist hallway, red laser beams, classified documents floating around, noir cyberpunk',
 }
 
 export async function POST(request: Request) {

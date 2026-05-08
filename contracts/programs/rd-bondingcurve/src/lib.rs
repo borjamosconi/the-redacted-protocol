@@ -55,10 +55,15 @@ pub const BASIS_POINTS_DIVISOR: u64 = 10_000;
 
 pub const TREASURY_FEE_BPS: u64 = 100; // 1%
 pub const CREATOR_FEE_BPS: u64 = 50;   // 0.5%
+pub const REFERRAL_FEE_BPS: u64 = 20;  // 0.2% of total fee (not additional)
 
 /// Timelock between an emergency pause and the moment users may extract
 /// SOL via `emergency_withdraw`. 7 days, in seconds.
 pub const EMERGENCY_TIMELOCK_SECS: i64 = 7 * 24 * 3600;
+
+/// Anti-sniping: Minimum time between a buy and a sell to prevent high-frequency
+/// bot sniping. 60 seconds.
+pub const MIN_HOLD_TIME: i64 = 60;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROGRAM
@@ -201,6 +206,7 @@ pub mod rd_bondingcurve {
         ctx: Context<Trade>,
         sol_in: u64,
         min_tokens_out: u64,
+        referral: Option<Pubkey>,
     ) -> Result<()> {
         require!(!ctx.accounts.global.paused, BondingCurveError::Paused);
         require!(sol_in >= MIN_BUY_LAMPORTS, BondingCurveError::AmountTooSmall);
@@ -208,23 +214,44 @@ pub mod rd_bondingcurve {
         let pool = &mut ctx.accounts.pool;
         require!(!pool.complete, BondingCurveError::PoolComplete);
 
-        // Fees
-        let treasury_fee = sol_in
-            .checked_mul(ctx.accounts.global.fee_bps)
+        // ── Senior Fee Strategy ─────────────────────────────────────────────
+        let total_fee_bps = ctx.accounts.global.fee_bps as u128;
+        let creator_fee_bps = ctx.accounts.global.creator_fee_bps as u128;
+        
+        let total_fee = (sol_in as u128)
+            .checked_mul(total_fee_bps)
             .ok_or(BondingCurveError::MathOverflow)?
-            / BASIS_POINTS_DIVISOR;
-        let creator_fee = sol_in
-            .checked_mul(ctx.accounts.global.creator_fee_bps)
+            / BASIS_POINTS_DIVISOR as u128;
+            
+        let creator_fee = (sol_in as u128)
+            .checked_mul(creator_fee_bps)
             .ok_or(BondingCurveError::MathOverflow)?
-            / BASIS_POINTS_DIVISOR;
-        let pool_amount = sol_in
-            .checked_sub(treasury_fee)
-            .and_then(|v| v.checked_sub(creator_fee))
-            .ok_or(BondingCurveError::MathOverflow)?;
+            / BASIS_POINTS_DIVISOR as u128;
 
-        // Compute tokens out using constant product:
-        //   (x + dx) * (y - dy) = x * y   =>   dy = y - (x*y)/(x+dx)
-        // where x = virtual_sol_reserves, y = virtual_token_reserves
+        let mut treasury_fee = total_fee;
+        let mut referral_paid = 0u128;
+
+        if let Some(ref_key) = referral {
+            if ref_key != ctx.accounts.buyer.key() && ref_key == ctx.accounts.referrer.key() {
+                referral_paid = (total_fee * REFERRAL_FEE_BPS as u128) / 100;
+                treasury_fee = treasury_fee.checked_sub(referral_paid).unwrap();
+                
+                system_program::transfer(
+                    CpiContext::new(ctx.accounts.system_program.to_account_info(), system_program::Transfer {
+                        from: ctx.accounts.buyer.to_account_info(),
+                        to: ctx.accounts.referrer.to_account_info(),
+                    }),
+                    referral_paid as u64,
+                )?;
+            }
+        }
+
+        let pool_amount = (sol_in as u128)
+            .checked_sub(total_fee)
+            .and_then(|v| v.checked_sub(creator_fee))
+            .ok_or(BondingCurveError::MathOverflow)? as u64;
+
+        // ── Constant Product Math ────────────────────────────────────────────
         let new_virtual_sol = (pool.virtual_sol_reserves as u128)
             .checked_add(pool_amount as u128)
             .ok_or(BondingCurveError::MathOverflow)?;
@@ -236,54 +263,50 @@ pub mod rd_bondingcurve {
             .checked_sub(new_virtual_tokens)
             .ok_or(BondingCurveError::MathOverflow)? as u64;
 
-        // Cap tokens_out at the real reserves (can't dispense more than we have).
         if tokens_out > pool.real_token_reserves {
             tokens_out = pool.real_token_reserves;
         }
         require!(tokens_out > 0, BondingCurveError::ZeroOutput);
         require!(tokens_out >= min_tokens_out, BondingCurveError::SlippageExceeded);
 
-        // Transfer SOL: buyer → treasury, buyer → creator, buyer → sol_vault
+        // ── Update Accounts ─────────────────────────────────────────────────
+        let now = Clock::get()?.unix_timestamp;
+        let user_stats = &mut ctx.accounts.user_stats;
+        user_stats.last_buy = now;
+        user_stats.total_bought = user_stats.total_bought.saturating_add(tokens_out);
+        user_stats.owner = ctx.accounts.buyer.key();
+        user_stats.bump = ctx.bumps.user_stats;
+
+        // ── Transfers ───────────────────────────────────────────────────────
         if treasury_fee > 0 {
             system_program::transfer(
-                CpiContext::new(
-                    ctx.accounts.system_program.to_account_info(),
-                    system_program::Transfer {
-                        from: ctx.accounts.buyer.to_account_info(),
-                        to: ctx.accounts.treasury.to_account_info(),
-                    },
-                ),
-                treasury_fee,
+                CpiContext::new(ctx.accounts.system_program.to_account_info(), system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.treasury.to_account_info(),
+                }),
+                treasury_fee as u64,
             )?;
         }
         if creator_fee > 0 {
             system_program::transfer(
-                CpiContext::new(
-                    ctx.accounts.system_program.to_account_info(),
-                    system_program::Transfer {
-                        from: ctx.accounts.buyer.to_account_info(),
-                        to: ctx.accounts.creator_wallet.to_account_info(),
-                    },
-                ),
-                creator_fee,
+                CpiContext::new(ctx.accounts.system_program.to_account_info(), system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.creator_wallet.to_account_info(),
+                }),
+                creator_fee as u64,
             )?;
         }
         system_program::transfer(
-            CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                system_program::Transfer {
-                    from: ctx.accounts.buyer.to_account_info(),
-                    to: ctx.accounts.sol_vault.to_account_info(),
-                },
-            ),
+            CpiContext::new(ctx.accounts.system_program.to_account_info(), system_program::Transfer {
+                from: ctx.accounts.buyer.to_account_info(),
+                to: ctx.accounts.sol_vault.to_account_info(),
+            }),
             pool_amount,
         )?;
 
-        // Transfer tokens: pool token vault → buyer ATA (PDA signs)
         let mint_key = pool.mint;
         let pool_bump = pool.bump;
         let seeds: &[&[u8]] = &[b"pool", mint_key.as_ref(), &[pool_bump]];
-        let signer = &[seeds];
         token::transfer(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -292,26 +315,23 @@ pub mod rd_bondingcurve {
                     to: ctx.accounts.buyer_token_account.to_account_info(),
                     authority: pool.to_account_info(),
                 },
-                signer,
+                &[seeds],
             ),
             tokens_out,
         )?;
 
-        // Update pool state
         pool.real_sol_reserves = pool.real_sol_reserves.saturating_add(pool_amount);
         pool.real_token_reserves = pool.real_token_reserves.saturating_sub(tokens_out);
         pool.virtual_sol_reserves = pool.virtual_sol_reserves.saturating_add(pool_amount);
         pool.virtual_token_reserves = pool.virtual_token_reserves.saturating_sub(tokens_out);
 
-        // Graduate?
-        let graduated = pool.real_sol_reserves >= pool.graduation_threshold;
-        if graduated {
+        if pool.real_sol_reserves >= pool.graduation_threshold {
             pool.complete = true;
             emit!(PoolGraduated {
                 mint: pool.mint,
                 real_sol_reserves: pool.real_sol_reserves,
                 real_token_reserves: pool.real_token_reserves,
-                timestamp: Clock::get()?.unix_timestamp,
+                timestamp: now,
             });
         }
 
@@ -325,13 +345,11 @@ pub mod rd_bondingcurve {
             virtual_token_reserves: pool.virtual_token_reserves,
             real_sol_reserves: pool.real_sol_reserves,
             real_token_reserves: pool.real_token_reserves,
-            timestamp: Clock::get()?.unix_timestamp,
+            timestamp: now,
         });
-
         Ok(())
     }
 
-    /// Sell `tokens_in` tokens for at least `min_sol_out` lamports.
     pub fn sell(
         ctx: Context<Trade>,
         tokens_in: u64,
@@ -343,7 +361,15 @@ pub mod rd_bondingcurve {
         let pool = &mut ctx.accounts.pool;
         require!(!pool.complete, BondingCurveError::PoolComplete);
 
-        // (x - dx_sol) * (y + dy_tok) = k  =>  dx = x - k/(y+dy)
+        // ── Anti-Sniping Check ──────────────────────────────────────────────
+        let now = Clock::get()?.unix_timestamp;
+        let user_stats = &mut ctx.accounts.user_stats;
+        require!(
+            now >= user_stats.last_buy.saturating_add(MIN_HOLD_TIME),
+            BondingCurveError::AntiSnipingActive
+        );
+
+        // ── Constant Product Math ────────────────────────────────────────────
         let new_virtual_tokens = (pool.virtual_token_reserves as u128)
             .checked_add(tokens_in as u128)
             .ok_or(BondingCurveError::MathOverflow)?;
@@ -359,83 +385,77 @@ pub mod rd_bondingcurve {
             gross_sol_out = pool.real_sol_reserves;
         }
 
-        let treasury_fee = gross_sol_out
-            .checked_mul(ctx.accounts.global.fee_bps)
+        // ── Dynamic Sell Tax ────────────────────────────────────────────────
+        let mut dynamic_fee_bps = ctx.accounts.global.fee_bps;
+        let time_since_buy = now.saturating_sub(user_stats.last_buy);
+        if time_since_buy < 3600 { // 1.5% tax if selling within 1 hour
+            dynamic_fee_bps = dynamic_fee_bps.saturating_add(50);
+        }
+
+        let treasury_fee = (gross_sol_out as u128)
+            .checked_mul(dynamic_fee_bps as u128)
             .ok_or(BondingCurveError::MathOverflow)?
-            / BASIS_POINTS_DIVISOR;
-        let creator_fee = gross_sol_out
-            .checked_mul(ctx.accounts.global.creator_fee_bps)
+            / BASIS_POINTS_DIVISOR as u128;
+        let creator_fee = (gross_sol_out as u128)
+            .checked_mul(ctx.accounts.global.creator_fee_bps as u128)
             .ok_or(BondingCurveError::MathOverflow)?
-            / BASIS_POINTS_DIVISOR;
-        let net_sol_out = gross_sol_out
+            / BASIS_POINTS_DIVISOR as u128;
+        let net_sol_out = (gross_sol_out as u128)
             .checked_sub(treasury_fee)
             .and_then(|v| v.checked_sub(creator_fee))
-            .ok_or(BondingCurveError::MathOverflow)?;
+            .ok_or(BondingCurveError::MathOverflow)? as u64;
 
         require!(net_sol_out >= min_sol_out, BondingCurveError::SlippageExceeded);
         require!(net_sol_out > 0, BondingCurveError::ZeroOutput);
 
-        // Seller → pool token vault
+        // ── Transfers ───────────────────────────────────────────────────────
         token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                TokenTransfer {
-                    from: ctx.accounts.buyer_token_account.to_account_info(),
-                    to: ctx.accounts.token_vault.to_account_info(),
-                    authority: ctx.accounts.buyer.to_account_info(),
-                },
-            ),
+            CpiContext::new(ctx.accounts.token_program.to_account_info(), TokenTransfer {
+                from: ctx.accounts.buyer_token_account.to_account_info(),
+                to: ctx.accounts.token_vault.to_account_info(),
+                authority: ctx.accounts.buyer.to_account_info(),
+            }),
             tokens_in,
         )?;
 
-        // sol_vault → seller / treasury / creator (PDA signer)
         let sol_vault_bump = ctx.bumps.sol_vault;
         let mint_key = pool.mint;
         let sv_seeds: &[&[u8]] = &[b"sol_vault", mint_key.as_ref(), &[sol_vault_bump]];
         let sv_signer = &[sv_seeds];
 
         system_program::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.system_program.to_account_info(),
-                system_program::Transfer {
-                    from: ctx.accounts.sol_vault.to_account_info(),
-                    to: ctx.accounts.buyer.to_account_info(),
-                },
-                sv_signer,
-            ),
+            CpiContext::new_with_signer(ctx.accounts.system_program.to_account_info(), system_program::Transfer {
+                from: ctx.accounts.sol_vault.to_account_info(),
+                to: ctx.accounts.buyer.to_account_info(),
+            }, sv_signer),
             net_sol_out,
         )?;
         if treasury_fee > 0 {
             system_program::transfer(
-                CpiContext::new_with_signer(
-                    ctx.accounts.system_program.to_account_info(),
-                    system_program::Transfer {
-                        from: ctx.accounts.sol_vault.to_account_info(),
-                        to: ctx.accounts.treasury.to_account_info(),
-                    },
-                    sv_signer,
-                ),
-                treasury_fee,
+                CpiContext::new_with_signer(ctx.accounts.system_program.to_account_info(), system_program::Transfer {
+                    from: ctx.accounts.sol_vault.to_account_info(),
+                    to: ctx.accounts.treasury.to_account_info(),
+                }, sv_signer),
+                treasury_fee as u64,
             )?;
         }
         if creator_fee > 0 {
             system_program::transfer(
-                CpiContext::new_with_signer(
-                    ctx.accounts.system_program.to_account_info(),
-                    system_program::Transfer {
-                        from: ctx.accounts.sol_vault.to_account_info(),
-                        to: ctx.accounts.creator_wallet.to_account_info(),
-                    },
-                    sv_signer,
-                ),
-                creator_fee,
+                CpiContext::new_with_signer(ctx.accounts.system_program.to_account_info(), system_program::Transfer {
+                    from: ctx.accounts.sol_vault.to_account_info(),
+                    to: ctx.accounts.creator_wallet.to_account_info(),
+                }, sv_signer),
+                creator_fee as u64,
             )?;
         }
 
+        // ── Update State ────────────────────────────────────────────────────
         pool.real_sol_reserves = pool.real_sol_reserves.saturating_sub(gross_sol_out);
         pool.real_token_reserves = pool.real_token_reserves.saturating_add(tokens_in);
         pool.virtual_sol_reserves = pool.virtual_sol_reserves.saturating_sub(gross_sol_out);
         pool.virtual_token_reserves = pool.virtual_token_reserves.saturating_add(tokens_in);
+        
+        user_stats.total_sold = user_stats.total_sold.saturating_add(tokens_in);
 
         emit!(TradeEvent {
             mint: pool.mint,
@@ -447,9 +467,8 @@ pub mod rd_bondingcurve {
             virtual_token_reserves: pool.virtual_token_reserves,
             real_sol_reserves: pool.real_sol_reserves,
             real_token_reserves: pool.real_token_reserves,
-            timestamp: Clock::get()?.unix_timestamp,
+            timestamp: now,
         });
-
         Ok(())
     }
 
@@ -810,6 +829,15 @@ pub struct Trade<'info> {
     )]
     pub buyer_token_account: Account<'info, TokenAccount>,
 
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        space = 8 + UserStats::SPACE,
+        seeds = [b"user_stats", buyer.key().as_ref(), mint.key().as_ref()],
+        bump
+    )]
+    pub user_stats: Account<'info, UserStats>,
+
     #[account(mut)]
     pub buyer: Signer<'info>,
 
@@ -820,6 +848,10 @@ pub struct Trade<'info> {
     /// CHECK: must equal pool.creator
     #[account(mut, address = pool.creator)]
     pub creator_wallet: SystemAccount<'info>,
+
+    /// CHECK: Optional referrer. If not provided, fees go to treasury.
+    #[account(mut)]
+    pub referrer: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -1150,11 +1182,25 @@ pub enum BondingCurveError {
     #[msg("Caller is not the migration authority")]
     NotMigrationAuthority,
     #[msg("Pool already migrated")]
-    AlreadyMigrated,
     #[msg("Caller is not the emergency admin")]
     NotEmergencyAdmin,
     #[msg("Pool is not currently paused")]
     NotPaused,
     #[msg("Emergency timelock has not elapsed (7 days from pause)")]
     TimelockNotElapsed,
+    #[msg("Anti-sniping: Must hold tokens for at least 60 seconds")]
+    AntiSnipingActive,
+}
+
+#[account]
+pub struct UserStats {
+    pub owner: Pubkey,
+    pub last_buy: i64,
+    pub total_bought: u64,
+    pub total_sold: u64,
+    pub bump: u8,
+}
+
+impl UserStats {
+    pub const SPACE: usize = 32 + 8 + 8 + 8 + 1 + 32;
 }

@@ -68,12 +68,10 @@ const [globalPda] = PublicKey.findProgramAddressSync([Buffer.from('global')], PR
   }
 
   const sig = await program.methods
-    .initializeGlobal(EMERGENCY_ADMIN)
+    .initializeGlobal(TREASURY, MIGRATION_AUTH)
     .accounts({
       global:               globalPda,
-      admin:                admin.publicKey,
-      treasury:             TREASURY,
-      migrationAuthority:   MIGRATION_AUTH,
+      authority:            admin.publicKey,
       systemProgram:        SystemProgram.programId,
     })
     .signers([admin])

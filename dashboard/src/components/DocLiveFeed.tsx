@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
-const RDX_MINT = 'Dj3S6gNJo5omvAorpQV2DS5g2UQpoB4UBpdAWngWrLnj'
+const RDX_MINT = process.env.NEXT_PUBLIC_RDX_TOKEN_MINT || 'CoB4pQfZSihDH1BknouU4P35vdQPNEtSj8sGtANhquC7'
 const MADURO_MINT = 'Fr1jaLiR24dHNncvQ19FSG6Xf4AyhS5LWdhc6fVstpd5'
 const BUKELE_MINT = 'CysZdDee27jZUxgBim63mk5LhZcDgU7gqopaZ4F9cnmU'
 const AREA51_MINT = '3ybspCwEWCBLVTpPHhgCRtPRfEJqB7fDcXnFL1H6qTUu'
@@ -21,7 +21,7 @@ const SEED_TOKENS = [
   { ticker: 'LYME', name: 'Project Lyme: Weaponized Strains', category: 'SUPPRESSED', price: '0.00315', change: '+412%', age: 'now', hot: true, mint: LYME_MINT, logo: getLogo('Weaponized bacteria strains') },
   { ticker: 'MADURO', name: 'Venezuela: The Maduro Cartel Dossier', category: 'SUPPRESSED', price: '0.00512', change: '+942%', age: 'now', hot: true, mint: MADURO_MINT, logo: getLogo('Maduro cartel documents') },
   { ticker: 'BUKELE', name: 'El Salvador: Project Bitcoin City', category: 'CLASSIFIED', price: '0.00318', change: '+215%', age: 'now', hot: true, mint: BUKELE_MINT, logo: getLogo('Bitcoin City blueprints') },
-  { ticker: 'RDX', name: 'The Agent — Autonomous News Scanner', category: 'THE AGENT', price: '0.00420', change: '+∞%', age: 'genesis', hot: true, mint: RDX_MINT, logo: getLogo('Autonomous AI scanner agent') },
+  { ticker: 'RDX', name: 'The Agent — Autonomous News Scanner', category: 'THE AGENT', price: '0.00420', change: '+∞%', age: 'genesis', hot: true, mint: RDX_MINT, logo: getLogo('Autonomous intelligence scanner engine') },
   { ticker: 'EPST', name: 'Epstein Flight Logs Vol.I', category: 'CLASSIFIED', price: '0.00042', change: '+284%', age: '2m ago', hot: true, mint: RDX_MINT, logo: getLogo('Epstein flight logs document') },
   { ticker: 'JFK63', name: 'Warren Commission Files', category: 'REDACTED', price: '0.00018', change: '+132%', age: '5m ago', hot: true, mint: RDX_MINT, logo: getLogo('JFK assassination files') },
 ]
@@ -35,10 +35,45 @@ const NEW_LAUNCHES = [
 ]
 
 export function DocLiveFeed() {
-  const [tokens, setTokens] = useState(SEED_TOKENS)
+  const [tokens, setTokens] = useState<any[]>(SEED_TOKENS)
   const [ticker, setTicker] = useState(0)
   const [newLaunch, setNewLaunch] = useState('')
   const tickerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Fetch real tokens from API
+  useEffect(() => {
+    const fetchTokens = async () => {
+      try {
+        const res = await fetch('/api/tokens?limit=20&sort=new')
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.tokens && data.tokens.length > 0) {
+          // Map API tokens to Feed format
+          const mapped = data.tokens.map((t: any) => ({
+            ticker: t.symbol,
+            name: t.name,
+            category: t.progress >= 100 ? 'GRADUATED' : t.progress > 50 ? 'HOT' : 'CLASSIFIED',
+            price: t.currentPrice.toFixed(6),
+            change: `+${(Math.random() * 20).toFixed(1)}%`, // Mock change since we don't store historical in simple API
+            age: 'LIVE',
+            hot: t.progress > 50,
+            mint: t.mint,
+            logo: t.logo || getLogo(t.name)
+          }))
+          
+          // Merge with SEED_TOKENS to ensure a full list during early launch
+          const merged = [...mapped, ...SEED_TOKENS.filter(s => !mapped.find((m: any) => m.mint === s.mint))]
+          setTokens(merged.slice(0, 15))
+        }
+      } catch (err) {
+        console.error('Failed to fetch live tokens:', err)
+      }
+    }
+
+    fetchTokens()
+    const interval = setInterval(fetchTokens, 30000) // Refresh every 30s
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     tickerRef.current = setInterval(() => {
@@ -52,8 +87,7 @@ export function DocLiveFeed() {
     const interval = setInterval(() => {
       setTokens(prev => prev.map(t => ({
         ...t,
-        price: (parseFloat(t.price) * (0.98 + Math.random() * 0.04)).toFixed(5),
-        change: `+${(Math.random() * 300 + 10).toFixed(0)}%`,
+        price: (parseFloat(t.price) * (0.999 + Math.random() * 0.002)).toFixed(6),
       })))
     }, 5000)
     return () => clearInterval(interval)

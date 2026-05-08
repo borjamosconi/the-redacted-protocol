@@ -157,13 +157,22 @@ export async function POST(req: NextRequest) {
 
     if (getRdxMint() && getDistributorKeypair()) {
       try {
-        // tokensOut * 10^9 = raw units with decimals
         const rawAmount = BigInt(tokensOutFloor) * BigInt(10 ** RDX_DECIMALS)
         rdxTxSignature = await sendRdxToWallet(wallet, rawAmount)
         rdxSent = true
       } catch (distErr) {
-        // Non-fatal: allocation recorded in Redis for later claim
         console.error('[bonding-curve/POST] RDX distribution failed:', distErr)
+      }
+    }
+
+    // ── Whale Alert ────────────────────────────────────────────────────────
+    if (amount >= 0.5) {
+      try {
+        const { sendTelegramBroadcast } = await import('@/lib/telegram-scheduler')
+        const whaleMsg = `🐋 <b>WHALE ALERT</b> 🐋\n\nUn operador ha desplegado <b>${amount} SOL</b> en el protocolo.\n\n💼 <b>Billetera:</b> <code>${wallet.slice(0, 6)}...${wallet.slice(-4)}</code>\n🪙 <b>Recibido:</b> ${tokensOutFloor.toLocaleString()} $RDX\n\n🔗 <a href="${process.env.NEXT_PUBLIC_APP_URL}/terminal">IR AL TERMINAL</a>`
+        await sendTelegramBroadcast(whaleMsg)
+      } catch (err) {
+        console.error('[WhaleAlert] Failed to send broadcast:', err)
       }
     }
 

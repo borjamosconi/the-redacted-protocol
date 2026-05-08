@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 
 export function ColosseumSection() {
   return (
-    <section id="colosseum" className="py-24 relative overflow-hidden">
+    <section id="colosseum" className="py-12 sm:py-24 relative overflow-hidden">
       {/* Background effects */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-rd-red/5 rounded-full blur-[150px]" />
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-rd-purple/5 rounded-full blur-[120px]" />
@@ -42,16 +42,16 @@ export function ColosseumSection() {
             <div className="space-y-4 mb-8">
               <p className="text-rd-muted/80 leading-relaxed">
                 <strong className="text-rd-text">Redacted Protocol</strong> is an autonomous,
-                privacy-preserving, zero-knowledge AI agent that detects, reconstructs,
-                verifies and declassifies censored/redacted information on Solana.
+                privacy-preserving, zero-knowledge declassification engine that detects, reconstructs,
+                verifies and declassifies restricted information on Solana.
               </p>
 
               <p className="text-rd-muted/60 leading-relaxed text-sm">
                 Built entirely in <strong className="text-rd-text">Rust</strong> with a
                 <strong className="text-rd-text"> TypeScript dashboard</strong>. Uses{' '}
-                <strong className="text-rd-text">OpenRouter free tier</strong> for LLM
-                and <strong className="text-rd-text">Puter.js</strong> for free OCR &
-                image generation. <span className="text-rd-red font-bold">$0 cost to run.</span>
+                <strong className="text-rd-text">multi-provider inference</strong> for data
+                and <strong className="text-rd-text">Puter.js</strong> for distributed OCR &
+                asset generation. <span className="text-rd-red font-bold">$0 cost to run.</span>
               </p>
             </div>
 
@@ -59,9 +59,9 @@ export function ColosseumSection() {
             <div className="space-y-3 mb-8">
               {[
                 { icon: '🔍', text: 'Autonomous redaction detection in documents & news' },
-                { icon: '🤖', text: 'AI reconstruction via multi-provider LLM consensus' },
+                { icon: '🤖', text: 'Neural reconstruction via multi-provider consensus' },
                 { icon: '⛓️', text: 'On-chain anchoring with ZK proofs on Solana' },
-                { icon: '📰', text: 'News intelligence agent with conspiracy detection' },
+                { icon: '📰', text: 'News intelligence processor with anomaly detection' },
                 { icon: '🖼️', text: '100% free OCR & image generation (Puter.js)' },
                 { icon: '🤖', text: 'Telegram bot with scheduled broadcasts' },
                 { icon: '🔐', text: '3-tier permission system (Observer/Reconstructor/Declassifier)' },
@@ -108,7 +108,7 @@ export function ColosseumSection() {
               { label: 'LLM Providers', value: '5', sub: 'Anthropic, OpenAI, xAI, DashScope, OpenRouter' },
               { label: 'Dashboard API Routes', value: '6', sub: 'Airdrop, Fragments, Image, Scan-News, Status, Gamify' },
               { label: 'React Components', value: '13', sub: 'Hero, Header, Footer, Colosseum, Airdrop, Gamification, OCR, ImageGen, Gallery, News, Fragments, Tokenomics, SolanaProvider' },
-              { label: 'Telegram Bot Commands', value: '7', sub: '/start, /status, /airdrop, /scan_news, /help, + AI chat' },
+              { label: 'Interactive Terminal Commands', value: '7', sub: '/start, /status, /airdrop, /scan_news, /help, + query system' },
               { label: 'Image Styles', value: '6', sub: 'Censored Figure, Access Denied, Floating Docs, Circuit, Classified, Glitch' },
               { label: 'Gallery Assets', value: '22', sub: '16 photos + 6 videos' },
               { label: 'Gamification XP Actions', value: '12', sub: 'Register, checkin, refer, OCR, news, image, social, quests, streaks' },
@@ -160,7 +160,7 @@ export function ColosseumSection() {
             {[
               { step: '1', title: 'DETECT', desc: 'Scan documents & news for redaction markers', icon: '🔍' },
               { step: '2', title: 'OCR', desc: 'Extract text via Puter.js Tesseract (100% free)', icon: '📄' },
-              { step: '3', title: 'RECONSTRUCT', desc: 'Multi-LLM consensus infers hidden content', icon: '🤖' },
+              { step: '3', title: 'RECONSTRUCT', desc: 'Consensus-based inference infers hidden content', icon: '🤖' },
               { step: '4', title: 'VERIFY', desc: 'Confidence scoring + threat level analysis', icon: '✅' },
               { step: '5', title: 'ANCHOR', desc: 'Hash + ZK proof on Solana blockchain', icon: '⛓️' },
             ].map((item, i) => (

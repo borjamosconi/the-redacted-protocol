@@ -1,6 +1,6 @@
 # 🚀 Redacted Protocol — Production Deployment Guide
 
-> **Autonomous AI Agent for Document Declassification on Solana**
+> **Autonomous Inference Engine for Document Declassification on Solana**
 >
 > 100% Rust · Zero-Knowledge · MIT Licensed · Production-Ready
 

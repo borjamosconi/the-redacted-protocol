@@ -38,7 +38,7 @@ export function LeaksFeed() {
   }, [])
 
   return (
-    <section id="leaks" className="py-24 relative overflow-hidden bg-black">
+    <section id="leaks" className="py-12 sm:py-24 relative overflow-hidden bg-black">
       {/* Background Grid */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,26,26,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,26,26,0.03)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)]" />
 

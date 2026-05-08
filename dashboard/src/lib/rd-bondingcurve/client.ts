@@ -12,6 +12,8 @@ import {
 import {
   TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddressSync,
+  MINT_SIZE, createInitializeMintInstruction,
+  getMinimumBalanceForRentExemptMint,
 } from '@solana/spl-token'
 import { IDL as BONDING_CURVE_IDL, BondingCurveIDL } from './idl'
 
@@ -98,7 +100,24 @@ export async function buildCreatePoolTx(
   const [solVault] = solVaultPda(mint)
   const poolTokenVault = getAssociatedTokenAddressSync(mint, pool, true)
 
-  const ix = await program.methods
+  const lamports = await getMinimumBalanceForRentExemptMint(connection)
+
+  const createMintIx = SystemProgram.createAccount({
+    fromPubkey: wallet.publicKey,
+    newAccountPubkey: mint,
+    space: MINT_SIZE,
+    lamports,
+    programId: TOKEN_PROGRAM_ID,
+  })
+
+  const initMintIx = createInitializeMintInstruction(
+    mint,
+    TOKEN_DECIMALS,
+    wallet.publicKey,
+    wallet.publicKey
+  )
+
+  const poolIx = await program.methods
     .createPool(params.name, params.symbol, params.uri)
     .accounts({
       global, pool, mint,
@@ -112,7 +131,10 @@ export async function buildCreatePoolTx(
     .instruction()
 
   const { blockhash } = await connection.getLatestBlockhash()
-  const tx = new Transaction({ feePayer: wallet.publicKey, recentBlockhash: blockhash }).add(ix)
+  const tx = new Transaction({ feePayer: wallet.publicKey, recentBlockhash: blockhash })
+    .add(createMintIx)
+    .add(initMintIx)
+    .add(poolIx)
   // mint keypair must co-sign because we create_account for it
   tx.partialSign(params.mintKeypair)
   return { tx, mintKeypair: params.mintKeypair, mint }

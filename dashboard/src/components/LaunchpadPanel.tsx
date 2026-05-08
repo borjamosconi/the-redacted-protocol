@@ -4,15 +4,13 @@
  * LaunchpadPanel — single-flow, minimal token launch UX.
  *
  * Product decisions:
- *   - One vertical step-by-step form, no tabs / no AI styles / no extra prompts
- *   - 4 inputs only: name, symbol, description, logo (upload OR single AI generate)
+ *   - One vertical step-by-step form, no tabs / no extra prompts
+ *   - 4 inputs only: name, symbol, description, logo (upload OR single visual synthesis)
  *   - Twitter / Website tucked into a collapsible "Optional links"
  *   - Single big LAUNCH TOKEN button
  *   - Single inline progress indicator (no modals)
  *   - On success: immediate redirect to /terminal/<MINT>
  *   - Off-chain mode by default (NEXT_PUBLIC_LAUNCH_MODE=offchain)
- *     — on-chain rd-bondingcurve client is dynamically imported only when
- *       LAUNCH_MODE === 'onchain' so the off-chain bundle stays lean.
  */
 
 import { useState, useRef } from 'react'
@@ -129,8 +127,8 @@ function buildCreateMetadataIx(args: {
   })
 }
 
-// Single AI prompt — the on-brand look. No more 6-style picker.
-const AI_PROMPT_BASE =
+// Standard visual preset — the on-brand look. No more style picker.
+const VISUAL_PROMPT_BASE =
   'minimal crypto token logo, dark dystopian, deep red and black palette, holographic interference, ' +
   'cyberpunk classified document aesthetic, high contrast, square 1024x1024, no text'
 
@@ -162,15 +160,15 @@ export function LaunchpadPanel() {
     r.readAsDataURL(f)
   }
 
-  const generateAI = () => {
+  const generateVisual = () => {
     setGenerating(true)
     setError('')
-    const named = name ? `${AI_PROMPT_BASE}, named "${name}"` : AI_PROMPT_BASE
+    const named = name ? `${VISUAL_PROMPT_BASE}, named "${name}"` : VISUAL_PROMPT_BASE
     const seed = Math.floor(Math.random() * 999999)
     const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(named)}?width=1024&height=1024&seed=${seed}&nologo=true`
     const img = new Image()
     img.onload  = () => { setLogo(url); setGenerating(false) }
-    img.onerror = () => { setError('AI generation failed — try again or upload'); setGenerating(false) }
+    img.onerror = () => { setError('Visual generation failed — try again or upload'); setGenerating(false) }
     img.src = url
   }
 
@@ -499,7 +497,7 @@ export function LaunchpadPanel() {
               key={p.symbol}
               type="button"
               disabled={launching}
-              onClick={() => { setName(p.name); setSymbol(p.symbol); setDescription(p.desc); generateAI() }}
+              onClick={() => { setName(p.name); setSymbol(p.symbol); setDescription(p.desc); generateVisual() }}
               className="flex-shrink-0 w-[140px] sm:w-auto text-left p-4 border sm:border-0 sm:border-r sm:border-b last:border-r-0 border-white/10 bg-white/[0.03] sm:bg-white/[0.01] hover:bg-white hover:border-white transition-all group disabled:opacity-40"
             >
               <div className="text-[11px] font-black text-white group-hover:text-black transition-colors uppercase tracking-widest">${p.symbol}</div>
@@ -568,9 +566,9 @@ export function LaunchpadPanel() {
                 className="py-3 px-6 text-[9px] font-black uppercase tracking-[0.3em] border border-white/10 bg-white/[0.03] text-white/40 hover:bg-white hover:text-black transition-all disabled:opacity-40">
                 {logo ? 'Change Image' : 'Upload File'}
               </button>
-              <button type="button" onClick={generateAI} disabled={launching || generating}
+              <button type="button" onClick={generateVisual} disabled={launching || generating}
                 className="py-3 px-6 text-[9px] font-black uppercase tracking-[0.3em] border border-red-600/30 bg-red-600/5 text-red-500 hover:bg-red-600 hover:text-white transition-all disabled:opacity-40">
-                {generating ? 'Generating...' : 'Generate with AI'}
+                {generating ? 'Synthesizing...' : 'Generate Visual'}
               </button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
             </div>
@@ -623,15 +621,27 @@ export function LaunchpadPanel() {
 
         {/* LAUNCH BUTTON */}
         <button onClick={handleLaunchClick} disabled={!canLaunch}
-          className="w-full relative py-6 bg-red-600 hover:bg-white text-white hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-all group overflow-hidden">
+          className="w-full relative py-7 bg-red-600 hover:bg-white text-white hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-all group overflow-hidden shadow-[15px_15px_0px_rgba(255,0,0,0.1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1">
           <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%] group-hover:animate-shimmer" />
-          <span className="relative z-10 font-black text-sm uppercase tracking-[0.4em] sm:tracking-[0.6em]">
+          
+          {launching && (
+            <div className="absolute inset-0 bg-black/40 z-0">
+               <motion.div 
+                 initial={{ width: 0 }}
+                 animate={{ width: '100%' }}
+                 transition={{ duration: 15, ease: "linear" }}
+                 className="h-full bg-red-500/20"
+               />
+            </div>
+          )}
+
+          <span className="relative z-10 font-black text-sm sm:text-base uppercase tracking-[0.4em] sm:tracking-[0.8em]">
             {launching ? (
-              <span className="flex items-center justify-center gap-4">
-                <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                {step || 'Processing...'}
+              <span className="flex flex-col items-center gap-1">
+                <span className="animate-pulse">{step || 'INITIATING_UPLINK...'}</span>
+                <span className="text-[8px] opacity-50 font-mono">DO NOT CLOSE TERMINAL</span>
               </span>
-            ) : !publicKey ? 'Connect Wallet' : LAUNCH_MODE === 'onchain' ? 'Launch Token' : 'Create Token'}
+            ) : !publicKey ? 'CONNECT_WALLET' : 'INITIATE_DECLASSIFICATION'}
           </span>
         </button>
 

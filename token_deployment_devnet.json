@@ -1,0 +1,11 @@
+﻿{
+    "token_name":  "Redacted Protocol",
+    "total_supply":  "1000000000",
+    "token_account":  "DCnpgU9H1NnQLS9CNoSgZ9R1Fm8rteVQ2TQv8Hi9mfJX",
+    "deployed_at":  "2026-05-08T19:01:29Z",
+    "token_symbol":  "RDX",
+    "decimals":  9,
+    "mint_authority_revoked":  true,
+    "network":  "devnet",
+    "token_mint":  "CoB4pQfZSihDH1BknouU4P35vdQPNEtSj8sGtANhquC7"
+}

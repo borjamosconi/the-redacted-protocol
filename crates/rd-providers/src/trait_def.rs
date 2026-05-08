@@ -10,7 +10,7 @@ pub enum ProviderError {
 }
 
 #[derive(Debug, Clone)]
-pub struct LlmRequest {
+pub struct InferenceRequest {
     pub system_prompt: String,
     pub messages: Vec<ProviderMessage>,
     pub max_tokens: u64,
@@ -40,7 +40,7 @@ pub struct ToolDefinition {
 }
 
 #[derive(Debug, Clone)]
-pub struct LlmResponse {
+pub struct InferenceResponse {
     pub blocks: Vec<ContentBlock>,
     pub usage: Option<TokenUsage>,
     pub stop_reason: StopReason,
@@ -51,17 +51,17 @@ pub enum StopReason { EndTurn, ToolUse, MaxTokens, Error(String) }
 
 #[async_trait]
 pub trait Provider: Send + Sync {
-    async fn send(&self, request: LlmRequest) -> Result<LlmResponse, ProviderError>;
-    async fn stream(&self, request: LlmRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError>;
+    async fn send(&self, request: InferenceRequest) -> Result<InferenceResponse, ProviderError>;
+    async fn stream(&self, request: InferenceRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError>;
     fn kind(&self) -> rd_types::provider::ProviderKind;
 }
 
 #[async_trait]
 impl Provider for Box<dyn Provider> {
-    async fn send(&self, request: LlmRequest) -> Result<LlmResponse, ProviderError> {
+    async fn send(&self, request: InferenceRequest) -> Result<InferenceResponse, ProviderError> {
         self.as_ref().send(request).await
     }
-    async fn stream(&self, request: LlmRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
+    async fn stream(&self, request: InferenceRequest) -> Result<Box<dyn futures::Stream<Item = Result<StreamEvent, ProviderError>> + Unpin + Send>, ProviderError> {
         self.as_ref().stream(request).await
     }
     fn kind(&self) -> rd_types::provider::ProviderKind {
