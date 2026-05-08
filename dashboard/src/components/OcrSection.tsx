@@ -19,11 +19,9 @@ export function OcrSection() {
     setProcessing(true)
 
     try {
-      // Use RED-X Gemini Intelligence for deep analysis
       const data = await extractDeclassifiedData(file)
       setResult(data)
 
-      // Award XP for RED-X Intel Scan
       if (publicKey) {
         fetch('/api/gamify', {
           method: 'POST',
@@ -57,7 +55,7 @@ export function OcrSection() {
           </div>
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             <span className="text-rd-red">RED-X</span>{' '}
-            <span className="text-rd-text">ECONOMIC INTELLIGENCE</span>
+            <span className="text-rd-text">NEURAL INTELLIGENCE</span>
           </h2>
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="h-px w-16 bg-gradient-to-r from-transparent to-rd-red/30" />
@@ -113,7 +111,6 @@ export function OcrSection() {
             />
           </div>
 
-          {/* Error */}
           {error && (
             <div className="mt-4 p-3 border border-rd-red/40 bg-rd-red/10 text-rd-red text-xs tracking-wider">
               ⚠ {error}
@@ -140,6 +137,7 @@ export function OcrSection() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="text-center p-3 bg-rd-black/50 rounded border border-rd-border/10">
                     <div className="text-lg font-bold text-rd-red">
                       {Math.round((result.metadata?.confidence || 0) * 100)}%
@@ -150,10 +148,10 @@ export function OcrSection() {
                   </div>
                   <div className="text-center p-3 bg-rd-black/50 rounded border border-rd-border/10">
                     <div className={`text-lg font-bold ${result.censorship?.riskLevel === 'CRITICAL' ? 'text-red-600 animate-pulse' : 'text-rd-red'}`}>
-                      {result.censorship?.riskLevel || 'LOW'}
+                      {result.metadata?.clearanceLevel || 'TOP SECRET'}
                     </div>
                     <div className="text-[10px] text-rd-muted/40 tracking-wider mt-1">
-                      RISK LEVEL
+                      CLEARANCE LEVEL
                     </div>
                   </div>
                 </div>
@@ -174,7 +172,7 @@ export function OcrSection() {
                     </div>
                     
                     <div className="grid grid-cols-3 gap-2 mb-4 opacity-50">
-                       {['ANTHROPIC', 'OPENAI', 'DEEPSEEK'].map(provider => (
+                       {['ANTHROPIC', 'OPENAI', 'X-AI'].map(provider => (
                          <div key={provider} className="text-[7px] border border-rd-red/20 p-1 flex justify-between">
                             <span>{provider}</span>
                             <span className="text-green-500">CONSENSUS_99%</span>
@@ -188,46 +186,19 @@ export function OcrSection() {
                   </div>
                 )}
 
-                {result.items && result.items.length > 0 && (
+                {result.keyFindings && result.keyFindings.length > 0 && (
                   <div className="mt-8">
                     <div className="text-[10px] text-rd-muted/50 tracking-widest mb-4 flex items-center gap-2">
                       <div className="w-1 h-1 bg-rd-red rounded-full animate-ping" />
-                      EXTRACTED_ECONOMIC_DATA_STREAM
+                      KEY_INTEL_EXTRACTED
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-[10px] font-mono border-collapse">
-                        <thead className="border-b border-rd-border text-rd-muted/50">
-                          <tr>
-                            <th className="py-3 px-2">DESCRIPTION</th>
-                            <th className="py-3 px-2 text-right">QTY</th>
-                            <th className="py-3 px-2 text-right">UNIT_PRICE</th>
-                            <th className="py-3 px-2 text-right">TOTAL</th>
-                            <th className="py-3 px-2 text-right">STATUS</th>
-                          </tr>
-                        </thead>
-                        <tbody className="text-rd-text/80 divide-y divide-rd-border/5">
-                          {result.items.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-rd-red/5 transition-colors">
-                              <td className="py-3 px-2">
-                                <div className="font-bold">{item.description}</div>
-                                {item.evidence && <div className="text-[8px] text-rd-muted/40 mt-1 italic">Ref: {item.evidence}</div>}
-                              </td>
-                              <td className="py-3 px-2 text-right">{item.quantity}</td>
-                              <td className="py-3 px-2 text-right">{item.unitPrice.toLocaleString()}</td>
-                              <td className="py-3 px-2 text-right font-black">{(item.quantity * item.unitPrice).toLocaleString()}</td>
-                              <td className={`py-3 px-2 text-right`}>
-                                <span className={`px-2 py-0.5 rounded-sm border ${
-                                  item.status === 'verified' ? 'border-green-500/30 text-green-500 bg-green-500/5' :
-                                  item.status === 'redacted' ? 'border-rd-red/30 text-rd-red bg-rd-red/5' :
-                                  'border-yellow-500/30 text-yellow-500 bg-yellow-500/5'
-                                } font-black text-[8px]`}>
-                                  {item.status.toUpperCase()}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="space-y-2">
+                      {result.keyFindings.map((finding, idx) => (
+                        <div key={idx} className="p-3 bg-rd-black/30 border border-rd-border/10 rounded font-mono text-[10px] text-rd-text/70 flex items-start gap-3">
+                          <span className="text-rd-red">►</span>
+                          {finding}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -241,11 +212,11 @@ export function OcrSection() {
           {[
             {
               title: 'Neural Reconstruction',
-              desc: 'High-fidelity reconstruction of redacted data points via multi-source consensus.',
+              desc: 'High-fidelity reconstruction of redacted data points via multi-vector consensus.',
             },
             {
-              title: 'Economic Triangulation',
-              desc: 'Cross-references financial data against global market indicators for validation.',
+              title: 'Pattern Triangulation',
+              desc: 'Cross-references document fragments against global data streams for validation.',
             },
             {
               title: 'Anomaly Detection',

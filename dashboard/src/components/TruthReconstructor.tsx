@@ -12,24 +12,24 @@ interface NewsPerspective {
 
 const SAMPLE_DATA = [
   {
-    topic: 'ECONOMIC_REFORM_V4',
+    topic: 'CYBER_WARFARE_PROTOCOLS',
     left: {
-      source: 'Global Progress',
+      source: 'Tech Watch',
       bias: 'LEFT',
-      headline: 'New Tax Law Targets Billionaires to Fund Social Safety Net',
-      keyPoints: ['Equality driven', 'Public funding increase', 'Wealth redistribution']
+      headline: 'Network Outage attributed to Solar Flare Interference',
+      keyPoints: ['Natural phenomenon', 'Infrastructure vulnerability', 'No malicious intent found']
     },
     right: {
-      source: 'Liberty Daily',
+      source: 'Defense Intel',
       bias: 'RIGHT',
-      headline: 'Aggressive Tax Hike Threatens to Stifle Innovation and Growth',
-      keyPoints: ['Economic stagnation', 'Capital flight risk', 'Government overreach']
+      headline: 'State-Sponsored Hackers Target Critical Power Grid Nodes',
+      keyPoints: ['External aggression', 'National security threat', 'Retaliation protocols activated']
     },
     reconstructed: {
       source: 'RDX_AGENT_01',
       bias: 'REDACTED',
-      headline: 'Resource Reallocation Protocol 84: A Shift in Capital Velocity',
-      keyPoints: ['Mathematical necessity due to debt', 'Automation of tax collection', 'Neutralization of legacy offshore loopholes']
+      headline: 'Operation Black Horizon: Stress Testing Autonomous Denial-of-Service',
+      keyPoints: ['Internal protocol verification', 'Zero-day exploit neutralizing active firewalls', 'Controlled blackout for hardware upgrade deployment']
     }
   },
   {

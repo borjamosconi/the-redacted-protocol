@@ -55,16 +55,16 @@ export function ScrollVideoSection() {
     let current = 0
 
     const unsubscribe = smoothProgress.on('change', (latest) => {
-      // Speed up scrub 2×, capped at 1.
-      target = Math.min(latest * 2, 1)
+      // Scrub logic: the video should progress exactly with the scroll.
+      // We use the full [0, 1] range to avoid "dead scroll" at the end.
+      target = latest
     })
 
     const tick = () => {
       if (video.readyState >= 2 && !isNaN(video.duration) && video.duration > 0) {
-        // Lerp toward target so rapid scrolls don't thrash the decoder.
-        current += (target - current) * 0.18
+        // Slightly higher lerp for better responsiveness
+        current += (target - current) * 0.25
         const t = video.duration * current
-        // Avoid redundant sub-millisecond writes.
         if (Math.abs(video.currentTime - t) > 0.01) {
           try { video.currentTime = t } catch { /* ignore if not ready */ }
         }
@@ -92,44 +92,47 @@ export function ScrollVideoSection() {
 
   return (
     <section ref={containerRef} className={`relative ${containerHeight} w-full bg-black`}>
-      <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
-        <video
-          ref={videoRef}
-          src="/videos/videoweb.mp4"
-          className="absolute inset-0 w-full h-full object-cover opacity-100"
-          muted
-          playsInline
-          preload="auto"
-          autoPlay={useAutoplay}
-          loop={useAutoplay}
-          // iOS hints for smoother inline playback
-          {...({ 'webkit-playsinline': 'true' } as Record<string, string>)}
-          disableRemotePlayback
-        />
-
-        <div className="relative z-10 flex flex-col items-center justify-center text-center px-4">
-          <motion.h2
-            className="text-4xl sm:text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 tracking-tighter uppercase font-mono"
-            style={{
-              opacity: useTransform(scrollYProgress, [0, 0.1, 0.9, 1], [0, 1, 1, 0]),
-              scale:   useTransform(scrollYProgress, [0, 0.5, 1], [0.95, 1, 1.05]),
-            }}
-          >
-            DECRYPTING <span className="text-red-500">REALITY</span>
-          </motion.h2>
-          <motion.p
-            className="mt-6 text-lg md:text-2xl text-gray-400 max-w-2xl font-mono tracking-widest"
-            style={{
-              opacity: useTransform(scrollYProgress, [0.2, 0.4, 0.9, 1], [0, 1, 1, 0]),
-              y:       useTransform(scrollYProgress, [0.2, 0.4], [30, 0]),
-            }}
-          >
-            The truth is hidden in the fragments. Scroll to reveal.
-          </motion.p>
+      <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center bg-black">
+        <div className="absolute inset-0 z-0">
+          <video
+            ref={videoRef}
+            src="/videos/videoweb.mp4"
+            className="w-full h-full object-cover opacity-80"
+            muted
+            playsInline
+            preload="auto"
+            autoPlay={useAutoplay}
+            loop={useAutoplay}
+            {...({ 'webkit-playsinline': 'true' } as Record<string, string>)}
+            disableRemotePlayback
+          />
         </div>
 
-        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent pointer-events-none z-20" />
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-20" />
+        <div className="relative z-10 flex flex-col items-center justify-center text-center px-4 w-full">
+          <motion.div
+            style={{
+              opacity: useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [0, 1, 1, 0]),
+              scale:   useTransform(scrollYProgress, [0, 0.5, 1], [0.9, 1, 1.1]),
+              filter:  useTransform(scrollYProgress, (latest) => `blur(${Math.max(0, (latest - 0.8) * 20)}px)`)
+            }}
+            className="flex flex-col items-center"
+          >
+            <h2 className="text-4xl sm:text-6xl md:text-9xl font-black text-white tracking-tighter uppercase font-mono drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+              DECRYPTING <span className="text-red-600 animate-pulse">REALITY</span>
+            </h2>
+            <p className="mt-8 text-lg md:text-2xl text-gray-400 max-w-3xl font-mono tracking-widest border-l-2 border-red-600 pl-6 bg-black/40 backdrop-blur-sm py-2">
+              The truth is hidden in the fragments. Scroll to reveal.
+            </p>
+          </motion.div>
+        </div>
+
+        {/* Cinematic Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black pointer-events-none z-20 opacity-60" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)] pointer-events-none z-20 opacity-40" />
+        
+        {/* Top/Bottom Blending */}
+        <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-black to-transparent pointer-events-none z-30" />
+        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black to-transparent pointer-events-none z-30" />
       </div>
 
       <style jsx>{`

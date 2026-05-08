@@ -24,8 +24,6 @@ interface GenerationResult {
 // ── Config (mirrors server) ────────────────────────────────────────────────────
 const MODELS = [
   { id: 'nano-banana-2', name: 'Nano Banana 2', type: 'image', icon: '📸', desc: 'Neural synthesis' },
-  { id: 'kling-v3',      name: 'Kling v3 T2V',  type: 'video', icon: '🎬', desc: 'Text → Video' },
-  { id: 'wan-2.1',       name: 'Wan 2.1',       type: 'video', icon: '▶️', desc: 'Experimental' },
 ]
 
 const CAMERAS = [
@@ -69,7 +67,6 @@ const PRESETS = [
   { id: 'blockchain_node',   label: 'Blockchain Node',    emoji: '⬡' },
 ]
 
-const DURATIONS = [3, 5, 8, 10]
 
 // ── Component ──────────────────────────────────────────────────────────────────
 export function CinemaPanel() {
@@ -83,7 +80,6 @@ export function CinemaPanel() {
   const [aperture,    setAperture]    = useState('f/4')
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [resolution,  setResolution]  = useState('4K')
-  const [duration,    setDuration]    = useState(5)
 
   // Generation state
   const [generating,  setGenerating]  = useState(false)
@@ -93,7 +89,7 @@ export function CinemaPanel() {
   const [history,     setHistory]     = useState<GenerationResult[]>([])
 
   const selectedModel = MODELS.find(m => m.id === model) || MODELS[0]
-  const isVideo       = selectedModel.type === 'video'
+  const isVideo       = false
 
   // ── Generate ──────────────────────────────────────────────────────────────
   const generate = async () => {
@@ -108,7 +104,7 @@ export function CinemaPanel() {
 
     // Simulate progress bar while waiting
     const progressInterval = setInterval(() => {
-      setProgress(p => Math.min(p + (isVideo ? 1.2 : 2.5), 92))
+      setProgress(p => Math.min(p + 2.5, 92))
     }, 1500)
 
     try {
@@ -123,7 +119,6 @@ export function CinemaPanel() {
         aspectRatio,
         resolution,
       }
-      if (isVideo) body.duration = duration
 
       const res  = await fetch('/api/cinema', {
         method:  'POST',
@@ -168,20 +163,7 @@ export function CinemaPanel() {
             <p className="text-[10px] text-gray-600 font-mono mt-1">Synthesize forensic images & videos — keys rotate automatically</p>
           </div>
           <div className="flex gap-2 flex-wrap justify-end">
-            {MODELS.map(m => (
-              <button
-                key={m.id}
-                onClick={() => setModel(m.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-[9px] font-black uppercase tracking-widest border rounded transition-all ${
-                  model === m.id
-                    ? 'border-red-500/60 bg-red-500/10 text-red-400 shadow-[0_0_10px_rgba(255,26,26,0.15)]'
-                    : 'border-red-900/20 text-gray-600 hover:text-white hover:border-red-900/40'
-                }`}
-              >
-                <span>{m.icon}</span>
-                <span className="hidden sm:inline">{m.name}</span>
-              </button>
-            ))}
+            {/* Models removed - only image generation supported now */}
           </div>
         </div>
       </div>
@@ -226,9 +208,8 @@ export function CinemaPanel() {
             />
           </div>
 
-          {/* Camera / Lens (only for image model) */}
-          {!isVideo && (
-            <div className="rd-card p-5 space-y-4">
+          {/* Camera / Lens Controls */}
+          <div className="rd-card p-5 space-y-4">
               <div>
                 <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">Camera</label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -280,23 +261,7 @@ export function CinemaPanel() {
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Video duration (video models only) */}
-          {isVideo && (
-            <div className="rd-card p-5">
-              <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">Duration (seconds)</label>
-              <div className="flex gap-2">
-                {DURATIONS.map(d => (
-                  <button key={d} onClick={() => setDuration(d)}
-                    className={`flex-1 py-2.5 text-[10px] font-black border rounded-sm transition-all ${
-                      duration === d ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'border-red-900/20 text-gray-600 hover:text-white'
-                    }`}>{d}s
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Output settings */}
           <div className="rd-card p-5">
@@ -341,10 +306,10 @@ export function CinemaPanel() {
               {generating ? (
                 <span className="flex items-center justify-center gap-3">
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {isVideo ? 'Rendering Video...' : 'Generating Image...'}
+                  Generating Image...
                 </span>
               ) : (
-                `${selectedModel.icon} Generate ${isVideo ? 'Video' : 'Image'}`
+                `${selectedModel.icon} Generate Image`
               )}
 
               {/* Progress bar */}
@@ -357,10 +322,7 @@ export function CinemaPanel() {
               )}
             </button>
             <p className="text-[9px] text-gray-700 text-center mt-2 font-mono">
-              {isVideo
-                ? `~${duration * 15}–${duration * 20}s generation time · Key ${_keyDisplay()}/7 active`
-                : `~20–40s generation time · Key ${_keyDisplay()}/7 active`
-              }
+              ~20–40s generation time · Key {_keyDisplay()}/7 active
             </p>
           </div>
         </div>
@@ -394,7 +356,7 @@ export function CinemaPanel() {
                   </div>
                   <div className="text-center">
                     <p className="text-[10px] text-red-400 font-mono uppercase tracking-widest mb-1">
-                      {isVideo ? 'Rendering cinematic video...' : 'Generating classified image...'}
+                      Generating classified image...
                     </p>
                     <p className="text-[9px] text-gray-700 font-mono">{Math.round(progress)}% complete</p>
                   </div>
@@ -416,21 +378,11 @@ export function CinemaPanel() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="w-full h-full"
                 >
-                  {result.isVideo ? (
-                    <video
-                      src={result.outputUrl}
-                      controls
-                      autoPlay
-                      loop
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <img
-                      src={result.outputUrl}
-                      alt="Generated"
-                      className="w-full h-full object-contain"
-                    />
-                  )}
+                  <img
+                    src={result.outputUrl}
+                    alt="Generated"
+                    className="w-full h-full object-contain"
+                  />
                 </motion.div>
               )}
 
@@ -440,11 +392,8 @@ export function CinemaPanel() {
                   key="empty"
                   className="text-center p-8"
                 >
-                  <div className="text-red-500/10 text-5xl mb-4 font-black">
-                    {isVideo ? '▶' : '◈'}
-                  </div>
                   <p className="text-[10px] text-gray-700 uppercase tracking-widest font-mono">
-                    {isVideo ? 'Video will appear here' : 'Image will appear here'}
+                    Image will appear here
                   </p>
                 </motion.div>
               )}
@@ -511,12 +460,9 @@ export function CinemaPanel() {
                     onClick={() => setResult(h)}
                     className="aspect-square overflow-hidden border border-red-900/20 hover:border-red-500/30 transition-all relative group rounded-sm"
                   >
-                    {h.isVideo
-                      ? <video src={h.outputUrl} className="w-full h-full object-cover" />
-                      : <img src={h.outputUrl} alt="" className="w-full h-full object-cover" />
-                    }
+                    <img src={h.outputUrl} alt="" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-xs">{h.isVideo ? '▶' : '◈'}</span>
+                      <span className="text-white text-xs">◈</span>
                     </div>
                   </button>
                 ))}

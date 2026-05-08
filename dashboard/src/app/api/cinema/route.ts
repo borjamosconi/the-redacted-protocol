@@ -96,8 +96,6 @@ const RESOLUTIONS   = ['1K', '2K', '4K']
 // Available generation models
 const MODELS = [
   { id: 'nano-banana-2', name: 'Nano Banana 2', type: 'image', icon: '📸', desc: 'Cinematic AI image' },
-  { id: 'kling-v3',      name: 'Kling v3 T2V',  type: 'video', icon: '🎬', desc: 'Text → Video' },
-  { id: 'wan-2.1',       name: 'Wan 2.1',       type: 'video', icon: '▶️', desc: 'Experimental' },
 ]
 
 // Redacted Protocol cinema presets
@@ -145,9 +143,7 @@ export async function POST(request: Request) {
     const modelInfo    = MODELS.find(m => m.id === model)          || MODELS[0]
 
     // Build enriched prompt
-    const cinemaPrompt = modelInfo.type === 'video'
-      ? `${basePrompt}, cinematic motion, professional videography, high dynamic range, ${resolution} resolution`
-      : `${basePrompt}, shot on a ${cameraInfo.desc}, using a ${lensInfo.desc} at ${focalInfo.value}mm (${focalInfo.perspective}), aperture ${apertureInfo.value}, ${apertureInfo.effect}, cinematic lighting, natural color science, ultra-detailed, ${resolution} resolution`
+    const cinemaPrompt = `${basePrompt}, shot on a ${cameraInfo.desc}, using a ${lensInfo.desc} at ${focalInfo.value}mm (${focalInfo.perspective}), aperture ${apertureInfo.value}, ${apertureInfo.effect}, cinematic lighting, natural color science, ultra-detailed, ${resolution} resolution`
 
     // ── Submit job ──────────────────────────────────────────────────────────
     const submitBody: Record<string, any> = {
@@ -155,7 +151,6 @@ export async function POST(request: Request) {
       aspect_ratio: aspectRatio,
       resolution,
     }
-    if (modelInfo.type === 'video') submitBody.duration = duration
 
     const { response: submitResp, keyIndex } = await fetchWithRotation(
       `https://api.muapi.ai/api/v1/${model}`,
@@ -219,7 +214,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'No output URL in result', raw: result }, { status: 502 })
     }
 
-    const isVideo = modelInfo.type === 'video' || /\.(mp4|webm|mov)/.test(outputUrl)
+    const isVideo = false
 
     return Response.json({
       success:     true,

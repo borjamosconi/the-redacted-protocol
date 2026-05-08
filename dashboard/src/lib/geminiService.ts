@@ -8,26 +8,18 @@ import { GoogleGenAI } from "@google/genai";
 export interface DeclassifiedIntel {
   metadata: {
     projectName: string;
-    clientName: string;
     date: string;
     confidence: number;
+    clearanceLevel: string;
   };
   censorship: {
     detected: boolean;
     count: number;
-    locations: string[];
     riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   };
-  items: Array<{
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-    status: 'verified' | 'redacted' | 'estimated';
-    evidence?: string;
-  }>;
   reconstruction: string;
   truthSummary: string;
+  keyFindings: string[];
 }
 
 const getEffectiveApiKey = (): string => {
@@ -37,13 +29,11 @@ const getEffectiveApiKey = (): string => {
 const cleanAndParseJSON = (text: string): DeclassifiedIntel => {
   if (!text) throw new Error("Empty intelligence response");
   
-  // More aggressive cleaning for markdown blocks
   let cleanText = text.replace(/```json/gi, '').replace(/```/gi, '').trim();
   
   try {
     return JSON.parse(cleanText);
   } catch (e) {
-    // Fallback: try to extract anything between the first { and last }
     const firstBrace = cleanText.indexOf('{');
     const lastBrace = cleanText.lastIndexOf('}');
     if (firstBrace > -1 && lastBrace > -1) {
@@ -78,20 +68,20 @@ export const extractDeclassifiedData = async (file: File) => {
   const base64Data = await convertFileToBase64(file);
 
   const prompt = `
-    Analyze the provided document for declassification and economic reconstruction.
+    Analyze the provided document for declassification and neural reconstruction.
     
-    1. EXTRACT: Full document parsing.
-    2. CENSORSHIP: Locate and map all high-density redaction zones (███, [REDACTED]).
-    3. ECONOMIC ANALYSIS: Itemize all line items, unit costs, and total allocations.
-    4. RECONSTRUCTION: Perform context-aware inference to estimate missing data points.
+    1. EXTRACT: Analyze all visible text and identify redactions.
+    2. CENSORSHIP: Map all high-density redaction zones (███, [REDACTED], black bars).
+    3. NEURAL RECONSTRUCTION: Perform context-aware inference to reconstruct the hidden or missing text.
+    4. KEY FINDINGS: List the most critical secrets or data points uncovered.
     
     Output MUST be a valid JSON object following this schema:
     {
-      "metadata": { "projectName": "string", "clientName": "string", "date": "string", "confidence": number },
-      "censorship": { "detected": boolean, "count": number, "locations": ["string"], "riskLevel": "LOW/MEDIUM/HIGH/CRITICAL" },
-      "items": [{ "description": "string", "quantity": number, "unitPrice": number, "total": number, "status": "verified/redacted/estimated", "evidence": "string" }],
-      "reconstruction": "string",
-      "truthSummary": "string"
+      "metadata": { "projectName": "string", "date": "string", "confidence": number, "clearanceLevel": "TOP SECRET/CONFIDENTIAL/UNCLASSIFIED" },
+      "censorship": { "detected": boolean, "count": number, "riskLevel": "LOW/MEDIUM/HIGH/CRITICAL" },
+      "reconstruction": "string (the full reconstructed text)",
+      "truthSummary": "string (short summary of the declassified truth)",
+      "keyFindings": ["string", "string"]
     }
   `;
 
