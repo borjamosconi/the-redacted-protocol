@@ -80,15 +80,15 @@ export function Header() {
       <div className="max-w-[1920px] mx-auto">
         <div className="flex items-center justify-between h-20 sm:h-24 px-6 sm:px-12">
           
-          {/* Branding Section — REDESIGNED LOGO */}
+          {/* Branding Section — REDESIGNED LOGO WITH NEW IMAGE */}
           <Link href="/" className="flex items-center gap-4 sm:gap-6 group">
-             <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
-                <div className="absolute inset-0 border border-red-600 group-hover:scale-110 transition-transform duration-500" />
-                <div className="absolute inset-1 border border-white/20 group-hover:-rotate-12 transition-transform duration-700" />
-                <div className="absolute inset-2 border border-red-900/30 group-hover:rotate-12 transition-transform duration-1000" />
-                <div className="w-1 h-6 bg-red-600 rotate-45 group-hover:rotate-[225deg] transition-transform duration-1000" />
-                <div className="w-6 h-1 bg-white/40 -rotate-45 group-hover:-rotate-[225deg] transition-transform duration-1000" />
-                <div className="absolute inset-0 bg-red-600/10 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+             <div className="relative w-10 h-10 sm:w-14 sm:h-14 overflow-hidden border border-red-600/50 group-hover:border-red-500 transition-all duration-500">
+                <img src="/logo.png" alt="REDACTED" className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-red-600/20 to-transparent pointer-events-none" />
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-red-600/50 animate-terminal-scan pointer-events-none" />
+                {/* Technical corners */}
+                <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-red-600" />
+                <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-red-600" />
              </div>
              <div className="flex flex-col leading-none">
                 <div className="flex items-baseline gap-1">

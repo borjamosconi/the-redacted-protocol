@@ -20,8 +20,8 @@ export function Footer() {
           {/* Brand Col */}
           <div className="space-y-8">
             <div className="flex items-center gap-4">
-               <div className="w-10 h-10 border border-red-600 flex items-center justify-center">
-                  <div className="w-4 h-4 bg-red-600 rotate-45" />
+               <div className="w-12 h-12 border border-red-600/30 overflow-hidden">
+                  <img src="/logo.png" alt="RDX" className="w-full h-full object-cover grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500" />
                </div>
                <span className="text-2xl font-black text-white tracking-tighter uppercase">REDACTED_PROT.</span>
             </div>
