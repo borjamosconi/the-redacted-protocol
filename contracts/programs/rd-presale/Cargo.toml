@@ -12,6 +12,7 @@ name = "rd_presale"
 default = []
 no-entrypoint = []
 cpi = ["no-entrypoint"]
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
 anchor-lang = { version = "0.30.1", features = ["init-if-needed"] }

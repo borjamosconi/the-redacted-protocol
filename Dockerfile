@@ -6,7 +6,7 @@
 # =============================================================================
 
 # Build stage
-FROM rust:1.83-slim AS builder
+FROM rust:latest AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ COPY crates/ crates/
 RUN cargo build --release --bin rd
 
 # Runtime stage
-FROM debian:bookworm-slim
+FROM debian:testing-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \

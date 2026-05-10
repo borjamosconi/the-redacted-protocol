@@ -414,7 +414,7 @@ mod telegram_mode {
         println!("Connected as: @{}\n", name);
 
         let mut users = UserRegistry::new();
-        let mut airdrop = AirdropRegistry::new();
+        let mut airdrop = AirdropRegistry::from_env().await;
         let mut welcomed = HashSet::new();
         let mut offered_scans = HashSet::new();
         const MAX_OFFERED_SCANS: usize = 1000;
@@ -667,7 +667,7 @@ mod telegram_mode {
                         // Track user
                         let is_new = users.is_new(msg.user_id);
                         users.add(msg.user_id);
-                        airdrop.register_telegram_user(msg.user_id, &msg.username);
+                        let _ = airdrop.register_telegram_user(msg.user_id, &msg.username).await;
 
                         // Welcome new members (group joins)
                         if msg.is_new_member {
@@ -754,8 +754,8 @@ mod telegram_mode {
                             parts.next(); // skip /airdrop
                             if let Some(wallet) = parts.next() {
                                 // Register the wallet for the user
-                                airdrop.connect_wallet(msg.user_id, wallet);
-                                let amount = airdrop.get_amount(msg.user_id) as f64 / 1_000_000_000.0;
+                                let _ = airdrop.connect_wallet(msg.user_id, wallet).await;
+                                let amount = airdrop.get_amount(msg.user_id).await as f64 / 1_000_000_000.0;
                                 let reply = format!(
                                     "✅ *WALLET REGISTERED*\n\n\
                                     Address: `{}`\n\
@@ -944,9 +944,9 @@ mod telegram_mode {
         airdrop: &AirdropRegistry,
     ) {
         bot.show_typing(chat_id).await.ok();
-        let amount = airdrop.get_amount(user_id);
+        let amount = airdrop.get_amount(user_id).await;
         let rdx_amount = amount as f64 / 1_000_000_000.0;
-        let eligible = airdrop.is_eligible(user_id);
+        let eligible = airdrop.is_eligible(user_id).await;
         bot.send_airdrop_status(chat_id, eligible, rdx_amount, None).await.ok();
     }
 

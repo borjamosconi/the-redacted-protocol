@@ -36,7 +36,7 @@ function decodeBase58(str: string): Uint8Array {
  * Returns null if the env var is missing or invalid — callers must handle gracefully.
  */
 export function getDistributorKeypair(): Keypair | null {
-  const raw = process.env.DISTRIBUTOR_KEYPAIR?.trim()
+  const raw = process.env.DISTRIBUTOR_KEYPAIR?.trim() || process.env.ADMIN_PRIVATE_KEY?.trim()
   if (!raw) return null
   try {
     const secret = decodeBase58(raw)
@@ -52,7 +52,7 @@ export function getDistributorKeypair(): Keypair | null {
  * Returns null when the token has not been deployed yet.
  */
 export function getRdxMint(): PublicKey | null {
-  const raw = process.env.RDX_TOKEN_MINT?.trim()
+  const raw = process.env.RDX_TOKEN_MINT?.trim() || process.env.NEXT_PUBLIC_RDX_TOKEN_MINT?.trim()
   if (!raw) return null
   try {
     return new PublicKey(raw)

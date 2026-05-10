@@ -41,7 +41,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, Mint, Transfer as TokenTransfer, transfer as token_transfer};
 
-declare_id!("HACK1L8hdDN1wuhV5mEbNYGeMXjhFzvz3HNvDTCdFP2a");
+declare_id!("287SSjn6K3KZNjDKMv19RfDfybtdG8wuqwkHLg4ZmdRT");
 
 // ───────────────────────────────────────────────────────────────
 // CONSTANTS

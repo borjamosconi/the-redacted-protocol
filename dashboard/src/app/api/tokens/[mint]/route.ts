@@ -134,6 +134,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ mint
       trades,
       graduated,
       missionReservePct: MISSION_RESERVE_PCT,
+      mode: (meta as any).mode || 'offchain',
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

@@ -3,8 +3,8 @@ mod tests {
     use crate::airdrop::{AirdropRegistry, AirdropSource};
     use crate::token_config;
 
-    #[test]
-    fn test_airdrop_registry_new() {
+    #[tokio::test]
+    async fn test_airdrop_registry_new() {
         let registry = AirdropRegistry::new_in_memory();
         let stats = registry.stats();
 
@@ -14,118 +14,118 @@ mod tests {
         assert_eq!(stats.unclaimed, 0);
     }
 
-    #[test]
-    fn test_airdrop_register_telegram_user() {
+    #[tokio::test]
+    async fn test_airdrop_register_telegram_user() {
         let mut registry = AirdropRegistry::new_in_memory();
-        registry.register_telegram_user(123456789, "testuser");
+        registry.register_telegram_user(123456789, "testuser").await.unwrap();
 
-        assert!(registry.is_eligible(123456789));
-        assert!(!registry.is_eligible(987654321));
-        assert_eq!(registry.get_amount(123456789), token_config::airdrop::TELEGRAM_USER_AMOUNT);
+        assert!(registry.is_eligible(123456789).await);
+        assert!(!registry.is_eligible(987654321).await);
+        assert_eq!(registry.get_amount(123456789).await, token_config::airdrop::TELEGRAM_USER_AMOUNT);
     }
 
-    #[test]
-    fn test_airdrop_duplicate_registration() {
+    #[tokio::test]
+    async fn test_airdrop_duplicate_registration() {
         let mut registry = AirdropRegistry::new_in_memory();
-        registry.register_telegram_user(123456789, "testuser");
-        registry.register_telegram_user(123456789, "testuser2");
+        registry.register_telegram_user(123456789, "testuser").await.unwrap();
+        registry.register_telegram_user(123456789, "testuser2").await.unwrap();
 
         // Should still have only one registration with original amount
-        assert_eq!(registry.get_amount(123456789), token_config::airdrop::TELEGRAM_USER_AMOUNT);
+        assert_eq!(registry.get_amount(123456789).await, token_config::airdrop::TELEGRAM_USER_AMOUNT);
         let stats = registry.stats();
         assert_eq!(stats.total_recipients, 1);
     }
 
-    #[test]
-    fn test_airdrop_reward_submission() {
+    #[tokio::test]
+    async fn test_airdrop_reward_submission() {
         let mut registry = AirdropRegistry::new_in_memory();
-        registry.register_telegram_user(123456789, "testuser");
-        let initial_amount = registry.get_amount(123456789);
+        registry.register_telegram_user(123456789, "testuser").await.unwrap();
+        let initial_amount = registry.get_amount(123456789).await;
 
-        registry.reward_submission(123456789, "testuser");
-        let new_amount = registry.get_amount(123456789);
+        registry.reward_submission(123456789, "testuser").await.unwrap();
+        let new_amount = registry.get_amount(123456789).await;
 
         assert_eq!(new_amount, initial_amount + token_config::airdrop::DOCUMENT_SUBMIT_REWARD);
     }
 
-    #[test]
-    fn test_airdrop_reward_verification() {
+    #[tokio::test]
+    async fn test_airdrop_reward_verification() {
         let mut registry = AirdropRegistry::new_in_memory();
-        registry.register_telegram_user(123456789, "testuser");
-        let initial_amount = registry.get_amount(123456789);
+        registry.register_telegram_user(123456789, "testuser").await.unwrap();
+        let initial_amount = registry.get_amount(123456789).await;
 
-        registry.reward_verification(123456789, "testuser");
-        let new_amount = registry.get_amount(123456789);
+        registry.reward_verification(123456789, "testuser").await.unwrap();
+        let new_amount = registry.get_amount(123456789).await;
 
         assert_eq!(new_amount, initial_amount + token_config::airdrop::FRAGMENT_VERIFY_REWARD);
     }
 
-    #[test]
-    fn test_airdrop_reward_without_prior_registration() {
+    #[tokio::test]
+    async fn test_airdrop_reward_without_prior_registration() {
         let mut registry = AirdropRegistry::new_in_memory();
-        registry.reward_submission(123456789, "testuser");
+        registry.reward_submission(123456789, "testuser").await.unwrap();
 
-        assert!(registry.is_eligible(123456789));
-        assert_eq!(registry.get_amount(123456789), token_config::airdrop::DOCUMENT_SUBMIT_REWARD);
+        assert!(registry.is_eligible(123456789).await);
+        assert_eq!(registry.get_amount(123456789).await, token_config::airdrop::DOCUMENT_SUBMIT_REWARD);
     }
 
-    #[test]
-    fn test_airdrop_connect_wallet() {
+    #[tokio::test]
+    async fn test_airdrop_connect_wallet() {
         let mut registry = AirdropRegistry::new_in_memory();
-        registry.register_telegram_user(123456789, "testuser");
+        registry.register_telegram_user(123456789, "testuser").await.unwrap();
 
         // Initially no wallet
-        let recipients: Vec<_> = registry.all_recipients();
+        let recipients = registry.all_recipients();
         assert!(recipients[0].solana_wallet.is_none());
 
         // Connect wallet
-        registry.connect_wallet(123456789, "5KJp...wallet");
+        registry.connect_wallet(123456789, "5KJp...wallet").await.unwrap();
         let recipient = registry.get_by_telegram(123456789).unwrap();
         assert_eq!(recipient.solana_wallet, Some("5KJp...wallet".to_string()));
     }
 
-    #[test]
-    fn test_airdrop_multiple_users() {
+    #[tokio::test]
+    async fn test_airdrop_multiple_users() {
         let mut registry = AirdropRegistry::new_in_memory();
-        registry.register_telegram_user(111, "user1");
-        registry.register_telegram_user(222, "user2");
-        registry.register_telegram_user(333, "user3");
+        registry.register_telegram_user(111, "user1").await.unwrap();
+        registry.register_telegram_user(222, "user2").await.unwrap();
+        registry.register_telegram_user(333, "user3").await.unwrap();
 
         assert_eq!(registry.stats().total_recipients, 3);
-        assert!(registry.is_eligible(111));
-        assert!(registry.is_eligible(222));
-        assert!(registry.is_eligible(333));
+        assert!(registry.is_eligible(111).await);
+        assert!(registry.is_eligible(222).await);
+        assert!(registry.is_eligible(333).await);
     }
 
-    #[test]
-    fn test_airdrop_total_allocated() {
+    #[tokio::test]
+    async fn test_airdrop_total_allocated() {
         let mut registry = AirdropRegistry::new_in_memory();
-        registry.register_telegram_user(111, "user1");
-        registry.register_telegram_user(222, "user2");
+        registry.register_telegram_user(111, "user1").await.unwrap();
+        registry.register_telegram_user(222, "user2").await.unwrap();
 
         let expected = token_config::airdrop::TELEGRAM_USER_AMOUNT as u128 * 2;
         assert_eq!(registry.total_allocated(), expected);
     }
 
-    #[test]
-    fn test_airdrop_recipient_sources() {
+    #[tokio::test]
+    async fn test_airdrop_recipient_sources() {
         let mut registry = AirdropRegistry::new_in_memory();
 
         // Telegram user
-        registry.register_telegram_user(111, "user1");
-        let recipients: Vec<_> = registry.all_recipients();
+        registry.register_telegram_user(111, "user1").await.unwrap();
+        let recipients = registry.all_recipients();
         let user1 = recipients.iter().find(|r| r.telegram_user_id == 111).unwrap();
         assert!(matches!(user1.source, AirdropSource::TelegramUser));
 
         // Document submitter
-        registry.reward_submission(222, "user2");
-        let recipients: Vec<_> = registry.all_recipients();
+        registry.reward_submission(222, "user2").await.unwrap();
+        let recipients = registry.all_recipients();
         let user2 = recipients.iter().find(|r| r.telegram_user_id == 222).unwrap();
         assert!(matches!(user2.source, AirdropSource::DocumentSubmitter));
 
         // Fragment verifier
-        registry.reward_verification(333, "user3");
-        let recipients: Vec<_> = registry.all_recipients();
+        registry.reward_verification(333, "user3").await.unwrap();
+        let recipients = registry.all_recipients();
         let user3 = recipients.iter().find(|r| r.telegram_user_id == 333).unwrap();
         assert!(matches!(user3.source, AirdropSource::FragmentVerifier));
     }

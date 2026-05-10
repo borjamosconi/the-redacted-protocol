@@ -110,7 +110,7 @@ export function ColosseumSection() {
               { label: 'React Components', value: '13', sub: 'Hero, Header, Footer, Colosseum, Airdrop, Gamification, OCR, ImageGen, Gallery, News, Fragments, Tokenomics, SolanaProvider' },
               { label: 'Interactive Terminal Commands', value: '7', sub: '/start, /status, /airdrop, /scan_news, /help, + query system' },
               { label: 'Image Styles', value: '6', sub: 'Censored Figure, Access Denied, Floating Docs, Circuit, Classified, Glitch' },
-              { label: 'Gallery Assets', value: '22', sub: '16 photos + 6 videos' },
+              { label: 'Gallery Assets', value: '16', sub: 'Neural-synthesized photo fragments' },
               { label: 'Gamification XP Actions', value: '12', sub: 'Register, checkin, refer, OCR, news, image, social, quests, streaks' },
               { label: 'Player Levels', value: '7', sub: 'Classified → Reconstructed → Declassified → Archivist → Intelligence → Declassifier → The File' },
               { label: 'Quests', value: '8', sub: 'Daily, weekly & lifetime quests with XP + RDX rewards' },

@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, TokenAccount};
 
-declare_id!("8JJd3isBeCkYtsdwTFFLNRCJJXQbABMRgX67vnVzDvSN");
+declare_id!("8wwUteTnL6zhLqe4dpapdGcq5Q37M9kYUmycnZoTqCvv");
 
 #[program]
 pub mod rd_governance {

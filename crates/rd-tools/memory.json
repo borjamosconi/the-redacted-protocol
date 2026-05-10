@@ -1,0 +1,36 @@
+{
+  "recipients": [
+    {
+      "telegram_user_id": 222,
+      "telegram_username": "user2",
+      "solana_wallet": null,
+      "amount": 500000000000,
+      "claimed": false,
+      "claimed_at": null,
+      "registered_at": "2026-05-10T21:40:26.330069700Z",
+      "source": "TelegramUser"
+    },
+    {
+      "telegram_user_id": 111,
+      "telegram_username": "user1",
+      "solana_wallet": null,
+      "amount": 500000000000,
+      "claimed": false,
+      "claimed_at": null,
+      "registered_at": "2026-05-10T21:40:26.327268900Z",
+      "source": "TelegramUser"
+    },
+    {
+      "telegram_user_id": 333,
+      "telegram_username": "user3",
+      "solana_wallet": null,
+      "amount": 500000000000,
+      "claimed": false,
+      "claimed_at": null,
+      "registered_at": "2026-05-10T21:40:26.341011Z",
+      "source": "TelegramUser"
+    }
+  ],
+  "total_claimed": 0,
+  "saved_at": "2026-05-10T21:40:26.341014900Z"
+}

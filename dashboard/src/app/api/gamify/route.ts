@@ -9,7 +9,7 @@ import {
   QUESTS,
   type LevelName,
 } from '@/lib/gamification';
-import { getClientIP, hashIP, checkRateLimit } from '@/lib/antifraud';
+import { getClientIP, hashIP, checkRateLimit, FRAUD_THRESHOLDS } from '@/lib/antifraud';
 import * as db from '@/lib/db';
 import { LEVELS } from '@/lib/gamification';
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     const ipRaw = getClientIP(request);
     const ipHash = await hashIP(ipRaw);
-    const rateCheck = await checkRateLimit(ipHash, 60_000, 3);
+    const rateCheck = await checkRateLimit(ipHash, FRAUD_THRESHOLDS.RATE_LIMIT_WINDOW_MS, FRAUD_THRESHOLDS.RATE_LIMIT_MAX_REQUESTS);
     if (!rateCheck.allowed) {
       return Response.json({ error: 'RATE_LIMITED', retryAfter: rateCheck.retryAfter }, { status: 429 });
     }
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     const levelInfo = getLevelFromXP(user.xp);
     return Response.json({
       success: true, xpEarned: totalXPEarned, baseXP: xpConfig.xp, streakBonus, questReward,
-      multiplier, streak: user.streak, totalXP: user.xp, level: levelInfo,
+      multiplier, streak: user.streak, totalXP: user.xp, level: levelInfo.name,
       airdropAmount: user.airdropAmount,
       airdropFormatted: `${(user.airdropAmount / 1_000_000_000).toLocaleString()} RDX`,
       badges: user.badges, actions: user.actions, questsCompleted: user.questsCompleted,
@@ -235,7 +235,7 @@ export async function PUT(request: Request) {
 
     const ipRaw = getClientIP(request);
     const ipHash = await hashIP(ipRaw);
-    const rateCheck = await checkRateLimit(ipHash);
+    const rateCheck = await checkRateLimit(ipHash, FRAUD_THRESHOLDS.RATE_LIMIT_WINDOW_MS, FRAUD_THRESHOLDS.RATE_LIMIT_MAX_REQUESTS);
     if (!rateCheck.allowed) {
       return Response.json({ error: 'RATE_LIMITED', retryAfter: rateCheck.retryAfter }, { status: 429 });
     }

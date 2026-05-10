@@ -29,10 +29,11 @@ use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{
-    self, Burn, Mint, MintTo, Token, TokenAccount, Transfer as TokenTransfer,
+    self, Burn, Mint, MintTo, Token, Transfer as TokenTransfer,
 };
+use anchor_spl::token_interface::{Mint as IMint, TokenAccount as ITokenAccount};
 
-declare_id!("AfkwwBhRsuEzZo74mdbwK8EBwo7VYwc8S1T7hb1RHMAa");
+declare_id!("2zj6YEu1jYf2En29CHJdCppyhbBmzuAT9zN4Qr9Vkhyg");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS — pump.fun parity
@@ -208,11 +209,16 @@ pub mod rd_bondingcurve {
         min_tokens_out: u64,
         referral: Option<Pubkey>,
     ) -> Result<()> {
-        require!(!ctx.accounts.global.paused, BondingCurveError::Paused);
-        require!(sol_in >= MIN_BUY_LAMPORTS, BondingCurveError::AmountTooSmall);
-
+        let global = &ctx.accounts.global;
         let pool = &mut ctx.accounts.pool;
+
+        require!(!global.paused, BondingCurveError::Paused);
+        require!(sol_in >= MIN_BUY_LAMPORTS, BondingCurveError::AmountTooSmall);
         require!(!pool.complete, BondingCurveError::PoolComplete);
+
+        // Manual address checks to save stack space in prologue
+        require!(ctx.accounts.treasury.key() == global.treasury, BondingCurveError::MathOverflow); // Using overflow as placeholder or add new error
+        require!(ctx.accounts.creator_wallet.key() == pool.creator, BondingCurveError::MathOverflow);
 
         // ── Senior Fee Strategy ─────────────────────────────────────────────
         let total_fee_bps = ctx.accounts.global.fee_bps as u128;
@@ -355,11 +361,15 @@ pub mod rd_bondingcurve {
         tokens_in: u64,
         min_sol_out: u64,
     ) -> Result<()> {
-        require!(!ctx.accounts.global.paused, BondingCurveError::Paused);
-        require!(tokens_in > 0, BondingCurveError::AmountTooSmall);
-
+        let global = &ctx.accounts.global;
         let pool = &mut ctx.accounts.pool;
+
+        require!(!global.paused, BondingCurveError::Paused);
+        require!(tokens_in > 0, BondingCurveError::AmountTooSmall);
         require!(!pool.complete, BondingCurveError::PoolComplete);
+
+        require!(ctx.accounts.treasury.key() == global.treasury, BondingCurveError::MathOverflow);
+        require!(ctx.accounts.creator_wallet.key() == pool.creator, BondingCurveError::MathOverflow);
 
         // ── Anti-Sniping Check ──────────────────────────────────────────────
         let now = Clock::get()?.unix_timestamp;
@@ -751,7 +761,7 @@ pub struct InitializeGlobal<'info> {
 #[instruction(name: String, symbol: String, uri: String)]
 pub struct CreatePool<'info> {
     #[account(mut, seeds = [b"global"], bump = global.bump)]
-    pub global: Account<'info, GlobalState>,
+    pub global: Box<Account<'info, GlobalState>>,
 
     #[account(
         init,
@@ -760,10 +770,10 @@ pub struct CreatePool<'info> {
         seeds = [b"pool", mint.key().as_ref()],
         bump
     )]
-    pub pool: Account<'info, PoolState>,
+    pub pool: Box<Account<'info, PoolState>>,
 
     #[account(mut)]
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, IMint>,
 
     /// Pool-owned token vault (ATA of the pool PDA)
     #[account(
@@ -772,7 +782,7 @@ pub struct CreatePool<'info> {
         associated_token::mint = mint,
         associated_token::authority = pool,
     )]
-    pub token_vault: Account<'info, TokenAccount>,
+    pub token_vault: InterfaceAccount<'info, ITokenAccount>,
 
     /// CHECK: PDA that holds real SOL reserves for this pool
     #[account(
@@ -794,7 +804,7 @@ pub struct CreatePool<'info> {
 #[derive(Accounts)]
 pub struct Trade<'info> {
     #[account(seeds = [b"global"], bump = global.bump)]
-    pub global: Account<'info, GlobalState>,
+    pub global: Box<Account<'info, GlobalState>>,
 
     #[account(
         mut,
@@ -802,16 +812,16 @@ pub struct Trade<'info> {
         bump = pool.bump,
         has_one = mint,
     )]
-    pub pool: Account<'info, PoolState>,
+    pub pool: Box<Account<'info, PoolState>>,
 
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, IMint>,
 
     #[account(
         mut,
         associated_token::mint = mint,
         associated_token::authority = pool,
     )]
-    pub token_vault: Account<'info, TokenAccount>,
+    pub token_vault: InterfaceAccount<'info, ITokenAccount>,
 
     /// CHECK: SOL vault PDA
     #[account(
@@ -827,7 +837,7 @@ pub struct Trade<'info> {
         associated_token::mint = mint,
         associated_token::authority = buyer,
     )]
-    pub buyer_token_account: Account<'info, TokenAccount>,
+    pub buyer_token_account: InterfaceAccount<'info, ITokenAccount>,
 
     #[account(
         init_if_needed,
@@ -836,18 +846,18 @@ pub struct Trade<'info> {
         seeds = [b"user_stats", buyer.key().as_ref(), mint.key().as_ref()],
         bump
     )]
-    pub user_stats: Account<'info, UserStats>,
+    pub user_stats: Box<Account<'info, UserStats>>,
 
     #[account(mut)]
     pub buyer: Signer<'info>,
 
     /// CHECK: must equal global.treasury
-    #[account(mut, address = global.treasury)]
-    pub treasury: SystemAccount<'info>,
+    #[account(mut)]
+    pub treasury: UncheckedAccount<'info>,
 
     /// CHECK: must equal pool.creator
-    #[account(mut, address = pool.creator)]
-    pub creator_wallet: SystemAccount<'info>,
+    #[account(mut)]
+    pub creator_wallet: UncheckedAccount<'info>,
 
     /// CHECK: Optional referrer. If not provided, fees go to treasury.
     #[account(mut)]
@@ -862,7 +872,7 @@ pub struct Trade<'info> {
 #[derive(Accounts)]
 pub struct Graduate<'info> {
     #[account(seeds = [b"global"], bump = global.bump)]
-    pub global: Account<'info, GlobalState>,
+    pub global: Box<Account<'info, GlobalState>>,
 
     #[account(
         mut,
@@ -870,17 +880,17 @@ pub struct Graduate<'info> {
         bump = pool.bump,
         has_one = mint,
     )]
-    pub pool: Account<'info, PoolState>,
+    pub pool: Box<Account<'info, PoolState>>,
 
     #[account(mut)]
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, IMint>,
 
     #[account(
         mut,
         associated_token::mint = mint,
         associated_token::authority = pool,
     )]
-    pub token_vault: Account<'info, TokenAccount>,
+    pub token_vault: InterfaceAccount<'info, ITokenAccount>,
 
     /// CHECK: SOL vault PDA
     #[account(
@@ -899,7 +909,7 @@ pub struct Graduate<'info> {
         associated_token::mint = mint,
         associated_token::authority = migration_authority,
     )]
-    pub migration_token_account: Account<'info, TokenAccount>,
+    pub migration_token_account: InterfaceAccount<'info, ITokenAccount>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -935,7 +945,7 @@ pub struct EmergencyWithdraw<'info> {
     pub pool: Account<'info, PoolState>,
 
     #[account(mut)]
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, IMint>,
 
     /// CHECK: SOL vault PDA — same seeds scheme as the trade flow.
     #[account(
@@ -950,7 +960,7 @@ pub struct EmergencyWithdraw<'info> {
         associated_token::mint = mint,
         associated_token::authority = user,
     )]
-    pub user_token_account: Account<'info, TokenAccount>,
+    pub user_token_account: InterfaceAccount<'info, ITokenAccount>,
 
     #[account(mut)]
     pub user: Signer<'info>,
@@ -969,11 +979,11 @@ pub struct GraduateStep2LockLp<'info> {
     pub global: Account<'info, GlobalState>,
 
     /// Project token mint (used to namespace the lock PDA per pool).
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, IMint>,
 
     /// Raydium-issued LP mint for this pool. Off-chain step minted the
     /// LP supply to `lp_token_account`; this ix sweeps it into the lock.
-    pub lp_mint: Account<'info, Mint>,
+    pub lp_mint: InterfaceAccount<'info, IMint>,
 
     /// Source: migration_authority's ATA holding the LP tokens.
     #[account(
@@ -981,7 +991,7 @@ pub struct GraduateStep2LockLp<'info> {
         associated_token::mint = lp_mint,
         associated_token::authority = migration_authority,
     )]
-    pub lp_token_account: Account<'info, TokenAccount>,
+    pub lp_token_account: InterfaceAccount<'info, ITokenAccount>,
 
     /// CHECK: Authority PDA over the lock vault. Has no signer path in
     /// this program — it only ever appears as `associated_token::authority`
@@ -999,7 +1009,7 @@ pub struct GraduateStep2LockLp<'info> {
         associated_token::mint = lp_mint,
         associated_token::authority = lp_lock_authority,
     )]
-    pub lp_lock_vault: Account<'info, TokenAccount>,
+    pub lp_lock_vault: InterfaceAccount<'info, ITokenAccount>,
 
     #[account(mut)]
     pub migration_authority: Signer<'info>,
@@ -1182,6 +1192,7 @@ pub enum BondingCurveError {
     #[msg("Caller is not the migration authority")]
     NotMigrationAuthority,
     #[msg("Pool already migrated")]
+    AlreadyMigrated,
     #[msg("Caller is not the emergency admin")]
     NotEmergencyAdmin,
     #[msg("Pool is not currently paused")]

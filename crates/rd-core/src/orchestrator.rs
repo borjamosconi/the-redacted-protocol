@@ -87,8 +87,8 @@ impl<P: Provider> Orchestrator<P> {
         self.session.add_user_text(user_input);
         
         // Check rate limit before making inference call
-        if !self.rate_limiter.try_acquire_inference() {
-            let retry_after = self.rate_limiter.inference_retry_after();
+        if !self.rate_limiter.try_acquire_inference().await {
+            let retry_after = self.rate_limiter.inference_retry_after().await;
             warn!("Inference rate limit exceeded, retry after: {:?}", retry_after);
             return Err(OrchestratorError::RateLimited(retry_after));
         }
@@ -228,8 +228,8 @@ impl<P: Provider> Orchestrator<P> {
             cycles.push(summary);
 
             // Verify the result
-            if !self.rate_limiter.try_acquire_inference() {
-                let retry_after = self.rate_limiter.inference_retry_after();
+            if !self.rate_limiter.try_acquire_inference().await {
+                let retry_after = self.rate_limiter.inference_retry_after().await;
                 warn!("Ralph: rate limited during verification, retry after {:?}", retry_after);
                 return Err(OrchestratorError::RateLimited(retry_after));
             }

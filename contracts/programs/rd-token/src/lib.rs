@@ -19,7 +19,7 @@ use anchor_spl::metadata::{
 
 mod token_config;
 
-declare_id!("CPLCsPQJrfWQgacJEq1QcbwoMcJocbEhjGVmJLPhs38Z");
+declare_id!("CaBr5n4mj2iBSc5ADBhEf7rMMGpoeeKeveoSDdUwXsrs");
 
 #[program]
 pub mod rd_token {

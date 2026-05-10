@@ -317,6 +317,7 @@ export function LaunchpadPanel() {
         twitterUrl:        twitter.trim(),
         websiteUrl:        website.trim(),
         launchTxSignature: sig,
+        mode:              'offchain'
       }
 
       setStep('Registering token (backend)…')
@@ -400,9 +401,26 @@ export function LaunchpadPanel() {
       const sig = await sendTransaction(tx, connection, { signers: [mintKp] })
       await connection.confirmTransaction(sig, 'confirmed')
 
-      // Register in backend
+      // Register in backend (Mongo)
       setStep('Registering in backend…')
       await fetch(`${BACKEND_URL}/api/tokens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mint: mint.toBase58(),
+          name: name.trim(),
+          symbol: symbol.trim().toUpperCase(),
+          description: description.trim(),
+          logo: logo ?? '',
+          creator: publicKey.toBase58(),
+          launchTxSignature: sig,
+          mode: 'onchain'
+        }),
+      })
+
+      // Register in local index (Redis) — crucial for the terminal feed
+      setStep('Indexing token…')
+      await fetch('/api/tokens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

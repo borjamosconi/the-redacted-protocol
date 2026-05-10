@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, duplicate: true, mint })
     }
 
-    const meta: TokenMeta = {
+    const meta: TokenMeta & { mode?: string } = {
       mint,
       name:           name.trim(),
       symbol:         symbol.trim().toUpperCase(),
@@ -167,6 +167,7 @@ export async function POST(req: NextRequest) {
       decimals:       9,
       maxSupplyCurve: MAX_SUPPLY_BC,
       launchFee:      0.02,
+      mode:           body.mode || 'offchain',
     }
 
     const pipe = redis.pipeline()

@@ -6,7 +6,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, transfer, Transfer};
 
-declare_id!("B6exebxV6gLVy2J4djeNmULi56uniV9gkogeJfTEo6N9");
+declare_id!("9PkRFJj7haogKtxaA7VERpQ8JqAD1ZtWtXD1MKNxSgd5");
 
 #[program]
 pub mod rd_staking {

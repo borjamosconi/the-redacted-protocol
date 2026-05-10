@@ -19,10 +19,10 @@ import { IDL as BONDING_CURVE_IDL, BondingCurveIDL } from './idl'
 
 // Public program & treasury identifiers — swapped post-deploy via env.
 export const BONDING_CURVE_PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_RD_BONDINGCURVE_PROGRAM_ID || 'AfkwwBhRsuEzZo74mdbwK8EBwo7VYwc8S1T7hb1RHMAa'
+  process.env.NEXT_PUBLIC_RD_BONDINGCURVE_PROGRAM_ID || '2zj6YEu1jYf2En29CHJdCppyhbBmzuAT9zN4Qr9Vkhyg'
 )
 export const TREASURY_PUBKEY = new PublicKey(
-  process.env.NEXT_PUBLIC_TREASURY_PUBKEY || 'CMESXEN77tCC6ndjVBmHEuY1fg86X6GWkEvFiMfKc5X8'
+  process.env.NEXT_PUBLIC_TREASURY_PUBKEY || 'HjqNchH7bsvgi1gSo9m3wbUasmQT1TaaRbJduDQ5uyPw'
 )
 
 export const TOKEN_DECIMALS = 6
@@ -35,6 +35,8 @@ export const poolPda = (mint: PublicKey) =>
   PublicKey.findProgramAddressSync([Buffer.from('pool'), mint.toBuffer()], BONDING_CURVE_PROGRAM_ID)
 export const solVaultPda = (mint: PublicKey) =>
   PublicKey.findProgramAddressSync([Buffer.from('sol_vault'), mint.toBuffer()], BONDING_CURVE_PROGRAM_ID)
+export const userStatsPda = (owner: PublicKey, mint: PublicKey) =>
+  PublicKey.findProgramAddressSync([Buffer.from('user_stats'), owner.toBuffer(), mint.toBuffer()], BONDING_CURVE_PROGRAM_ID)
 
 // ── Browser-wallet Provider ─────────────────────────────────────────────────
 /** A minimal Anchor wallet shim around wallet-adapter's publicKey + sign fns. */
@@ -121,7 +123,7 @@ export async function buildCreatePoolTx(
     .createPool(params.name, params.symbol, params.uri)
     .accounts({
       global, pool, mint,
-      poolTokenVault, solVault,
+      tokenVault: poolTokenVault, solVault,
       creator: wallet.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -144,7 +146,7 @@ export async function buildCreatePoolTx(
 export async function buildBuyTx(
   connection: Connection,
   wallet: AnchorWalletLike,
-  params: { mint: PublicKey, creatorWallet: PublicKey, solIn: BN, minTokensOut: BN },
+  params: { mint: PublicKey, creatorWallet: PublicKey, solIn: BN, minTokensOut: BN, referral?: PublicKey | null, referrer?: PublicKey | null },
 ): Promise<Transaction> {
   const program = getProgram(connection, wallet)
   const { mint, creatorWallet, solIn, minTokensOut } = params
@@ -154,18 +156,24 @@ export async function buildBuyTx(
   const poolTokenVault = getAssociatedTokenAddressSync(mint, pool, true)
   const buyerTokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey)
 
+  const [userStats] = userStatsPda(wallet.publicKey, mint)
+  const referrer = params.referrer || TREASURY_PUBKEY // Fallback to treasury if no referrer
+
   const ix = await program.methods
-    .buy(solIn, minTokensOut)
+    .buy(solIn, minTokensOut, params.referral || null)
     .accounts({
       global, pool, mint,
-      poolTokenVault, solVault,
+      tokenVault: poolTokenVault, solVault,
       buyerTokenAccount,
+      userStats,
       buyer: wallet.publicKey,
       treasury: TREASURY_PUBKEY,
       creatorWallet,
+      referrer,
       tokenProgram: TOKEN_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
     })
     .instruction()
 
@@ -187,16 +195,22 @@ export async function buildSellTx(
   const poolTokenVault = getAssociatedTokenAddressSync(mint, pool, true)
   const sellerTokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey)
 
+  const [userStats] = userStatsPda(wallet.publicKey, mint)
+  const referrer = TREASURY_PUBKEY // Required by struct but not used in sell logic yet
+
   const ix = await program.methods
     .sell(tokensIn, minSolOut)
     .accounts({
       global, pool, mint,
-      poolTokenVault, solVault,
+      tokenVault: poolTokenVault, solVault,
       sellerTokenAccount,
+      userStats,
       seller: wallet.publicKey,
       treasury: TREASURY_PUBKEY,
       creatorWallet,
+      referrer,
       tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
     .instruction()

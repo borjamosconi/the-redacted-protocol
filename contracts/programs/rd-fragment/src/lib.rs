@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("5CLiUA3yqHNoKAdPeHjeNkipDjjYFPwTpnEFfuR9JxWd");
+declare_id!("7b3yJRGMsLyvLvUJmG2mLZdoXNDFELbWeWTm5sdt6A1H");
 
 /// Maximum number of authorized verifiers stored on-chain.
 pub const MAX_VERIFIERS: usize = 10;
@@ -313,6 +313,8 @@ pub struct ResolveDispute<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct InitFragmentConfig<'info> {
     #[account(
         init,
         payer = admin,

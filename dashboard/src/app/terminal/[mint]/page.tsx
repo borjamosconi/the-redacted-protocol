@@ -24,6 +24,8 @@ function memoIx(text: string): TransactionInstruction {
 }
 import { Header } from '@/components/Header'
 import { TokenChart } from '@/components/TokenChart'
+import * as bc from '@/lib/rd-bondingcurve/client'
+import { BN } from '@/lib/rd-bondingcurve/client'
 
 // ── Fee config (mirrors route.ts) ────────────────────────────────────────────
 const TREASURY_WALLET = process.env.NEXT_PUBLIC_RDX_TREASURY_WALLET
@@ -55,6 +57,7 @@ interface TokenDetail {
   userTokens:   number
   quote:        { tokensOut: number; avgPrice: number }
   trades:       Trade[]
+  mode?:        'offchain' | 'onchain'
 }
 
 interface Trade {
@@ -192,6 +195,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
   }, [buyAmount])
 
   // ── Buy handler ──────────────────────────────────────────────────────────
+  // ── Buy handler (Off-chain) ──────────────────────────────────────────────
   const handleBuy = async () => {
     if (!publicKey || !token) return
     const sol = parseFloat(buyAmount)
@@ -213,10 +217,6 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
         throw new Error(`Insufficient SOL. Need ${sol} + gas.`)
       }
 
-      // Versioned (v0) transaction: SOL transfer + Memo describing the
-      // intent. Modern wallets (Phantom, Solflare, Backpack) parse the
-      // memo and surface it in the signing UI as the tx's purpose,
-      // which prevents the "possibly malicious" generic warning.
       const lamports = Math.floor(sol * LAMPORTS_PER_SOL)
       const { blockhash } = await connection.getLatestBlockhash()
       const memo = `Buy ${sol} SOL of $${token.symbol} on redacted.bond — bonding curve trade`
@@ -236,10 +236,6 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
 
       setStatus({ type: 'pending', msg: 'Approve in wallet...' })
       const sig = await sendTransaction(tx, connection)
-      // Don't block on confirmation — public RPC sometimes takes >30 s to
-      // return status for an already-finalized tx. Once we have a
-      // signature, the network has it and the trade route will accept it.
-      // Confirmation continues in the background for telemetry only.
       void connection.confirmTransaction(sig, 'confirmed').catch(() => {})
 
       setStatus({ type: 'pending', msg: 'Recording trade…' })
@@ -264,11 +260,62 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
     }
   }
 
+  // ── Buy handler (On-chain) ───────────────────────────────────────────────
+  const handleBuyOnChain = async () => {
+    if (!publicKey || !token) return
+    const sol = parseFloat(buyAmount)
+    if (isNaN(sol) || sol <= 0) return setStatus({ type: 'error', msg: 'Enter valid SOL.' })
+
+    setBuying(true)
+    setStatus({ type: 'pending', msg: 'Building transaction...' })
+    try {
+      const solIn = new BN(sol * LAMPORTS_PER_SOL)
+      // minTokensOut with 5% slippage
+      const tokensOut = token.quote.tokensOut
+      const minTokensOut = new BN(Math.floor(tokensOut * 0.95))
+
+      const tx = await bc.buildBuyTx(connection, { publicKey, signTransaction: (tx: any) => tx } as any, {
+        mint: new PublicKey(mint),
+        creatorWallet: new PublicKey(token.creator),
+        solIn,
+        minTokensOut
+      })
+
+      setStatus({ type: 'pending', msg: 'Sign in wallet...' })
+      const sig = await sendTransaction(tx, connection)
+      setStatus({ type: 'pending', msg: 'Confirming on-chain...' })
+      await connection.confirmTransaction(sig, 'confirmed')
+
+      // ── Sync to Redis ──
+      // This ensures the charts, volume, and global stats update in real-time
+      // even for on-chain trades.
+      setStatus({ type: 'pending', msg: 'Syncing feed…' })
+      await fetch(`/api/tokens/${mint}/trade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          wallet: publicKey.toString(), 
+          solAmount: sol, 
+          txSignature: sig,
+          side: 'buy'
+        }),
+      })
+
+      setStatus({ type: 'success', msg: `✓ Purchased on-chain! Tx: ${sig.slice(0,8)}...` })
+      fetchToken(buyAmount)
+    } catch (e: any) {
+      setStatus({ type: 'error', msg: e.message || 'On-chain buy failed.' })
+    } finally {
+      setBuying(false)
+    }
+  }
+
   // ── Sell handler ─────────────────────────────────────────────────────────
   // Burns the user's virtual RDX and credits a pending SOL payout. The
   // actual SOL transfer is a manual batch from the treasury (no server
   // keypair). Until graduation, sellers see "Pending payout: X SOL" in
   // their balance and wait for the next batch settlement.
+  // ── Sell handler (Off-chain) ─────────────────────────────────────────────
   const handleSell = async () => {
     if (!publicKey || !token) return
     const tokensIn = Math.floor(token.userTokens || 0)
@@ -293,6 +340,54 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
       fetchToken(buyAmount)
     } catch (e: any) {
       setStatus({ type: 'error', msg: e.message || 'Sell failed.' })
+    } finally {
+      setBuying(false)
+    }
+  }
+
+  // ── Sell handler (On-chain) ──────────────────────────────────────────────
+  const handleSellOnChain = async () => {
+    if (!publicKey || !token) return
+    const tokensIn = Math.floor(token.userTokens || 0)
+    if (tokensIn <= 0) return setStatus({ type: 'error', msg: 'No tokens to sell.' })
+
+    setBuying(true)
+    setStatus({ type: 'pending', msg: 'Building sell tx...' })
+    try {
+      // Compute expected SOL out based on current price
+      const solOutLamports = Math.floor(tokensIn * token.currentPrice * LAMPORTS_PER_SOL)
+      const minSolOut = new BN(Math.floor(solOutLamports * 0.95))
+
+      const tx = await bc.buildSellTx(connection, { publicKey, signTransaction: (tx: any) => tx } as any, {
+        mint: new PublicKey(mint),
+        creatorWallet: new PublicKey(token.creator),
+        tokensIn: new BN(tokensIn), // Program might expect raw tokens or with mult. 
+        // Based on test_buy, it expects BN.
+        minSolOut
+      })
+
+      setStatus({ type: 'pending', msg: 'Sign in wallet...' })
+      const sig = await sendTransaction(tx, connection)
+      setStatus({ type: 'pending', msg: 'Confirming...' })
+      await connection.confirmTransaction(sig, 'confirmed')
+
+      // Sync to Redis
+      setStatus({ type: 'pending', msg: 'Syncing feed…' })
+      await fetch(`/api/tokens/${mint}/trade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          wallet: publicKey.toString(), 
+          solAmount: solOutLamports / LAMPORTS_PER_SOL, 
+          txSignature: sig,
+          side: 'sell'
+        }),
+      })
+
+      setStatus({ type: 'success', msg: `✓ Sold on-chain! Tx: ${sig.slice(0,8)}...` })
+      fetchToken(buyAmount)
+    } catch (e: any) {
+      setStatus({ type: 'error', msg: e.message || 'On-chain sell failed.' })
     } finally {
       setBuying(false)
     }
@@ -353,8 +448,8 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
                  buyAmount={buyAmount} 
                  setBuyAmount={setBuyAmount} 
                  buying={buying} 
-                 handleBuy={handleBuy} 
-                 handleSell={handleSell} 
+                 handleBuy={token.mode === 'onchain' ? handleBuyOnChain : handleBuy} 
+                 handleSell={token.mode === 'onchain' ? handleSellOnChain : handleSell} 
                  status={status} 
                  publicKey={publicKey}
                  solBalance={solBalance}
@@ -484,8 +579,8 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
                buyAmount={buyAmount} 
                setBuyAmount={setBuyAmount} 
                buying={buying} 
-               handleBuy={handleBuy} 
-               handleSell={handleSell} 
+               handleBuy={token.mode === 'onchain' ? handleBuyOnChain : handleBuy} 
+               handleSell={token.mode === 'onchain' ? handleSellOnChain : handleSell} 
                status={status} 
                publicKey={publicKey}
              />
@@ -497,13 +592,13 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
       <div className="xl:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/80 backdrop-blur-md border-t border-red-500/20 safe-area-pb">
         <div className="flex gap-2">
            <div className="flex-1">
-             <button onClick={handleBuy} disabled={buying || token.progress >= 100}
+             <button onClick={token.mode === 'onchain' ? handleBuyOnChain : handleBuy} disabled={buying || token.progress >= 100}
                className="w-full py-4 bg-red-600 text-white font-black text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(255,0,0,0.4)]">
                {buying ? '...' : `QUICK_BUY $${token.symbol}`}
              </button>
            </div>
            {token.userTokens > 0 && (
-             <button onClick={handleSell} className="px-4 py-4 bg-white/5 border border-white/10 text-white/40">
+             <button onClick={token.mode === 'onchain' ? handleSellOnChain : handleSell} className="px-4 py-4 bg-white/5 border border-white/10 text-white/40">
                <span className="text-[10px] font-black">SELL</span>
              </button>
            )}
