@@ -1,6 +1,8 @@
 'use client'
 
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
+import { useScroll, useTransform } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { LaunchCountdown } from './LaunchCountdown'
@@ -122,6 +124,12 @@ export function Hero() {
 
   return (
     <section ref={ref} className="relative w-full overflow-hidden bg-black flex flex-col min-h-screen">
+      {/* DEVNET BANNER */}
+      <div className="sticky top-0 z-[200] w-full bg-yellow-500 text-black text-center py-2 px-4 flex items-center justify-center gap-4 font-black text-[11px] uppercase tracking-[0.4em]">
+        <span className="w-2 h-2 bg-black rounded-full animate-pulse inline-block" />
+        RUNNING ON SOLANA DEVNET — ALL INTERACTIONS QUALIFY FOR GENESIS AIRDROP
+        <span className="w-2 h-2 bg-black rounded-full animate-pulse inline-block" />
+      </div>
       <WhaleAlert />
       {/* Background Video for Premium Feel */}
       <div className="absolute inset-0 z-0 overflow-hidden opacity-30">
@@ -172,9 +180,45 @@ export function Hero() {
                <span className="relative z-10">LAUNCH_OPERATION</span>
                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
              </Link>
+             <a href="/demo.mp4" target="_blank" rel="noopener" className="w-full sm:w-auto px-16 py-6 bg-yellow-500 hover:bg-white text-black font-black uppercase text-xs tracking-[0.5em] transition-all relative overflow-hidden group shadow-[15px_15px_0px_rgba(255,215,0,0.15)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 inline-flex items-center justify-center gap-3">
+               <span className="relative z-10">▶ WATCH_60S_DEMO</span>
+             </a>
              <Link href={`/terminal/${process.env.NEXT_PUBLIC_RDX_TOKEN_MINT || 'HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU'}`} className="w-full sm:w-auto px-16 py-6 border border-white/10 hover:border-red-600 text-white/60 hover:text-white font-black uppercase text-xs tracking-[0.5em] transition-all bg-white/[0.02] hover:bg-red-600/10">
                ACCESS_TERMINAL
              </Link>
+          </div>
+
+          {/* Quick links row for judges — GitHub repo, X, Telegram */}
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 pt-6 text-[10px] font-mono uppercase tracking-[0.4em] text-white/40">
+            <a href="https://github.com/whalesconspiracy-33/the-redacted-protocol" target="_blank" rel="noopener" className="hover:text-white transition-colors flex items-center gap-2 group">
+              <svg className="w-4 h-4 fill-current opacity-60 group-hover:opacity-100" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+              <span>GITHUB / SOURCE</span>
+            </a>
+            <a href="https://x.com/moskonibeats" target="_blank" rel="noopener" className="hover:text-white transition-colors flex items-center gap-2 group">
+              <svg className="w-3.5 h-3.5 fill-current opacity-60 group-hover:opacity-100" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              <span>@moskonibeats</span>
+            </a>
+            <a href="https://t.me/TheRedacted_sol" target="_blank" rel="noopener" className="hover:text-white transition-colors flex items-center gap-2 group">
+              <svg className="w-4 h-4 fill-current opacity-60 group-hover:opacity-100" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+              <span>JOIN SYNDICATE</span>
+            </a>
+          </div>
+
+          {/* Inline demo video — visible without click for judges */}
+          <div className="w-full max-w-4xl mx-auto mt-12 sm:mt-16 relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-500 via-red-600 to-yellow-500 opacity-40 group-hover:opacity-70 blur transition-opacity" />
+            <div className="relative bg-black border-2 border-yellow-500/40 group-hover:border-yellow-500 transition-colors">
+              <div className="bg-yellow-500 text-black text-center py-1 px-4 font-black text-[10px] uppercase tracking-[0.4em]">
+                ▶ 60-SECOND PRODUCT DEMO · 1920×1080
+              </div>
+              <video
+                controls
+                preload="metadata"
+                poster="/logo.png"
+                className="w-full block"
+                src="/demo.mp4"
+              />
+            </div>
           </div>
         </div>
 
@@ -233,8 +277,8 @@ export function Hero() {
 
           <div className="mt-16 p-8 sm:p-12 border border-red-500/20 bg-red-600/5 flex flex-col lg:flex-row items-center justify-between gap-10">
              <div className="flex flex-col gap-3 text-center lg:text-left">
-                <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em]">QUALIFICATION_STATUS: ACTIVE</span>
-                <p className="text-xs sm:text-sm text-white/60 font-mono uppercase tracking-widest leading-relaxed">Only activity on the official testnet dashboard is recorded for the genesis airdrop.</p>
+                <span className="text-[10px] font-black text-yellow-400 uppercase tracking-[0.4em]">⚡ DEVNET · AIRDROP QUALIFICATION: OPEN TO ALL</span>
+                <p className="text-xs sm:text-sm text-white/60 font-mono uppercase tracking-widest leading-relaxed">Every wallet that interacts with the devnet dashboard is automatically recorded for the genesis RDX airdrop. No minimum required — just connect and participate.</p>
              </div>
              <Link href="/dashboard" className="w-full lg:w-auto px-16 py-5 bg-red-600 hover:bg-white text-white hover:text-black font-black uppercase text-xs tracking-[0.4em] transition-all shadow-[8px_8px_0px_rgba(255,0,0,0.2)] hover:shadow-none hover:translate-x-1 hover:translate-y-1">
                 START_DECRYPTION
