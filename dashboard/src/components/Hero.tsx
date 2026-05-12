@@ -204,20 +204,40 @@ export function Hero() {
             </a>
           </div>
 
-          {/* Inline demo video — visible without click for judges */}
-          <div className="w-full max-w-4xl mx-auto mt-12 sm:mt-16 relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-500 via-red-600 to-yellow-500 opacity-40 group-hover:opacity-70 blur transition-opacity" />
-            <div className="relative bg-black border-2 border-yellow-500/40 group-hover:border-yellow-500 transition-colors">
-              <div className="bg-yellow-500 text-black text-center py-1 px-4 font-black text-[10px] uppercase tracking-[0.4em]">
-                ▶ 60-SECOND PRODUCT DEMO · 1920×1080
+          {/* Inline demo videos — two videos side-by-side for judges */}
+          <div className="w-full max-w-6xl mx-auto mt-12 sm:mt-16 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+            {/* Demo video (landscape 16:9) */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-500 via-red-600 to-yellow-500 opacity-40 group-hover:opacity-70 blur transition-opacity" />
+              <div className="relative bg-black border-2 border-yellow-500/40 group-hover:border-yellow-500 transition-colors">
+                <div className="bg-yellow-500 text-black text-center py-1 px-4 font-black text-[10px] uppercase tracking-[0.4em]">
+                  ▶ 60-SECOND PRODUCT DEMO · 1920×1080
+                </div>
+                <video
+                  controls
+                  preload="metadata"
+                  poster="/logo.png"
+                  className="w-full block"
+                  src="/demo.mp4"
+                />
               </div>
-              <video
-                controls
-                preload="metadata"
-                poster="/logo.png"
-                className="w-full block"
-                src="/demo.mp4"
-              />
+            </div>
+            {/* Live walkthrough (portrait 9:16) */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 opacity-40 group-hover:opacity-70 blur transition-opacity" />
+              <div className="relative bg-black border-2 border-red-600/40 group-hover:border-red-600 transition-colors">
+                <div className="bg-red-600 text-white text-center py-1 px-4 font-black text-[10px] uppercase tracking-[0.4em]">
+                  ▶ LIVE WALKTHROUGH · UNCUT
+                </div>
+                <video
+                  controls
+                  preload="metadata"
+                  poster="/logo.png"
+                  playsInline
+                  className="w-full block"
+                  src="/walkthrough.mp4"
+                />
+              </div>
             </div>
           </div>
         </div>
