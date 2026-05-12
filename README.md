@@ -1,17 +1,34 @@
-# ██████████ PROTOCOL: OPERATION REDACTED
+# ██████████ THE REDACTED PROTOCOL
 
-> **// CLASSIFIED DOSSIER — LEVEL 5 CLEARANCE REQUIRED //**
-> **// SUBJECT: Autonomous Intelligence Engine on Solana //**
-> 
-> 🏆 **Colosseum Hackathon 2026** — Track: Autonomous Neural Engine
+> **Autonomous AI agent that hunts censorship in real time and permanently anchors deleted documents on Solana.**
+>
+> 🏆 **Colosseum Solana Frontier Hackathon 2026** — Track: AI Platforms / Agents
 
 [![Rust](https://img.shields.io/badge/Rust-1.83+-orange.svg)](https://www.rust-lang.org/)
-[![Solana](https://img.shields.io/badge/Solana-Mainnet-9945FF.svg)](https://solana.com/)
+[![Solana](https://img.shields.io/badge/Solana-Devnet-9945FF.svg)](https://solana.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
-[![Status](https://img.shields.io/badge/Status-ACTIVE-red.svg)]()
-[![Clearance](https://img.shields.io/badge/Clearance-Top%20Secret-black.svg)]()
+[![Live](https://img.shields.io/badge/LIVE-redacted.bond-FFD700.svg)](https://redacted.bond)
+[![Status](https://img.shields.io/badge/Agent-RUNNING_24%2F7-22c55e.svg)]()
 
-**[ACCESS TERMINAL](https://redacted.bond)** · **[INTERCEPT COMMS (BOT)](https://t.me/theredactedprotocol_bot)** · **[JOIN SYNDICATE](https://t.me/TheRedacted_sol)** · **[X_FILES](https://x.com/theprotocol_sol)**
+## 🎬 Watch the 60-second demo
+
+**▶ [https://redacted.bond/demo.mp4](https://redacted.bond/demo.mp4)** &nbsp;&nbsp;·&nbsp;&nbsp; **[Live product](https://redacted.bond)** &nbsp;&nbsp;·&nbsp;&nbsp; **[Pitch video](https://youtu.be/SolXl3LvHs8)** &nbsp;&nbsp;·&nbsp;&nbsp; **[X · @moskonibeats](https://x.com/moskonibeats)** &nbsp;&nbsp;·&nbsp;&nbsp; **[Telegram](https://t.me/TheRedacted_sol)**
+
+---
+
+## ⚡ TL;DR for Judges
+
+An autonomous **Rust** agent monitors **23 global news sources 24/7**. When it detects a censored or removed document (HTTP 410, takedown patterns, missing-content heuristics), it:
+
+1. Verifies the takedown with **multimodal AI consensus** (Claude + GPT-4 + Grok + Qwen-VL via OpenRouter)
+2. Fingerprints the content and generates a **ZK proof via Light Protocol**
+3. **Mints a unique Solana token** anchoring the event on-chain forever
+4. **Stores the original payload on Arweave** for permanent retrieval
+5. Pushes the event to the live dashboard at **[redacted.bond](https://redacted.bond)** and broadcasts on Telegram
+
+Every wallet that interacts with the dashboard on devnet **qualifies for the Genesis $RDX airdrop** — no minimum, no allowlist.
+
+Built **100% from scratch in under 4 weeks** by a solo founder. No boilerplate. No copy-paste. 6 Anchor smart contracts. 10 Rust crates. 26 Next.js dashboard components.
 
 ---
 
