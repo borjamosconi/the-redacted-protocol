@@ -1,27 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { TwitterApi } from 'twitter-api-v2'
+import { getRandomTweet } from '@/lib/broadcast-messages'
 
-const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN
 const CRON_SECRET = process.env.CRON_SECRET
 
-const DAILY_TWEETS = [
-  `🚨 CLASSIFIED LEAK 🚨\n\nThe central authorities thought they could scrub the registry. They were wrong. The Redacted Protocol is actively mining the truth.\n\nAre you a node in the resistance or part of the silence?\n\n👁️ Declassify now: https://redacted.bond\n#Solana #RDX`,
-  
-  `⚡ SYSTEM OVERRIDE ⚡\n\nThe consensus narrative is fracturing. Our autonomous network has bypassed the firewalls. \n\nEvery agent that joins strengthens the triangulation. The $RDX protocol is watching.\n\n🛡️ Join the extraction: https://redacted.bond\n#RedactedProtocol #Web3`,
-  
-  `🌑 ZERO-DAY DISPATCH 🌑\n\nThe file is breathing.\n\nWhile they redact, we reconstruct. A massive data anomaly has been detected. Only active operators will receive the unredacted fragments.\n\n🔗 Secure your access: https://redacted.bond\n#Solana #Colosseum2026`
-]
+/**
+ * Build an authenticated Twitter client using OAuth 1.0a user-context tokens.
+ * This is required for posting tweets (write operations).
+ * The Bearer token alone only supports read-only app-context endpoints.
+ */
+function getTwitterClient() {
+  const appKey = process.env.TWITTER_CONSUMER_KEY
+  const appSecret = process.env.TWITTER_CONSUMER_SECRET
+  const accessToken = process.env.TWITTER_ACCESS_TOKEN
+  const accessSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET
 
-async function sendTwitterBroadcast(text: string) {
-  const url = `https://api.twitter.com/2/tweets`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${TWITTER_BEARER_TOKEN}`
-    },
-    body: JSON.stringify({ text }),
+  if (!appKey || !appSecret || !accessToken || !accessSecret) {
+    return null
+  }
+
+  return new TwitterApi({
+    appKey,
+    appSecret,
+    accessToken,
+    accessSecret,
   })
-  return res.json()
+}
+
+async function postTweet(client: InstanceType<typeof TwitterApi>, text: string) {
+  return client.v2.tweet(text)
 }
 
 export async function GET(req: NextRequest) {
@@ -31,24 +38,30 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!TWITTER_BEARER_TOKEN) {
-    return NextResponse.json({ error: 'Missing TWITTER_BEARER_TOKEN' }, { status: 500 })
+  const client = getTwitterClient()
+  if (!client) {
+    return NextResponse.json(
+      { error: 'Missing Twitter OAuth credentials (TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET)' },
+      { status: 500 }
+    )
   }
 
-  // Select a random tweet from our high-impact list
-  const text = DAILY_TWEETS[Math.floor(Math.random() * DAILY_TWEETS.length)]
+  // Pick a tweet based on current time + randomized pool
+  const text = getRandomTweet()
 
   try {
-    const result = await sendTwitterBroadcast(text)
-    if (result.data && result.data.id) {
+    const result = await postTweet(client, text)
+    if (result.data?.id) {
       return NextResponse.json({
         success: true,
         tweetId: result.data.id,
+        text: result.data.text,
       })
     }
-    return NextResponse.json({ success: false, error: result.detail || 'Twitter API error' }, { status: 500 })
-  } catch (e) {
-    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'No tweet ID returned' }, { status: 500 })
+  } catch (e: any) {
+    console.error('[Twitter Broadcast] ❌ Failed:', e.message || e)
+    return NextResponse.json({ success: false, error: String(e.message || e) }, { status: 500 })
   }
 }
 
@@ -59,17 +72,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!TWITTER_BEARER_TOKEN) {
-    return NextResponse.json({ error: 'Missing config' }, { status: 500 })
+  const client = getTwitterClient()
+  if (!client) {
+    return NextResponse.json({ error: 'Missing Twitter OAuth config' }, { status: 500 })
   }
 
   const body = await req.json().catch(() => ({}))
-  const text = body.text || DAILY_TWEETS[0]
+  const text = body.text || getRandomTweet()
 
   try {
-    const result = await sendTwitterBroadcast(text)
-    return NextResponse.json({ success: !!(result.data && result.data.id), result })
-  } catch (e) {
-    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+    const result = await postTweet(client, text)
+    return NextResponse.json({
+      success: !!(result.data?.id),
+      tweetId: result.data?.id,
+      text: result.data?.text,
+    })
+  } catch (e: any) {
+    console.error('[Twitter Broadcast] ❌ Failed:', e.message || e)
+    return NextResponse.json({ success: false, error: String(e.message || e) }, { status: 500 })
   }
 }
