@@ -51,7 +51,7 @@ impl TelegramBot {
         let body = serde_json::json!({
             "chat_id": self.chat_id,
             "text": text,
-            "parse_mode": "Markdown",
+            "parse_mode": "HTML",
             "disable_web_page_preview": true,
         });
 
@@ -76,18 +76,22 @@ impl TelegramBot {
         confidence: f64,
         status: &str,
     ) -> Result<(), String> {
+        // HTML escape the reconstructed text to prevent Telegram API errors
+        let escaped_text = reconstructed.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        
         let message = format!(
-            "🔴 **FILE #{:04}**\n\n\
-            **STATUS:** {}\n\
-            **CONFIDENCE:** {:.1}%\n\n\
-            {}\n\n\
-            ACCESS GRANTED.\n\
-            _The file is breathing._\n\n\
-            #RedactedProtocol #RDX",
+            "<b>🔴 [INTERCEPTED TRANSMISSION] 🔴</b>\n\n\
+            <b>FILE:</b> #RDX-{:04}\n\
+            <b>CLEARANCE:</b> {}\n\
+            <b>INTEGRITY:</b> {:.1}%\n\n\
+            <i>\"{}\"</i>\n\n\
+            <b>DECRYPTION SUCCESSFUL.</b>\n\
+            The intelligence has been synchronized. The truth is verifiable on-chain.\n\n\
+            <a href=\"https://t.me/RedactedProtocolChannel\">Join the Node Network</a> | #RedactedProtocol #RDX",
             file_number,
             status,
             confidence * 100.0,
-            reconstructed,
+            escaped_text,
         );
 
         self.send_message(&message).await
@@ -95,9 +99,10 @@ impl TelegramBot {
 
     /// Send a system notification.
     pub async fn send_notification(&self, title: &str, detail: &str) -> Result<(), String> {
+        let escaped_detail = detail.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         let msg = format!(
-            "🔔 **{}**\n\n{}",
-            title, detail
+            "<b>🔔 {}</b>\n\n{}",
+            title, escaped_detail
         );
         self.send_message(&msg).await
     }
@@ -143,11 +148,11 @@ impl FragmentPublisher {
         }
 
         let status = if confidence >= 0.95 {
-            "VERIFIED"
+            "🟢 MOSSAD-VERIFIED"
         } else if confidence >= 0.85 {
-            "DECLASSIFIED"
+            "🟡 TIER-1 DECLASSIFIED"
         } else {
-            "PROVISIONAL"
+            "🔴 RAW INTERCEPT"
         };
 
         self.bot.send_fragment(file_number, reconstructed, confidence, status).await
