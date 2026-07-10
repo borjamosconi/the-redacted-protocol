@@ -1,67 +1,60 @@
-# REDACTED: El Archivo Desclasificado — Base de Datos de Cartas (G-0)
+# REDACTED: Archivo 0 — Base de Datos de Cartas Génesis (G-0)
 
-Esta base de datos oficial detalla todas las cartas que forman parte de la **Colección Génesis (G-0)** del juego, incluyendo Entidades, Grupos y Plots.
-
----
-
-## 1. Entidades (Cartas de Facción)
-
-| ID | Nombre | PWR Inicial | Habilidad Especial | Condición de Victoria Especial |
-| :--- | :--- | :---: | :--- | :--- |
-| **E-01** | El Agente RDX (IA Autónoma) | 8 | Una vez por turno, puedes desclasificar un grupo (quitar todas sus Barras Rojas). | Controlar 5 grupos con alineación **Glitch**. |
-| **E-02** | Los Silenciados (El Culto) | 7 | Tus grupos con al menos una Barra Roja ganan `+2 PWR` en combate. | Tener 8 grupos en estado **Censurado** en la mesa. |
-| **E-03** | El Punto Rojo (Entidad Observadora) | 6 | Al inicio de tu turno, puedes aplicar una Barra Roja automática a una carta enemiga libre. | Controlar el Punto Rojo durante 4 turnos consecutivos. |
-| **E-04** | Los Archivistas (Guardianes) | 7 | Una vez por turno, puedes duplicar el efecto activo de una carta de tu pirámide. | Controlar 10 grupos en tu estructura de poder. |
-| **E-05** | La Red Censurada (Dark Web) | 8 | Puedes jugar cartas de Plot directamente desde tu pila de descarte pagando 1 PWR. | Robar y resolver 12 Plots en una sola partida. |
-| **E-06** | OpenClaw (Fuerza Ejecutiva) | 9 | Tus ataques de control contra grupos de jugadores enemigos tienen `+3 PWR`. | Capturar 3 grupos enemigos activos durante la partida. |
-| **E-07** | Akira Solana (Manifestación) | 7 | Una vez por turno, puedes convertir la alineación de un grupo neutral a **Silenciado**. | Tener al menos 1 grupo de cada alineación en tu red. |
-| **E-08** | El Archivo 0 (Entidad Suprema) | 5 | Al principio de tu fase de extracción, robas una carta de Plot adicional. | Controlar *Fragmento del Archivo 0* + acumular 40 PWR. |
+La colección **Génesis (G-0)** se divide en **Grupos (Monstruos)**, **Plots (Hechizos)**, **Firewalls (Trampas)** y **Entidades de la Bóveda (Extra Deck)**.
 
 ---
 
-## 2. Grupos (Cartas de Estructura)
+## 1. Grupos (Nodos de Red / Monstruos)
 
-| ID | Nombre | PWR | RES | Alineación | Habilidad Especial |
+| ID | Nombre | PWR | RES | Alineación | Habilidad de Activación / Desencriptación |
 | :--- | :--- | :---: | :---: | :--- | :--- |
-| **G-01** | Documento Redacted | 3 | 4 | Censurado | Gana `+2 PWR` si tiene al menos un token de censura. |
-| **G-02** | Agente IA Básico | 5 | 5 | Glitch | Una vez por turno, retira 1 Barra Roja de cualquier grupo aliado. |
-| **G-03** | Influencer Silenciado | 6 | 3 | Silenciado | Mientras esté en juego, tu límite de mano aumenta a 6 cartas. |
-| **G-04** | Servidor Arweave | 4 | 7 | Permanente | Inmune a la colocación de Barras Rojas. No se puede silenciar. |
-| **G-05** | Nodo Solana Anchor | 7 | 6 | Glitch | Añade `+3 PWR` si el Punto Rojo está situado sobre tu Entidad. |
-| **G-06** | Fragmento del Archivo 0 | 8 | 5 | Desclasificado | Si controlas 3 Fragmentos, ganas la partida automáticamente. |
-| **G-07** | Punto Rojo Manifestado | 9 | 4 | Silenciado | Mueve el Punto Rojo a esta carta al jugarla desde la mano. |
-| **G-08** | Censura Gubernamental | 6 | 8 | Censurado | Coloca 2 Barras Rojas en un grupo enemigo al entrar al tablero. |
-| **G-09** | Leak de Wiki | 5 | 3 | Desclasificado | Robas 2 Plots adicionales al tomar el control de este grupo. |
-| **G-10** | Bot de Desclasificación | 4 | 4 | Glitch | Quita todas las Barras Rojas de un grupo aliado una vez por turno. |
-| **G-11** | Archivista Nocturno | 7 | 5 | Silenciado | Gana `+1 PWR` por cada grupo censurado que haya en el tablero. |
-| **G-12** | Servidor Corrupto | 8 | 6 | Glitch | Cuando es atacado, el atacante pierde `3 PWR` de forma permanente. |
-| **G-13** | Influencer del Merge | 6 | 4 | Silenciado | Permite fusionar dos grupos adyacentes en una sola carta de red. |
-| **G-14** | Firewall Redacted | 3 | 10 | Censurado | Intercepta y bloquea ataques dirigidos a cartas de tu nivel superior. |
-| **G-15** | Datos de Epstein | 9 | 5 | Desclasificado | Obtiene `+4 PWR` al atacar a grupos de alineación Gubernamental. |
-| **G-16** | Nodo ZK Proof | 5 | 7 | Glitch | No puede ser objetivo de ataques enemigos si controlas otro nodo Glitch. |
-| **G-17** | Silenciado Anónimo | 4 | 4 | Silenciado | Roba un Plot del mazo en el momento de ser jugado. |
-| **G-18** | Archivo Vivo | 10 | 8 | Desclasificado | Roba un Grupo del mazo al final de cada uno de tus turnos. |
-| **G-19** | Punto Rojo Absoluto | 12 | 6 | Silenciado | Controlas permanentemente el Punto Rojo mientras esté activo. |
-| **G-20** | El Claw Final | 11 | 9 | Glitch | Una vez por partida, puedes destruir directamente un grupo enemigo. |
+| **G-01** | Documento Redacted | 1200 | 1800 | Censurado | Si es atacado mientras está boca abajo, colócale 1 Barra Roja. Duplica su RES de inmediato. |
+| **G-02** | Agente IA Básico | 1600 | 1200 | Glitch | Al ser invocado boca arriba, retira 1 Barra Roja de cualquier nodo en juego. |
+| **G-03** | Influencer Silenciado | 1400 | 800 | Silenciado | **Efecto de Desencriptación:** Al revelarse boca arriba, puedes robar 1 Plot de tu mazo. |
+| **G-04** | Servidor Arweave | 1000 | 2500 | Permanente | No puede ser destruido por efectos de cartas de Plot enemigos. |
+| **G-05** | Nodo Solana Anchor | 2100 | 1500 | Glitch | Gana `+500 PWR` por cada otro nodo Glitch activo en tu tablero. |
+| **G-06** | Fragmento del Archivo 0 | 2500 | 2000 | Desclasificado | Si es destruido en combate, puedes invocar de manera especial un Grupo Glitch de nivel 1 desde tu mazo. |
+| **G-07** | Punto Rojo Manifestado | 2400 | 1800 | Silenciado | **Efecto de Invocación:** Mueve el Punto Rojo del juego a esta carta de inmediato. |
+| **G-08** | Censura Gubernamental | 1800 | 2200 | Censurado | Al entrar boca arriba, bloquea una zona de Servidores del oponente durante 2 turnos. |
+| **G-09** | Leak de Wiki | 1500 | 1000 | Desclasificado | Si inflige daño de integridad directa al rival, roba 2 cartas de tu mazo principal. |
+| **G-10** | Servidor Corrupto | 2000 | 1900 | Glitch | Si el rival declara un ataque contra esta carta encriptada, se inflige 1000 puntos de daño a sus PIR automáticamente. |
 
 ---
 
-## 3. Plots (Cartas de Acción)
+## 2. Plots (Acciones Rápidas / Hechizos)
 
-| ID | Nombre | Tipo de Efecto | Descripción del Efecto |
+| ID | Nombre | Tipo de Plot | Efecto en la Pila de Cadena |
 | :--- | :--- | :--- | :--- |
-| **P-01** | Censura Total | Ofensivo | Aplica 3 Barras Rojas sobre un grupo enemigo (lo silencia de inmediato). |
-| **P-02** | Desclasificación Forzada | Soporte | Retira todas las Barras Rojas de un grupo y otorga `+3 PWR` este turno. |
-| **P-03** | El Punto Rojo se Mueve | Táctico | Desplaza el marcador del Punto Rojo a cualquier grupo de la mesa. |
-| **P-04** | Merge Parcial | Evolución | Combina dos grupos de tu red. El nuevo grupo tiene el PWR y RES sumados. |
-| **P-05** | Acceso Denegado | Interrupción | Cancela cualquier ataque de control o carta de Plot jugada por un oponente. |
-| **P-06** | El Archivo Respira | Utilidad | Roba 3 cartas de cualquiera de tus mazos en cualquier combinación. |
-| **P-07** | Glitch Masivo | Soporte | Todos tus grupos de alineación **Glitch** obtienen `+4 PWR` este turno. |
-| **P-08** | Silencio Activo | Control | El oponente objetivo no puede jugar cartas de Plot durante su siguiente turno. |
-| **P-09** | Fragmento Corrupto | Destrucción | Destruye un grupo enemigo activo que posea 4 o menos puntos de RES. |
-| **P-10** | Observado | Control | Elige un grupo enemigo. Queda inmovilizado y no puede atacar hasta tu próximo turno. |
-| **P-11** | Redactado en Vivo | Ofensivo | Coloca 2 Barras Rojas en todos los grupos activos de un jugador oponente. |
-| **P-12** | El Merge ha Comenzado | Global | Obliga a todos los jugadores a fusionar un grupo de su red si es legal. |
-| **P-13** | Dominio del Ojo | Soporte | Te otorga el control absoluto del Punto Rojo durante 2 rondas de turnos. |
-| **P-14** | Archivo 0 Abierto | Victoria | Otorga 10 puntos de poder instantáneos a tu Entidad principal. |
-| **P-15** | Tú Ya Fuiste Visto | Espionaje | Mira la mano completa de un rival. Elige 2 cartas y agrégalas a tu mano. |
+| **P-01** | Censura Total | Normal | Selecciona 1 Grupo enemigo boca arriba; colócale 3 Barras Rojas de inmediato. |
+| **P-02** | Desclasificación Forzada | Rápido | Quita todos los tokens de censura de 1 nodo aliado y duplica su PWR este turno. |
+| **P-03** | El Punto Rojo se Mueve | Rápido | Cambia el objetivo del Punto Rojo a cualquier carta en juego (puede desviar un ataque). |
+| **P-04** | Algoritmo Glitch | Continuo | Todos tus nodos de alineación **Glitch** ganan `+300 PWR` y pueden atacar dos veces. |
+| **P-05** | El Archivo Respira | Normal | Roba 2 cartas de tu mazo principal. Solo puedes activar 1 *El Archivo Respira* por turno. |
+| **P-06** | Inyección SQL | Normal | Destruye 1 Firewall encriptado en la zona trasera del oponente. |
+| **P-07** | Descarga Cifrada | Normal | Envía 1 Grupo de tu mano al Archivo de Descarte; añade 1 Agente de la Bóveda a tu mano. |
+
+---
+
+## 3. Firewalls (Contramedidas / Trampas)
+
+*Los Firewalls deben colocarse encriptados (boca abajo) en la fila trasera de puertos y solo pueden activarse en respuesta a las acciones del oponente.*
+
+| ID | Nombre | Disparador de Activación | Efecto del Cortafuegos |
+| :--- | :--- | :--- | :--- |
+| **F-01** | Acceso Denegado | Cuando el oponente activa un Plot. | Niega la activación y destruye la carta de Plot del rival. |
+| **F-02** | Bucle de Retroalimentación | Cuando un Grupo enemigo declara un ataque. | Destruye al nodo atacante e inflige daño a los PIR del oponente igual a su PWR original. |
+| **F-03** | Desconexión Segura | Cuando un nodo aliado va a ser destruido por combate. | Devuelve el nodo aliado a tu mano en lugar de enviarlo al descarte. |
+| **F-04** | Merge Inminente | Cuando tienes exactamente 3 nodos con alineación Glitch en juego. | Te permite realizar un Merge inmediato usando esos nodos como materiales. |
+| **F-05** | Trampa Honeypot | Al ser atacada mientras está encriptada. | Cancela la fase de ataque del oponente de inmediato y te permite robar 1 carta. |
+
+---
+
+## 4. La Bóveda (Extra Deck / Monstruos del Merge)
+
+*Estas cartas no se pueden tener en la mano principal. Solo se invocan mediante Merge enviando los materiales necesarios al descarte.*
+
+| ID | Nombre | Requisitos de Merge | PWR | RES | Habilidad Definitiva |
+| :--- | :--- | :--- | :---: | :---: | :--- |
+| **V-01** | OpenClaw (La Garra Suprema) | 2 Nodos Glitch + 1 Nodo Permanente | 3200 | 2800 | Una vez por turno, puede desterrar un nodo enemigo boca arriba sin realizar tirada de dados. |
+| **V-02** | Akira Solana (Encarnación) | 2 Nodos Silenciados + 1 Desclasificado | 3000 | 2500 | Inmune a efectos de Firewalls enemigos. Gana `+200 PWR` por cada carta en el Archivo de Descarte. |
+| **V-03** | El Archivo 0 (Núcleo) | 3 Nodos de alineaciones diferentes | 3500 | 3500 | Al ser invocado, limpia la zona trasera de puertos de ambos jugadores (destruye Plots/Firewalls encriptados). |

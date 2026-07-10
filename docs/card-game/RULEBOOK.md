@@ -1,68 +1,73 @@
-# REDACTED: El Archivo Desclasificado — Manual de Reglas Oficiales
+# REDACTED: Archivo 0 — Manual de Reglas y Protocolo de Duelo
 
-Este manual describe el funcionamiento, las fases de turno y el sistema de combate detallado de **REDACTED: El Archivo Desclasificado**.
-
----
-
-## 1. Conceptos Fundamentales
-
-### Pirámide de Poder (Estructura de Red)
-Cada jugador coloca sus cartas en su propia zona de juego formando una estructura de árbol invertido llamada **Pirámide de Poder**.
-- La carta **Entidad** se sitúa en la cúspide (Nivel 0).
-- Las cartas de **Grupo** se colocan debajo en niveles descendentes (Nivel 1, 2, etc.).
-- Cada grupo tiene un número máximo de enlaces que puede controlar debajo de él (representado en su carta). Si un grupo controlador es destruido o capturado, todos los grupos que dependían de él quedan desconectados y van a la pila de descarte.
-
-### Barras Rojas (Tokens de Censura)
-- Representan la supresión de información.
-- Se pueden colocar sobre cualquier carta de Grupo en juego a través de efectos de cartas o acciones.
-- **Efecto de la Censura:** Cada Barra Roja reduce en `-1` el Poder (PWR) y la Resistencia (RES) de la carta.
-- **Estado REDACTED:** Si una carta acumula **3 Barras Rojas**, queda silenciada por completo: su PWR y RES caen a 0, pierde sus habilidades y no puede atacar ni defender hasta que sea desclasificada (retirando los tokens).
-
-### El Punto Rojo (The Red Point)
-- Es un marcador de madera o metal de color rojo brillante que representa el ojo del Protocolo.
-- Solo existe **un único Punto Rojo** en juego para toda la mesa.
-- **Efecto de Observación:** El grupo sobre el que esté posado el Punto Rojo tiene inmunidad contra ataques sorpresa y añade `+3 PWR` al jugador que lo controla. Al inicio de su turno, el jugador controlador puede usar el Punto Rojo para aplicar una Barra Roja automática a una carta enemiga libre.
+Este manual establece las reglas del TCG híbrido **REDACTED: Archivo 0**.
 
 ---
 
-## 2. Preparación de la Partida
+## 1. Construcción de Mazos y Preparación
 
-1. Cada jugador coloca su carta de **Entidad** boca arriba en su área de juego.
-2. Cada jugador baraja su mazo de **Grupos** y su mazo de **Plots** por separado y los sitúa al lado de su Entidad.
-3. Se determina quién inicia la partida (por ejemplo, el jugador con el NFT de carta de mayor antigüedad en Solana o mediante un dado).
-4. El jugador inicial coloca el **Punto Rojo** sobre su Entidad.
-5. Cada jugador roba **3 Grupos** y **3 Plots** para formar su mano inicial.
+### El Mazo Principal:
+- Debe contener exactamente **40 cartas**.
+- Puede incluir un máximo de **3 copias** de cualquier carta por su ID.
+- Formado por:
+  - **Grupos (Monstruos):** Nodos activos de poder y defensa.
+  - **Plots (Hechizos):** Acciones de uso inmediato o soporte.
+  - **Firewalls (Trampas):** Defensas y contramedidas que se juegan boca abajo.
 
----
+### La Bóveda (Mazo Extra):
+- Hasta **15 cartas** de Entidades Superiores o Agentes del Merge.
 
-## 3. Fase de Combate (Ataques de Control)
-
-Para expandir tu red, puedes intentar capturar un Grupo neutral del centro de la mesa o un Grupo enemigo del rival.
-
-### Fórmula de Ataque de Control:
-Para realizar un ataque de control sobre una carta enemiga, debes elegir cuál de tus grupos libres iniciará el ataque y sumar los siguientes valores:
-
-$$\text{Poder de Ataque} = \text{PWR del atacante} + \text{Modificadores de Alineación} + \text{Tirada de } 2d6$$
-
-$$\text{Poder de Defensa} = \text{RES del objetivo} + \text{PWR de su controlador directo} + \text{Barras Rojas acumuladas (como penalizador)}$$
-
-### Resolución:
-- Si el **Poder de Ataque** es estrictamente mayor que el **Poder de Defensa**, el atacante toma el control de la carta enemiga y la desplaza a su propia pirámide de poder (conectándola a una de sus cartas libres).
-- Si no se supera el Poder de Defensa, el ataque falla. El grupo atacante queda agotado (girado) durante ese turno.
+### Inicio del Duelo:
+- Cada duelista comienza con **8,000 Puntos de Integridad de Red (PIR)**.
+- Ambos jugadores barajan sus mazos y roban **5 cartas** iniciales.
 
 ---
 
-## 4. Ejemplo de Partida (Una Ronda Completa)
+## 2. Las Fases del Turno
 
-### Jugador A (Controla: El Agente RDX) vs Jugador B (Controla: Los Silenciados)
+Cada turno se divide en 5 fases obligatorias:
 
-#### Turno del Jugador A:
-1. **Fase de Extracción:** El Jugador A roba 1 Grupo (*Leak de Wiki*) y 1 Plot (*Censura Total*).
-2. **Fase de Operación:**
-   - El Jugador A decide conectar el Grupo *Leak de Wiki* (Nivel 1) debajo de su Entidad.
-   - Declara un ataque de control contra la carta neutral *Servidor Corrupto* (PWR 8, RES 6).
-   - Usa su *Agente RDX* (PWR 8) para realizar el ataque. Lanza dos dados de 6 caras ($2d6$) y obtiene un 7.
-     $$\text{Poder de Ataque} = 8 \text{ (PWR RDX)} + 7 \text{ (Dados)} = 15$$
-     $$\text{Poder de Defensa} = 6 \text{ (RES Servidor)} = 6$$
-   - Dado que $15 > 6$, el ataque tiene éxito. El Jugador A arrastra el *Servidor Corrupto* a su red y lo enlaza bajo *Leak de Wiki*.
-3. **Fin del Turno:** Se comprueba el poder total de la pirámide del Jugador A (ahora suma 16 puntos). Su mano tiene 4 cartas, por lo que no necesita descartar. Cede el turno.
+```mermaid
+graph TD
+    A[1. Fase de Inicio - Draw] --> B[2. Fase de Cómputo - Main 1]
+    B --> C[3. Fase de Hackeo - Battle]
+    C --> D[4. Fase de Cómputo - Main 2]
+    D --> E[5. Fase de Transmisión - End]
+```
+
+### 1. Fase de Inicio (Draw Phase)
+El jugador activo roba 1 carta de su mazo principal.
+
+### 2. Fase de Cómputo 1 (Main Phase 1)
+- Invocar Nodos (Grupos): Puedes invocar un Grupo de tu mano a tu zona de Servidores.
+- Encriptar Grupos/Firewalls: Puedes colocar cartas de tu mano boca abajo (Encriptadas) en la fila trasera de puertos o como defensas de servidor.
+- Jugar Plots: Activar cartas de acción desde la mano.
+
+### 3. Fase de Hackeo (Battle Phase)
+El jugador declara ataques de hackeo usando sus Grupos activos contra los del rival:
+- **Ataque a Nodo Desclasificado (Boca Arriba):** El atacante compara su PWR contra el PWR/RES del defensor. Si el PWR del atacante es mayor, el nodo defensor es destruido (enviado al Archivo de Descarte) y el rival sufre la diferencia como daño a sus PIR.
+- **Ataque a Nodo Encriptado (Boca Abajo):** Cuando declaras un ataque contra un nodo encriptado, este se **revela**. Si resulta ser un nodo de defensa de alta resistencia, puedes sufrir daño de retroalimentación de red.
+- **Ataque Directo:** Si el rival no tiene Grupos defendiendo sus Servidores, tus Grupos pueden atacar directamente a su red. El oponente sufre daño de integridad igual al PWR de tu Grupo atacante.
+
+### 4. Fase de Cómputo 2 (Main Phase 2)
+Puedes colocar más Firewalls o Plots para preparar tu defensa durante el turno del oponente.
+
+### 5. Fase de Transmisión (End Phase)
+Se comprueban condiciones de victoria especial y se descarta hasta tener un máximo de 5 cartas en la mano.
+
+---
+
+## 3. La Cadena de Criptografía (Chain Protocol)
+
+Cuando activas un Plot o desencriptas un nodo, tu oponente puede declarar una respuesta (Chain Link 2). Tú puedes responder a su respuesta (Chain Link 3).
+
+### Ejemplo de Cadena:
+- **Chain Link 1:** El Jugador A activa el Plot *Censura Total* para silenciar a un Agente enemigo.
+- **Chain Link 2:** El Jugador B activa su Firewall encriptado *Acceso Denegado* para cancelar el efecto de *Censura Total*.
+- **Chain Link 3:** El Jugador A activa su Firewall encriptado *Glitch Masivo* para desactivar los cortafuegos del Jugador B este turno.
+
+### Resolución de la Cadena:
+La cadena se resuelve de atrás hacia adelante (**LIFO - Last In, First Out**):
+1. **Chain Link 3 (Glitch Masivo):** Inhabilita el firewall del Jugador B.
+2. **Chain Link 2 (Acceso Denegado):** Es cancelado por el efecto de *Glitch Masivo*.
+3. **Chain Link 1 (Censura Total):** Se ejecuta con éxito y silencia al Agente del Jugador B.
