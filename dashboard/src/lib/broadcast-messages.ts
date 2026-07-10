@@ -17,6 +17,8 @@ export const BROADCAST_MESSAGES: BroadcastSet[] = [
   {
     slot: 'morning',
     telegram:
+      `☀️ <b>[ OPERATOR_NOTICE ] ─── SECUENCIA: GM</b>\n\n` +
+      `<i>"La información quiere ser libre. Las cadenas que impone el secreto solo se rompen descifrando el código línea a línea. Tu mente es el terminal, tu voluntad el descifrador. Sal ahí fuera y expón la verdad hoy."</i>\n\n` +
       `${sectionTitle('Redacted Protocol: tokeniza documentos en Solana')}\n\n` +
       `Puedes subir un PDF, una imagen, una captura o un informe. La IA analiza el contenido y crea un activo digital basado en esa informacion.\n\n` +
       `${sectionTitle('Como funciona:')}\n` +
@@ -58,6 +60,8 @@ export const BROADCAST_MESSAGES: BroadcastSet[] = [
   {
     slot: 'evening',
     telegram:
+      `🌙 <b>[ OPERATOR_NOTICE ] ─── SECUENCIA: GN</b>\n\n` +
+      `<i>"Apagando terminales primarios. Entrando en modo de escucha de baja frecuencia. Descansa, operador. La verdad no duerme, pero tus ojos sí. Mañana continuaremos reconstruyendo los fragmentos."</i>\n\n` +
       `${sectionTitle('Airdrop y herramientas principales de Redacted Protocol')}\n\n` +
       `Si aun no has empezado, puedes registrar tu wallet, revisar tus misiones y probar el analisis de documentos desde el dashboard.\n\n` +
       `${sectionTitle('Pasos recomendados:')}\n` +

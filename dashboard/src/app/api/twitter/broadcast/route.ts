@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { TwitterApi } from 'twitter-api-v2'
 import { getRandomTweet } from '@/lib/broadcast-messages'
+import fs from 'fs'
+import path from 'path'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -27,7 +29,24 @@ function getTwitterClient() {
   })
 }
 
-async function postTweet(client: InstanceType<typeof TwitterApi>, text: string) {
+async function postTweet(client: TwitterApi, text: string) {
+  try {
+    // Pick a random image from art-1 to art-5
+    const imgIndex = Math.floor(Math.random() * 5) + 1
+    const imgExt = imgIndex === 1 ? 'png' : 'jpg'
+    const imgPath = path.join(process.cwd(), 'public', 'images', `art-${imgIndex}.${imgExt}`)
+    
+    if (fs.existsSync(imgPath)) {
+      const mediaId = await client.v1.uploadMedia(imgPath)
+      return client.v2.tweet({
+        text,
+        media: { media_ids: [mediaId] }
+      })
+    }
+  } catch (err) {
+    console.error('[Twitter Media Upload] Failed, falling back to text-only:', err)
+  }
+  // Fallback to text-only
   return client.v2.tweet(text)
 }
 
