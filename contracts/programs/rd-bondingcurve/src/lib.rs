@@ -217,8 +217,8 @@ pub mod rd_bondingcurve {
         require!(!pool.complete, BondingCurveError::PoolComplete);
 
         // Manual address checks to save stack space in prologue
-        require!(ctx.accounts.treasury.key() == global.treasury, BondingCurveError::MathOverflow); // Using overflow as placeholder or add new error
-        require!(ctx.accounts.creator_wallet.key() == pool.creator, BondingCurveError::MathOverflow);
+        require!(ctx.accounts.treasury.key() == global.treasury, BondingCurveError::InvalidTreasuryAddress);
+        require!(ctx.accounts.creator_wallet.key() == pool.creator, BondingCurveError::InvalidCreatorAddress);
 
         // ── Senior Fee Strategy ─────────────────────────────────────────────
         let total_fee_bps = ctx.accounts.global.fee_bps as u128;
@@ -264,7 +264,13 @@ pub mod rd_bondingcurve {
         let k = (pool.virtual_sol_reserves as u128)
             .checked_mul(pool.virtual_token_reserves as u128)
             .ok_or(BondingCurveError::MathOverflow)?;
-        let new_virtual_tokens = k.checked_div(new_virtual_sol).ok_or(BondingCurveError::MathOverflow)?;
+        let new_virtual_tokens = k
+            .checked_add(new_virtual_sol)
+            .ok_or(BondingCurveError::MathOverflow)?
+            .checked_sub(1)
+            .ok_or(BondingCurveError::MathOverflow)?
+            .checked_div(new_virtual_sol)
+            .ok_or(BondingCurveError::MathOverflow)?;
         let mut tokens_out = (pool.virtual_token_reserves as u128)
             .checked_sub(new_virtual_tokens)
             .ok_or(BondingCurveError::MathOverflow)? as u64;
@@ -368,8 +374,8 @@ pub mod rd_bondingcurve {
         require!(tokens_in > 0, BondingCurveError::AmountTooSmall);
         require!(!pool.complete, BondingCurveError::PoolComplete);
 
-        require!(ctx.accounts.treasury.key() == global.treasury, BondingCurveError::MathOverflow);
-        require!(ctx.accounts.creator_wallet.key() == pool.creator, BondingCurveError::MathOverflow);
+        require!(ctx.accounts.treasury.key() == global.treasury, BondingCurveError::InvalidTreasuryAddress);
+        require!(ctx.accounts.creator_wallet.key() == pool.creator, BondingCurveError::InvalidCreatorAddress);
 
         // ── Anti-Sniping Check ──────────────────────────────────────────────
         let now = Clock::get()?.unix_timestamp;
@@ -386,7 +392,13 @@ pub mod rd_bondingcurve {
         let k = (pool.virtual_sol_reserves as u128)
             .checked_mul(pool.virtual_token_reserves as u128)
             .ok_or(BondingCurveError::MathOverflow)?;
-        let new_virtual_sol = k.checked_div(new_virtual_tokens).ok_or(BondingCurveError::MathOverflow)?;
+        let new_virtual_sol = k
+            .checked_add(new_virtual_tokens)
+            .ok_or(BondingCurveError::MathOverflow)?
+            .checked_sub(1)
+            .ok_or(BondingCurveError::MathOverflow)?
+            .checked_div(new_virtual_tokens)
+            .ok_or(BondingCurveError::MathOverflow)?;
         let mut gross_sol_out = (pool.virtual_sol_reserves as u128)
             .checked_sub(new_virtual_sol)
             .ok_or(BondingCurveError::MathOverflow)? as u64;
@@ -1201,6 +1213,10 @@ pub enum BondingCurveError {
     TimelockNotElapsed,
     #[msg("Anti-sniping: Must hold tokens for at least 60 seconds")]
     AntiSnipingActive,
+    #[msg("Invalid treasury address")]
+    InvalidTreasuryAddress,
+    #[msg("Invalid creator address")]
+    InvalidCreatorAddress,
 }
 
 #[account]

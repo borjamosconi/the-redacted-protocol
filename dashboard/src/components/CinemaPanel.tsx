@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -21,9 +21,9 @@ interface GenerationResult {
   error?: string
 }
 
-// ── Config (mirrors server) ────────────────────────────────────────────────────
 const MODELS = [
-  { id: 'nano-banana-2', name: 'Nano Banana 2', type: 'image', icon: '📸', desc: 'Neural synthesis' },
+  { id: 'nano-banana-2', name: 'Neural Genesis 2.0', type: 'image', icon: '🧠', desc: 'High-fidelity neural synthesis' },
+  { id: 'flux-cinematic', name: 'Flux Cinematic', type: 'video', icon: '🎬', desc: '4K Motion synthesis (Coming Soon)', disabled: true },
 ]
 
 const CAMERAS = [
@@ -42,15 +42,12 @@ const LENSES = [
   { id: 'warm_prime',         name: 'Warm Prime' },
   { id: '70s_prime',          name: '70s Prime' },
   { id: 'vintage',            name: 'Vintage' },
-  { id: 'extreme_macro',      name: 'Macro' },
-  { id: 'creative_tilt',      name: 'Tilt-Shift' },
-  { id: 'swirl_bokeh',        name: 'Swirl Bokeh' },
-  { id: 'halation',           name: 'Halation' },
-  { id: 'clinical',           name: 'Ultra Sharp' },
+  { id: 'macro',              name: 'Macro' },
+  { id: 'tilt_shift',         name: 'Tilt-Shift' },
 ]
 
-const FOCAL_LENGTHS = [8, 14, 24, 35, 50, 85]
-const APERTURES     = ['f/1.4', 'f/4', 'f/11']
+const FOCAL_LENGTHS = [8, 14, 24, 35, 50, 85, 135]
+const APERTURES     = ['f/1.4', 'f/2.8', 'f/4', 'f/8', 'f/11']
 const ASPECT_RATIOS = ['16:9', '21:9', '9:16', '1:1', '4:5']
 const RESOLUTIONS   = ['1K', '2K', '4K']
 
@@ -67,21 +64,17 @@ const PRESETS = [
   { id: 'blockchain_node',   label: 'Blockchain Node',    emoji: '⬡' },
 ]
 
-
-// ── Component ──────────────────────────────────────────────────────────────────
 export function CinemaPanel() {
-  // Form state
   const [model,       setModel]       = useState('nano-banana-2')
   const [preset,      setPreset]      = useState<string>('')
   const [customPrompt,setCustomPrompt]= useState('')
   const [camera,      setCamera]      = useState('modular_8k')
-  const [lens,        setLens]        = useState('classic_anamorphic')
+  const [lens,        setLens]        = useState('compact_anamorphic')
   const [focalLength, setFocalLength] = useState(35)
-  const [aperture,    setAperture]    = useState('f/4')
+  const [aperture,    setAperture]    = useState('f/2.8')
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [resolution,  setResolution]  = useState('4K')
 
-  // Generation state
   const [generating,  setGenerating]  = useState(false)
   const [progress,    setProgress]    = useState(0)
   const [result,      setResult]      = useState<GenerationResult | null>(null)
@@ -89,12 +82,10 @@ export function CinemaPanel() {
   const [history,     setHistory]     = useState<GenerationResult[]>([])
 
   const selectedModel = MODELS.find(m => m.id === model) || MODELS[0]
-  const isVideo       = false
 
-  // ── Generate ──────────────────────────────────────────────────────────────
   const generate = async () => {
     if (!preset && !customPrompt.trim()) {
-      setError('Choose a preset or enter a custom prompt.')
+      setError('SELECT PRESET OR ENTER CUSTOM PROMPT')
       return
     }
     setGenerating(true)
@@ -102,24 +93,12 @@ export function CinemaPanel() {
     setResult(null)
     setProgress(0)
 
-    // Simulate progress bar while waiting
     const progressInterval = setInterval(() => {
-      setProgress(p => Math.min(p + 2.5, 92))
-    }, 1500)
+      setProgress(p => Math.min(p + 1.8, 95))
+    }, 1000)
 
     try {
-      const body: Record<string, any> = {
-        model,
-        preset:      preset || undefined,
-        prompt:      customPrompt.trim() || undefined,
-        camera,
-        lens,
-        focalLength,
-        aperture,
-        aspectRatio,
-        resolution,
-      }
-
+      const body = { model, preset: preset || undefined, prompt: customPrompt.trim() || undefined, camera, lens, focalLength, aperture, aspectRatio, resolution }
       const res  = await fetch('/api/cinema', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,352 +110,257 @@ export function CinemaPanel() {
       setProgress(100)
 
       if (!res.ok || !data.success) {
-        setError(data.error || 'Generation failed.')
+        setError(data.error || 'GENERATION FAILED')
         return
       }
 
       setResult(data)
-      setHistory(h => [data, ...h].slice(0, 20))
+      setHistory(h => [data, ...h].slice(0, 24))
     } catch (e: any) {
-      setError(e.message || 'Request failed.')
+      setError(e.message || 'CONNECTION ERROR')
     } finally {
-      clearInterval(progressInterval)
       setGenerating(false)
-      setTimeout(() => setProgress(0), 800)
+      setTimeout(() => setProgress(0), 1000)
     }
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5">
-
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="rd-card relative overflow-hidden p-6 sm:p-8">
-        <div className="absolute -top-20 -right-20 w-72 h-72 bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_#ff1a1a]" />
-              <span className="text-[9px] font-black uppercase tracking-[0.3em] text-red-500/70">Muapi.ai — 7 Keys Active</span>
-            </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white">Classified Cinema Studio</h2>
-            <p className="text-[10px] text-gray-600 font-mono mt-1">Synthesize forensic images & videos — keys rotate automatically</p>
-          </div>
-          <div className="flex gap-2 flex-wrap justify-end">
-            {/* Models removed - only image generation supported now */}
+    <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-8">
+      
+      {/* ── Side Console: Parameters ─────────────────────────────────────── */}
+      <aside className="space-y-6">
+        
+        {/* Model Selector */}
+        <div className="rd-card p-6 border-l-4 border-l-red-600">
+          <label className="block text-[10px] font-black text-red-500 uppercase tracking-[0.3em] mb-4">Neural Engine</label>
+          <div className="space-y-2">
+            {MODELS.map(m => (
+              <button 
+                key={m.id}
+                disabled={m.disabled}
+                onClick={() => setModel(m.id)}
+                className={`w-full p-4 flex items-center gap-4 border transition-all ${
+                  model === m.id 
+                    ? 'border-red-600 bg-red-600/10 text-white' 
+                    : 'border-white/5 bg-white/[0.02] text-white/40 hover:border-white/20'
+                } ${m.disabled ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
+              >
+                <span className="text-xl">{m.icon}</span>
+                <div className="text-left">
+                  <div className="text-[10px] font-black uppercase tracking-widest">{m.name}</div>
+                  <div className="text-[8px] font-mono opacity-50">{m.desc}</div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-5">
+        {/* Input Controls */}
+        <div className="rd-card p-6 space-y-6">
+          
+          {/* Custom Prompt */}
+          <div>
+            <label className="block text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3">Custom Command</label>
+            <textarea
+              rows={4}
+              placeholder="INPUT SCENE COORDINATES..."
+              value={customPrompt}
+              onChange={e => { setCustomPrompt(e.target.value); if (e.target.value) setPreset('') }}
+              className="w-full bg-black/40 border border-white/10 p-4 text-white font-mono text-[11px] focus:border-red-600/50 outline-none transition-all resize-none uppercase tracking-wider"
+            />
+          </div>
 
-        {/* ── Left: Controls ──────────────────────────────────────────────── */}
-        <div className="space-y-4">
-
-          {/* Presets */}
-          <div className="rd-card p-5">
-            <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-3">Quick Presets</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-1.5">
+          {/* Quick Presets Grid */}
+          <div>
+            <label className="block text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3">Synthetic Presets</label>
+            <div className="grid grid-cols-2 gap-2">
               {PRESETS.map(p => (
                 <button
                   key={p.id}
                   onClick={() => { setPreset(preset === p.id ? '' : p.id); setCustomPrompt('') }}
-                  className={`flex items-center gap-2 px-3 py-2.5 text-[9px] font-bold border rounded transition-all text-left ${
+                  className={`p-3 text-[9px] font-black border transition-all text-left uppercase tracking-tighter ${
                     preset === p.id
-                      ? 'border-red-500/50 bg-red-500/10 text-red-400'
-                      : 'border-red-900/15 text-gray-600 hover:text-white hover:border-red-900/30'
+                      ? 'border-red-600 bg-red-600 text-black'
+                      : 'border-white/5 bg-white/[0.02] text-white/40 hover:text-white hover:border-white/20'
                   }`}
                 >
-                  <span className="flex-shrink-0">{p.emoji}</span>
-                  <span className="truncate">{p.label}</span>
+                  <span className="mr-2">{p.emoji}</span> {p.label}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Custom prompt */}
-          <div className="rd-card p-5">
-            <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">
-              Custom Prompt <span className="text-gray-700">(overrides preset)</span>
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Describe your scene... e.g. 'shadowy figure decrypting classified files in neon-lit server room'"
-              value={customPrompt}
-              onChange={e => { setCustomPrompt(e.target.value); if (e.target.value) setPreset('') }}
-              className="w-full bg-black/50 border border-red-950/30 p-3 text-white font-mono text-xs focus:border-red-500/50 outline-none transition-all resize-none rounded-sm"
-            />
-          </div>
-
-          {/* Camera / Lens Controls */}
-          <div className="rd-card p-5 space-y-4">
-              <div>
-                <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">Camera</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {CAMERAS.map(c => (
-                    <button key={c.id} onClick={() => setCamera(c.id)}
-                      className={`py-2 text-[8px] font-bold border rounded-sm transition-all ${
-                        camera === c.id ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'border-red-900/15 text-gray-700 hover:text-white hover:border-red-900/30'
-                      }`}>{c.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">Lens</label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-                  {LENSES.map(l => (
-                    <button key={l.id} onClick={() => setLens(l.id)}
-                      className={`py-2 text-[8px] font-bold border rounded-sm transition-all ${
-                        lens === l.id ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'border-red-900/15 text-gray-700 hover:text-white hover:border-red-900/30'
-                      }`}>{l.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">Focal Length</label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {FOCAL_LENGTHS.map(f => (
-                      <button key={f} onClick={() => setFocalLength(f)}
-                        className={`px-2.5 py-1.5 text-[9px] font-bold border rounded-sm transition-all ${
-                          focalLength === f ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'border-red-900/15 text-gray-700 hover:text-white'
-                        }`}>{f}mm
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">Aperture</label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {APERTURES.map(a => (
-                      <button key={a} onClick={() => setAperture(a)}
-                        className={`px-2.5 py-1.5 text-[9px] font-bold border rounded-sm transition-all ${
-                          aperture === a ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'border-red-900/15 text-gray-700 hover:text-white'
-                        }`}>{a}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
-          {/* Output settings */}
-          <div className="rd-card p-5">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">Aspect Ratio</label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {ASPECT_RATIOS.map(r => (
-                    <button key={r} onClick={() => setAspectRatio(r)}
-                      className={`px-2.5 py-1.5 text-[9px] font-bold border rounded-sm transition-all ${
-                        aspectRatio === r ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'border-red-900/15 text-gray-700 hover:text-white'
-                      }`}>{r}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-[9px] text-gray-600 uppercase tracking-widest mb-2">Resolution</label>
-                <div className="flex gap-1.5">
-                  {RESOLUTIONS.map(r => (
-                    <button key={r} onClick={() => setResolution(r)}
-                      className={`flex-1 py-1.5 text-[9px] font-bold border rounded-sm transition-all ${
-                        resolution === r ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'border-red-900/15 text-gray-700 hover:text-white'
-                      }`}>{r}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Generate button */}
-          <div>
-            {error && (
-              <p className="text-[10px] font-mono text-red-400 mb-3 px-1">{error}</p>
-            )}
-            <button
-              onClick={generate}
-              disabled={generating}
-              className="w-full py-5 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-[11px] uppercase tracking-[0.4em] transition-all shadow-[0_0_30px_rgba(255,26,26,0.2)] hover:shadow-[0_0_50px_rgba(255,26,26,0.35)] rounded-sm relative overflow-hidden"
-            >
-              {generating ? (
-                <span className="flex items-center justify-center gap-3">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Generating Image...
-                </span>
-              ) : (
-                `${selectedModel.icon} Generate Image`
-              )}
-
-              {/* Progress bar */}
-              {generating && progress > 0 && (
-                <motion.div
-                  className="absolute bottom-0 left-0 h-[3px] bg-white/40"
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.5 }}
-                />
-              )}
-            </button>
-            <p className="text-[9px] text-gray-700 text-center mt-2 font-mono">
-              ~20–40s generation time · Key {_keyDisplay()}/7 active
-            </p>
-          </div>
         </div>
 
-        {/* ── Right: Output ───────────────────────────────────────────────── */}
-        <div className="space-y-4">
+        {/* Optical Configuration */}
+        <div className="rd-card p-6 space-y-5">
+           <label className="block text-[10px] font-black text-white uppercase tracking-[0.3em]">Optical Parameters</label>
+           
+           <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <span className="text-[8px] font-mono text-white/20 uppercase">Aperture</span>
+                <select 
+                  value={aperture} 
+                  onChange={e => setAperture(e.target.value)}
+                  className="w-full bg-black border border-white/10 p-2 text-[10px] font-mono text-red-500 outline-none"
+                >
+                  {APERTURES.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <span className="text-[8px] font-mono text-white/20 uppercase">Focal</span>
+                <select 
+                  value={focalLength} 
+                  onChange={e => setFocalLength(Number(e.target.value))}
+                  className="w-full bg-black border border-white/10 p-2 text-[10px] font-mono text-red-500 outline-none"
+                >
+                  {FOCAL_LENGTHS.map(f => <option key={f} value={f}>{f}mm</option>)}
+                </select>
+              </div>
+           </div>
 
-          {/* Preview area */}
-          <div className={`rd-card relative overflow-hidden bg-black/80 flex items-center justify-center border-2 border-dashed border-red-900/20 ${
-            aspectRatio === '9:16' ? 'aspect-[9/16]' :
-            aspectRatio === '1:1'  ? 'aspect-square' :
-            aspectRatio === '4:5'  ? 'aspect-[4/5]' :
-            aspectRatio === '21:9' ? 'aspect-[21/9]' :
-            'aspect-video'
-          }`}>
+           <div className="space-y-2">
+             <span className="text-[8px] font-mono text-white/20 uppercase">Camera Sensor</span>
+             <div className="grid grid-cols-2 gap-1.5">
+               {CAMERAS.slice(0, 4).map(c => (
+                 <button 
+                  key={c.id} 
+                  onClick={() => setCamera(c.id)}
+                  className={`py-2 text-[8px] font-black border transition-all ${
+                    camera === c.id ? 'border-red-600 text-red-600 bg-red-600/5' : 'border-white/5 text-white/30'
+                  }`}
+                 >
+                   {c.name}
+                 </button>
+               ))}
+             </div>
+           </div>
+        </div>
+
+        {/* Action Button */}
+        <div className="space-y-3">
+          {error && <p className="text-[9px] font-black text-red-600 text-center animate-pulse tracking-[0.2em]">{error}</p>}
+          <button
+            onClick={generate}
+            disabled={generating}
+            className="btn-premium w-full group"
+          >
+            {generating ? (
+              <span className="flex items-center gap-3">
+                <span className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                Processing...
+              </span>
+            ) : (
+              'EXECUTE_SYNTHESIS'
+            )}
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main Canvas: Results ─────────────────────────────────────────── */}
+      <main className="space-y-6">
+        
+        {/* Live Viewport */}
+        <div className="cinematic-container aspect-video group">
+          <div className="cinematic-overlay" />
+          <div className="absolute inset-0 z-0 bg-black">
+            {/* Background static or scanline */}
+            {!result && !generating && (
+               <div className="absolute inset-0 opacity-20 flex items-center justify-center">
+                  <span className="text-[10px] font-mono text-white uppercase tracking-[1em] animate-flicker">Idle_Waiting_For_Input</span>
+               </div>
+            )}
+            
             <AnimatePresence mode="wait">
-              {/* Generating overlay */}
               {generating && (
                 <motion.div
                   key="loading"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/90"
+                  className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80"
                 >
-                  <div className="relative">
-                    <div className="w-16 h-16 border-2 border-red-900/30 border-t-red-500 rounded-full animate-spin" />
-                    <div className="absolute inset-0 flex items-center justify-center text-xl">
-                      {selectedModel.icon}
+                  <div className="scanline" />
+                  <div className="text-center space-y-4">
+                    <div className="text-[40px] animate-bounce">{selectedModel.icon}</div>
+                    <div className="text-[10px] font-black text-red-600 uppercase tracking-[0.5em] animate-pulse">Neural Reconstructing...</div>
+                    <div className="w-64 h-1 bg-white/5 relative">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        className="absolute h-full bg-red-600 shadow-[0_0_15px_#ff0000]"
+                      />
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[10px] text-red-400 font-mono uppercase tracking-widest mb-1">
-                      Generating classified image...
-                    </p>
-                    <p className="text-[9px] text-gray-700 font-mono">{Math.round(progress)}% complete</p>
-                  </div>
-                  <div className="w-48 h-1 bg-red-950/30 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-red-700 to-red-400"
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
+                    <div className="text-[8px] font-mono text-white/30">{Math.round(progress)}% DECRYPTED</div>
                   </div>
                 </motion.div>
               )}
 
-              {/* Result */}
-              {!generating && result && (
+              {result && !generating && (
                 <motion.div
                   key="result"
-                  initial={{ opacity: 0, scale: 0.96 }}
+                  initial={{ opacity: 0, scale: 1.1 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="w-full h-full"
+                  className="w-full h-full relative"
                 >
                   <img
                     src={result.outputUrl}
-                    alt="Generated"
-                    className="w-full h-full object-contain"
+                    alt="Synthesis"
+                    className="w-full h-full object-cover transition-transform duration-[10s] group-hover:scale-110"
                   />
-                </motion.div>
-              )}
-
-              {/* Empty state */}
-              {!generating && !result && (
-                <motion.div
-                  key="empty"
-                  className="text-center p-8"
-                >
-                  <p className="text-[10px] text-gray-700 uppercase tracking-widest font-mono">
-                    Image will appear here
-                  </p>
+                  {/* Result HUD Overlay */}
+                  <div className="absolute top-6 left-6 flex flex-col gap-1 pointer-events-none">
+                     <span className="badge-premium border-red-600/40 text-red-600">Conf_Rating: 98.2%</span>
+                     <span className="text-[8px] font-mono text-white/40 uppercase tracking-widest bg-black/40 px-2 py-1">Type: {result.type}</span>
+                  </div>
+                  <div className="absolute bottom-6 left-6 flex flex-col gap-1 pointer-events-none">
+                     <span className="text-[8px] font-mono text-white uppercase tracking-[0.3em] font-black">Subject: {preset || 'Custom_Prompt'}</span>
+                     <span className="text-[7px] font-mono text-white/30 uppercase tracking-widest max-w-xs">{result.prompt}</span>
+                  </div>
+                  <div className="absolute bottom-6 right-6 flex gap-3">
+                     <a href={result.outputUrl} download className="btn-outline !px-4 !py-2 !text-[8px]">Export</a>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Result metadata */}
-          {result && !generating && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rd-card p-4 space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-gray-600 uppercase tracking-widest font-mono">Output Info</span>
-                <div className="flex gap-2">
-                  <a
-                    href={result.outputUrl}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 text-[8px] font-black uppercase tracking-widest border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all rounded-sm"
-                  >
-                    ↓ Download
-                  </a>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(result.outputUrl)}
-                    className="px-3 py-1.5 text-[8px] font-black uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all rounded-sm"
-                  >
-                    Copy URL
-                  </button>
-                </div>
-              </div>
-
-              {[
-                { label: 'Model',   value: result.model },
-                { label: 'Type',    value: result.isVideo ? '🎬 Video' : '📸 Image' },
-                result.camera && { label: 'Camera',  value: result.camera },
-                result.lens   && { label: 'Lens',    value: result.lens },
-                { label: 'Size',    value: `${result.resolution} · ${result.aspectRatio}` },
-                { label: 'API Key', value: `Key ${result.keyUsed}/7` },
-              ].filter(Boolean).map((item: any) => (
-                <div key={item.label} className="flex justify-between text-[9px] font-mono border-b border-red-900/10 pb-2">
-                  <span className="text-gray-700 uppercase tracking-widest">{item.label}</span>
-                  <span className="text-gray-400">{item.value}</span>
-                </div>
-              ))}
-
-              <div>
-                <span className="text-[8px] text-gray-700 uppercase tracking-widest font-mono block mb-1">Prompt Used</span>
-                <p className="text-[9px] font-mono text-gray-600 leading-relaxed line-clamp-3">{result.prompt}</p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* History */}
-          {history.length > 1 && (
-            <div className="rd-card p-4">
-              <p className="text-[9px] text-gray-600 uppercase tracking-widest font-mono mb-3">History ({history.length})</p>
-              <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-4 gap-1.5">
-                {history.slice(1).map((h, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setResult(h)}
-                    className="aspect-square overflow-hidden border border-red-900/20 hover:border-red-500/30 transition-all relative group rounded-sm"
-                  >
-                    <img src={h.outputUrl} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-xs">◈</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Viewport Corners */}
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-red-600/30 z-30" />
+          <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-red-600/30 z-30" />
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-red-600/30 z-30" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-red-600/30 z-30" />
         </div>
-      </div>
+
+        {/* Synthetic History Gallery */}
+        <div className="rd-card p-6">
+           <div className="flex items-center justify-between mb-6">
+              <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Decryption History</h3>
+              <span className="text-[8px] font-mono text-red-600/50 uppercase">{history.length} ITEMS_STORED</span>
+           </div>
+           
+           {history.length > 0 ? (
+             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+               {history.map((h, i) => (
+                 <button
+                   key={i}
+                   onClick={() => setResult(h)}
+                   className={`aspect-square relative overflow-hidden border transition-all hover:scale-105 active:scale-95 ${
+                     result?.outputUrl === h.outputUrl ? 'border-red-600 shadow-[0_0_15px_#ff000033]' : 'border-white/5'
+                   }`}
+                 >
+                   <img src={h.outputUrl} alt="" className="w-full h-full object-cover" />
+                   <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <span className="text-[8px] font-black text-white uppercase tracking-tighter">View</span>
+                   </div>
+                 </button>
+               ))}
+             </div>
+           ) : (
+             <div className="h-24 flex items-center justify-center border border-dashed border-white/5 text-[9px] font-mono text-white/10 uppercase tracking-[0.5em]">No history found</div>
+           )}
+        </div>
+
+      </main>
     </div>
   )
-}
-
-// Helper — doesn't expose actual key, just current slot number
-// This is called client-side but _keyIndex is server-side; we just show a placeholder
-function _keyDisplay() {
-  return '—'
 }

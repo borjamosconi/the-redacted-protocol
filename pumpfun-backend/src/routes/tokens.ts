@@ -40,6 +40,12 @@ router.post('/', async (req: Request, res: Response) => {
     const existing = await Token.findOne({ mint })
     if (existing) return res.status(200).json({ token: existing, existed: true })
 
+    // Verify that the pool PDA actually exists on-chain to prevent registry spam.
+    const poolState = await fetchPool(new PublicKey(mint))
+    if (!poolState) {
+      return res.status(400).json({ error: 'on-chain pool not found for this mint' })
+    }
+
     const token = await Token.create({
       mint, creator, name, symbol: String(symbol).toUpperCase(),
       description, logo, twitterUrl, websiteUrl, launchTxSignature,

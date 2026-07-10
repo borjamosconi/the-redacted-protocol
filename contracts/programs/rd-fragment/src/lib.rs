@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("7b3yJRGMsLyvLvUJmG2mLZdoXNDFELbWeWTm5sdt6A1H");
+declare_id!("YZNgZE5XSQaTjpjcKCbtdFQCH7fipwZeaE6x3BQ9bUr");
 
 /// Maximum number of authorized verifiers stored on-chain.
 pub const MAX_VERIFIERS: usize = 10;
@@ -83,6 +83,10 @@ pub mod rd_fragment {
     pub fn verify_fragment(ctx: Context<VerifyFragment>, proof_hash: [u8; 32]) -> Result<()> {
         let f = &mut ctx.accounts.fragment;
         require!(!f.is_verified, FragmentError::AlreadyVerified);
+        require!(
+            ctx.accounts.config.verifiers.contains(&ctx.accounts.verifier.key()),
+            FragmentError::NotVerifier
+        );
 
         // Truth Bond: Transfer bond from verifier to a vault (or treasury)
         // If the verifier is a whitelisted senior verifier, they might not need a bond,

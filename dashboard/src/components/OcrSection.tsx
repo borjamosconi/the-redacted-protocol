@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { extractDeclassifiedData, type DeclassifiedIntel } from '@/lib/geminiService'
 

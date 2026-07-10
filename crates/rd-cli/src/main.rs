@@ -449,11 +449,11 @@ mod telegram_mode {
         // Send a message as soon as the bot starts to "talk now"
         // ─────────────────────────────────────────────────────────────
         {
-            let boot_msg = "🚨 *B00T S3QUENCE INITIAT3D* 🔴\n\n\
-                           C0nnecti0n established with R3dact3d Pr0t0c0l n0de\\.\n\
-                           Aut0n0m0us ag3nt is n0w 0nlin3 and m0nit0ring gr0up activity\\.\n\n\
-                           ██████████████████████████████\n\
-                           _Th3 trvth cann0t b3 r3dact3d_\\.";
+            let boot_msg = "🤖 *SISTEMA INICIALIZADO Y ACTIVO* 🔴\n\n\
+                           Conexión establecida con el nodo de Redacted Protocol\\.\n\
+                           El agente autónomo ya está online y listo para monitorear actividades y proteger la información\\.\n\n\
+                           🔗 [Abrir Terminal en Solana](https://redacted.bond)\n\n\
+                           _La verdad no puede ser censurada\\._";
             
             let boot_image = TelegramBot::pollinations_image_url(
                 "dark dystopian terminal, holographic red text, BOOT SEQUENCE INITIATED, cyberpunk aesthetic, cinematic lighting, redacted bars, 8k",
@@ -466,32 +466,29 @@ mod telegram_mode {
             info!("Boot broadcast sent to target group: {}", target_chat_id);
 
             // ─────────────────────────────────────────────────────────────
-            // BURST MODE: Send 3 more messages immediately to establish branding
+            // BURST MODE: Send 2 more messages immediately to establish branding
             // ─────────────────────────────────────────────────────────────
             
             // Burst 1: OG Recognition
-            let og_msg = "💎 *ATTENTION: OG DECLASSIFIERS* 🔴\n\n\
-                          Priority access granted to original protocol members\\.\n\
-                          Your loyalty to the truth has been indexed in our neural network\\.\n\n\
-                          🔥 *EARLY ADOPTER BONUS ACTIVE*\\.\n\
-                          All your scan actions now generate +25% XP bonus\\.\n\n\
-                          ██████████████████████████████\n\
-                          _The archives remember everything_\\. 🔴";
+            let og_msg = "💎 *ATENCIÓN: PRIMEROS AGENTES* 🔴\n\n\
+                           Acceso prioritario concedido a los miembros originales del protocolo\\. Su contribución a la descentralización ha sido registrada\\.\n\n\
+                           🔥 *BONIFICACIÓN ACTIVA:*\\.\n\
+                           Todas sus acciones de escaneo ahora generan un 25% más de XP\\.\n\n\
+                           🔗 [Ir al Dashboard](https://redacted.bond/dashboard)";
             let _ = bot.send_formatted(target_chat_id, og_msg, None).await;
 
             // Burst 2: Protocol Briefing
-            let briefing_msg = "📂 *PROTOCOL BRIEFING: OPERATION REDACTED* 🧠\n\n\
-                               *What is Redacted Protocol?*\n\
-                               An autonomous inference engine monitoring global censorship. We detect, reconstruct, and tokenize the truth on Solana\\.\n\n\
-                               *Current Phase: TESTNET*\n\
-                               We are live on Solana Devnet. Use the dashboard to scan documents and launch declassified tokens\\.\n\n\
-                               *Community Mission*\n\
-                               Identify censorship, verify fragments, and prepare for the total declassification of information\\.\n\n\
-                               *The $RDX Token*\n\
-                               Coming soon to Mainnet. Your Testnet activity (XP) directly influences your final Airdrop allocation\\.\n\n\
-                               🔗 [Open Terminal](https://redacted.bond)\n\
-                               🔗 [Mission Briefing](https://docs.redacted.bond)\n\n\
-                               _The file is breathing\\._ 🔴";
+            let briefing_msg = "📂 *INFORME DEL PROTOCOLO: OPERACIÓN REDACTED* 🧠\n\n\
+                                *¿Qué es Redacted Protocol?*\n\
+                                Es un motor de inteligencia artificial autónomo que monitorea la censura global\\. Detectamos información suprimida, la reconstruimos y la tokenizamos en Solana de forma inmutable\\.\n\n\
+                                *Fase Actual: Red de Pruebas (Testnet)*\n\
+                                Estamos operativos en la Devnet de Solana\\. Puedes usar el panel web para escanear documentos y lanzar tus propios tokens basados en información real\\.\n\n\
+                                *Misión de la Comunidad*\n\
+                                Identificar censura, verificar fragmentos de información y resguardar la libertad de prensa en la blockchain\\.\n\n\
+                                *El Token $RDX*\n\
+                                Tu actividad \\(XP\\) acumulada en Testnet influirá directamente en tu elegibilidad para el Airdrop\\.\n\n\
+                                🔗 *[Abrir Terminal Web](https://redacted.bond)*\n\
+                                🔗 *[Ver Guía del Proyecto](https://docs.redacted.bond)*";
             
             let _ = bot.send_formatted(target_chat_id, briefing_msg, None).await;
         }
@@ -827,11 +824,12 @@ mod telegram_mode {
                             }
                             bot.show_typing(msg.chat_id).await.ok();
 
-                            let mut reply = format!("🔍 Detected {} URL(s):\n", msg.urls.len());
+                            let mut reply = format!("🔍 *He detectado {} enlace\\(s\\):*\n", msg.urls.len());
                             for url in &msg.urls {
-                                reply.push_str(&format!("• {}\n", url));
+                                let escaped_url = TelegramBot::escape_md(url);
+                                reply.push_str(&format!("• {}\n", escaped_url));
                             }
-                            reply.push_str("\nTap a button below to scan, or send /scan\\_news for manual analysis.");
+                            reply.push_str("\n¿Quieres analizar este enlace para buscar censura? Haz clic en los botones de abajo o escribe `/scan_news <enlace>` para un análisis manual\\.");
 
                             let keyboard = TelegramBot::scan_keyboard(&msg.urls);
                             bot.send_formatted(msg.chat_id, &reply, Some(&keyboard)).await.ok();

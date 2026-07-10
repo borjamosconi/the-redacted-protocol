@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
 const RDX_MINT = process.env.NEXT_PUBLIC_RDX_TOKEN_MINT || 'CoB4pQfZSihDH1BknouU4P35vdQPNEtSj8sGtANhquC7'

@@ -4,9 +4,12 @@
   "framework": "nextjs",
   "regions": ["sfo1"],
   "env": {
-    "NEXT_PUBLIC_BONDING_CURVE_PROGRAM_ID": "2zj6YEu1jYf2En29CHJdCppyhbBmzuAT9zN4Qr9Vkhyg",
+    "NEXT_PUBLIC_PROGRAM_ID": "2zj6YEu1jYf2En29CHJdCppyhbBmzuAT9zN4Qr9Vkhyg",
+    "NEXT_PUBLIC_RD_BONDINGCURVE_PROGRAM_ID": "2zj6YEu1jYf2En29CHJdCppyhbBmzuAT9zN4Qr9Vkhyg",
     "NEXT_PUBLIC_LAUNCH_MODE": "onchain",
-    "NEXT_PUBLIC_BACKEND_URL": "https://api.redacted.bond"
+    "NEXT_PUBLIC_BACKEND_URL": "https://api.redacted.bond",
+    "NEXT_PUBLIC_SOLANA_RPC_URL": "https://api.devnet.solana.com",
+    "NEXT_PUBLIC_SOLANA_NETWORK": "devnet"
   },
   "buildCommand": "npm run build",
   "installCommand": "npm install",

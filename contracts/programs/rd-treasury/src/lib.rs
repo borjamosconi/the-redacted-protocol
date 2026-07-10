@@ -9,7 +9,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 
-declare_id!("CQEbDkAzVUzHQxRWT7opscamsx3KovnvC2DXJqzugDEm");
+declare_id!("ErmwPGpscUkaUCtFo7PYMWv93PwDTeMF6je5dwVb76qN");
 
 /// Hard cap on the number of allow-listed withdraw recipients. Bounded to
 /// keep the account size deterministic and the linear contains() scan cheap.

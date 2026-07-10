@@ -56,8 +56,8 @@ export function Footer() {
             <h4 className="text-[10px] font-black text-white uppercase tracking-[0.5em] mb-8 border-b border-white/5 pb-4">EXTERNAL_RELAYS</h4>
             <div className="grid grid-cols-1 gap-4">
               {[
-                { label: 'TELEGRAM_BOT', href: 'https://t.me/theredactedprotocol_bot' },
-                { label: 'TWITTER_RECON', href: 'https://x.com/theprotocol_sol' },
+                { label: 'TELEGRAM_GROUP', href: 'https://t.me/theredactedprotocol' },
+                { label: 'TWITTER_RECON', href: 'https://x.com/TheRedacted_Sol' },
                 { label: 'SOLSCAN_RECORDS', href: 'https://solscan.io' },
                 { label: 'DOCS_MODULE', href: '#' },
               ].map(link => (

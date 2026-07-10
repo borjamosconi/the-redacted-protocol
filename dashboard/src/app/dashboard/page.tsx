@@ -2,13 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { motion, AnimatePresence } from 'framer-motion'
+import dynamic from 'next/dynamic'
+
+const WalletMultiButton = dynamic(
+  async () => (await import('@solana/wallet-adapter-react-ui')).WalletMultiButton,
+  { ssr: false }
+)
 import { Header } from '@/components/Header'
 import { useWalletReady } from '@/components/Providers'
 import { GovernancePanel } from '@/components/GovernancePanel'
 import { LaunchpadPanel } from '@/components/LaunchpadPanel'
 import { CinemaPanel } from '@/components/CinemaPanel'
+import { FeesPanel } from '@/components/FeesPanel'
 
 // Safe number formatting helper - handles undefined/null/NaN values
 const formatNumber = (value: any, defaultValue = '—'): string => {
@@ -171,7 +177,7 @@ function DashboardContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [stats, setStats] = useState<GlobalStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'quests' | 'referrals' | 'missions' | 'governance' | 'launchpad' | 'cinema'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'quests' | 'referrals' | 'missions' | 'governance' | 'launchpad' | 'cinema' | 'fees'>('overview')
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -272,7 +278,7 @@ function DashboardContent() {
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-4">
           <div className="w-5 h-5 border border-red-900/30 border-t-red-500 rounded-full animate-spin" />
-          <span className="text-gray-600 text-xs font-mono tracking-widest">INITIALIZING PROTOCOL...</span>
+          <span className="text-gray-600 text-xs font-mono tracking-widest">INICIALIZANDO PROTOCOLO...</span>
         </div>
       </div>
     )
@@ -309,11 +315,11 @@ function DashboardContent() {
                 </motion.div>
                 
                 <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 tracking-tight">
-                  Access <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">Terminal</span>
+                  Acceder al <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">Terminal</span>
                 </h1>
                 
                 <p className="text-gray-400 mb-10 text-sm sm:text-base leading-relaxed max-w-sm mx-auto">
-                  Connect your Solana wallet to authenticate your agent identity, access the launchpad, and earn Conspiracy Points.
+                  Conecta tu wallet de Solana para autenticar tu identidad de agente, acceder a la lanzadera y ganar Puntos de Conspiración.
                 </p>
                 
                 <div className="flex justify-center relative">
@@ -326,7 +332,7 @@ function DashboardContent() {
             
             <div className="mt-8 flex items-center justify-center gap-3 text-xs font-mono text-gray-500 tracking-widest uppercase">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              Secure Solana Connection
+              Conexión Segura con Solana
             </div>
           </motion.div>
         </div>
@@ -373,7 +379,7 @@ function DashboardContent() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-xl sm:text-2xl font-bold text-white truncate">
-                  {profile?.levelName || 'Classified'} Agent
+                  Agente {profile?.levelName || 'Clasificado'}
                 </h1>
                 <span
                   className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider rounded border"
@@ -383,7 +389,7 @@ function DashboardContent() {
                     borderColor: levelStyle.border,
                   }}
                 >
-                  Level {profile?.level || '?'}
+                  Nivel {profile?.level || '?'}
                 </span>
               </div>
               <p className="text-gray-500 font-mono text-xs mb-3">
@@ -391,9 +397,9 @@ function DashboardContent() {
               </p>
               <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-4 gap-y-2">
                 <StatChip label="XP" value={formatNumber(profile?.xp)} accent="text-purple-400" />
-                <StatChip label="Streak" value={`${profile?.streak || 0}d`} accent="text-orange-400" />
-                <StatChip label="Conspiracy Pts" value={formatNumber((profile?.totalActions ?? 0) * 10)} accent="text-red-400" />
-                <StatChip label="Rank" value="#—" accent="text-blue-400" />
+                <StatChip label="Racha" value={`${profile?.streak || 0}d`} accent="text-orange-400" />
+                <StatChip label="Pts Conspiración" value={formatNumber((profile?.totalActions ?? 0) * 10)} accent="text-red-400" />
+                <StatChip label="Rango" value="#—" accent="text-blue-400" />
               </div>
             </div>
 
@@ -410,14 +416,14 @@ function DashboardContent() {
               {claimed ? (
                 <>
                   <IconCheck className="w-4 h-4" />
-                  Checked In
+                  Check-in Realizado
                 </>
               ) : claiming ? (
-                'Processing...'
+                'Procesando...'
               ) : (
                 <>
                   <IconFlame className="w-4 h-4" />
-                  Daily Check-in
+                  Check-in Diario
                 </>
               )}
             </button>
@@ -430,7 +436,7 @@ function DashboardContent() {
                 <span className="text-xs font-mono text-gray-500">
                   {(profile?.xp ?? 0).toLocaleString()} XP
                 </span>
-                <span className="text-xs text-gray-600">Next Level</span>
+                <span className="text-xs text-gray-600">Siguiente Nivel</span>
               </div>
               <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
                 <motion.div
@@ -455,13 +461,14 @@ function DashboardContent() {
 
           <div className="flex items-stretch gap-0 overflow-x-auto scrollbar-none">
             {[
-              { id: 'overview',    label: 'Overview',    icon: '◈' },
-              { id: 'quests',      label: 'Quests',      icon: '◎' },
-              { id: 'referrals',   label: 'Referrals',   icon: '⌁' },
-              { id: 'missions',    label: 'Missions',    icon: '◉' },
-              { id: 'governance',  label: 'Governance',  icon: '⬡' },
-              { id: 'launchpad',   label: 'Launchpad',   icon: '⊕' },
-              { id: 'cinema',      label: 'Cinema',      icon: '🎬' },
+              { id: 'overview',    label: 'Resumen',    icon: '◈' },
+              { id: 'quests',      label: 'Tareas',      icon: '◎' },
+              { id: 'referrals',   label: 'Referidos',   icon: '⌁' },
+              { id: 'missions',    label: 'Misiones',    icon: '◉' },
+              { id: 'governance',  label: 'Gobernanza',  icon: '⬡' },
+              { id: 'launchpad',   label: 'Lanzadera',   icon: '⊕' },
+              { id: 'cinema',      label: 'Cine',      icon: '🎬' },
+              { id: 'fees',        label: 'Tasas',       icon: '⌁' },
             ].map((tab) => {
               const isActive = activeTab === tab.id
               return (
@@ -524,19 +531,19 @@ function DashboardContent() {
                     color="#a855f7"
                   />
                   <StatCard
-                    label="Conspiracy Pts"
+                    label="Puntos Conspiración"
                     value={`${(profile?.totalActions ?? 0) * 10}`}
                     icon={<IconGift className="w-5 h-5" />}
                     color="#ef4444"
                   />
                   <StatCard
-                    label="Streak"
-                    value={`${profile?.streak || 0} days`}
+                    label="Racha"
+                    value={`${profile?.streak || 0} días`}
                     icon={<IconFlame className="w-5 h-5" />}
                     color="#fb923c"
                   />
                   <StatCard
-                    label="Actions"
+                    label="Acciones"
                     value={profile?.totalActions?.toString() || '0'}
                     icon={<IconTrophy className="w-5 h-5" />}
                     color="#60a5fa"
@@ -549,9 +556,9 @@ function DashboardContent() {
                 <div className="rd-card mb-6 border-red-500/20 bg-red-500/[0.02]">
                   <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                     <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-red-500 mb-1">On-Chain Airdrop</h3>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-red-500 mb-1">Airdrop On-Chain</h3>
                       <p className="text-gray-400 text-xs font-mono">
-                        Allocate your earned $RDX to your wallet. You have {formatNumber((Number(profile.airdropAmount) - (profile.claimedAirdropAmount || 0)) / 1_000_000_000)} RDX pending.
+                        Asigna tus $RDX ganados a tu wallet. Tienes {formatNumber((Number(profile.airdropAmount) - (profile.claimedAirdropAmount || 0)) / 1_000_000_000)} RDX pendientes.
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
@@ -566,7 +573,7 @@ function DashboardContent() {
                               : 'bg-red-500 text-black hover:bg-white shadow-[0_0_20px_rgba(255,26,26,0.3)]'
                         }`}
                       >
-                        {claimStatus.loading ? 'Processing...' : (Number(profile.airdropAmount) - (profile.claimedAirdropAmount || 0)) <= 0 ? 'Fully Claimed' : 'Claim $RDX Now'}
+                        {claimStatus.loading ? 'Procesando...' : (Number(profile.airdropAmount) - (profile.claimedAirdropAmount || 0)) <= 0 ? 'Reclamado' : 'Reclamar $RDX Ahora'}
                       </button>
                       {claimStatus.success && <p className="text-[10px] text-green-400 font-mono animate-pulse">{claimStatus.success}</p>}
                       {claimStatus.error && <p className="text-[10px] text-red-400 font-mono">{claimStatus.error}</p>}
@@ -576,7 +583,7 @@ function DashboardContent() {
                   {/* Progress bar for claimed vs total */}
                   <div className="mt-6">
                     <div className="flex justify-between text-[10px] font-mono text-gray-600 mb-1">
-                      <span>CLAIMED: {formatNumber((profile.claimedAirdropAmount || 0) / 1_000_000_000)} RDX</span>
+                      <span>RECLAMADO: {formatNumber((profile.claimedAirdropAmount || 0) / 1_000_000_000)} RDX</span>
                       <span>TOTAL: {formatNumber(Number(profile.airdropAmount) / 1_000_000_000)} RDX</span>
                     </div>
                     <div className="h-1 bg-white/[0.05] rounded-full overflow-hidden">
@@ -593,7 +600,7 @@ function DashboardContent() {
               {/* Badges */}
               {!loading && profile?.badges && profile.badges.length > 0 && (
                 <div className="rd-card mb-6">
-                  <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-4">Badges</h3>
+                  <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-4">Insignias</h3>
                   <div className="flex flex-wrap gap-2">
                     {profile.badges.map((badge, i) => (
                       <span
@@ -615,10 +622,10 @@ function DashboardContent() {
               {/* Network stats */}
               {!loading && stats && (
                 <div className="rd-card">
-                  <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-5">Network Stats</h3>
+                  <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-5">Estadísticas de la Red</h3>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                     <NetworkStat
-                      label="Total Agents"
+                      label="Agentes Totales"
                       value={(stats?.totalUsers ?? 0).toLocaleString()}
                       icon={<IconUser className="w-4 h-4" />}
                     />
@@ -628,12 +635,12 @@ function DashboardContent() {
                       icon={<IconZap className="w-4 h-4" />}
                     />
                     <NetworkStat
-                      label="$RDX Holders"
+                      label="Holders $RDX"
                       value={(stats?.totalUsers ?? 0).toLocaleString()}
                       icon={<IconGift className="w-4 h-4" />}
                     />
                     <NetworkStat
-                      label="Avg Level"
+                      label="Nivel Promedio"
                       value={stats?.avgLevel?.toFixed(1) || '0.0'}
                       icon={<IconNetwork className="w-4 h-4" />}
                     />
@@ -699,7 +706,7 @@ function DashboardContent() {
               ) : (
                 <div className="rd-card text-center py-16">
                   <IconTrophy className="w-10 h-10 text-gray-700 mx-auto mb-4" />
-                  <p className="text-gray-500 text-sm font-mono">No quests available</p>
+                  <p className="text-gray-500 text-sm font-mono">No hay tareas disponibles</p>
                 </div>
               )}
             </motion.div>
@@ -717,9 +724,9 @@ function DashboardContent() {
                 <div className="w-16 h-16 mx-auto mb-6 rounded-2xl border border-red-900/30 bg-red-950/20 flex items-center justify-center">
                   <IconLink className="w-7 h-7 text-red-500" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Refer & Earn</h3>
+                <h3 className="text-xl font-bold text-white mb-2">Refiere y Gana</h3>
                 <p className="text-gray-400 text-sm mb-8 leading-relaxed">
-                  Share your referral link and earn 200 XP + 100 RDX for each agent who joins.
+                  Comparte tu enlace y gana 200 XP + 100 RDX por cada agente que se una.
                 </p>
 
                 {profile?.referralCode && (
@@ -740,7 +747,7 @@ function DashboardContent() {
                       </button>
                     </div>
                     <p className="text-xs text-gray-600">
-                      {copied ? 'Copied to clipboard' : 'Click to copy your referral link'}
+                      {copied ? 'Copiado al portapapeles' : 'Haz clic para copiar tu enlace'}
                     </p>
                   </div>
                 )}
@@ -748,15 +755,15 @@ function DashboardContent() {
                 <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white">{profile?.referrals || 0}</div>
-                    <div className="text-xs text-gray-600 mt-1">Referred</div>
+                    <div className="text-xs text-gray-600 mt-1">Referidos</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-400">{(profile?.referrals || 0) * 200}</div>
-                    <div className="text-xs text-gray-600 mt-1">XP Earned</div>
+                    <div className="text-xs text-gray-600 mt-1">XP Ganada</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-400">{(profile?.referrals || 0) * 100}</div>
-                    <div className="text-xs text-gray-600 mt-1">RDX Earned</div>
+                    <div className="text-xs text-gray-600 mt-1">RDX Ganado</div>
                   </div>
                 </div>
               </div>
@@ -771,9 +778,9 @@ function DashboardContent() {
               transition={{ duration: 0.2 }}
               className="rd-card p-8 text-center"
             >
-              <p className="text-sm text-gray-400 mb-4">Token-specific missions live on the dedicated missions page.</p>
+              <p className="text-sm text-gray-400 mb-4">Las misiones específicas de tokens están en la página dedicada.</p>
               <a href="/missions" className="inline-block px-6 py-3 border border-red-500/40 text-red-400 hover:bg-red-500/10 rounded-sm font-mono text-xs uppercase tracking-widest transition">
-                Open Missions →
+                Abrir Misiones →
               </a>
             </motion.div>
           )}
@@ -811,6 +818,18 @@ function DashboardContent() {
               transition={{ duration: 0.2 }}
             >
               <CinemaPanel />
+            </motion.div>
+          )}
+
+          {activeTab === 'fees' && (
+            <motion.div
+              key="fees"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <FeesPanel />
             </motion.div>
           )}
         </AnimatePresence>

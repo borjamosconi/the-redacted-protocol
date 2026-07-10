@@ -19,11 +19,11 @@ export const config = {
 
   mongoUri:                 opt('MONGODB_URI', 'mongodb://localhost:27017/redacted'),
 
-  rpcUrl:                   opt('SOLANA_RPC', 'https://api.mainnet-beta.solana.com'),
-  cluster:                  opt('SOLANA_CLUSTER', 'mainnet-beta'),
+  rpcUrl:                   opt('SOLANA_RPC', 'https://api.devnet.solana.com'),
+  cluster:                  opt('SOLANA_CLUSTER', 'devnet'),
 
   programIds: {
-    bondingCurve:  opt('RD_BONDINGCURVE_PROGRAM_ID', 'AfkwwBhRsuEzZo74mdbwK8EBwo7VYwc8S1T7hb1RHMAa'),
+    bondingCurve:  opt('RD_BONDINGCURVE_PROGRAM_ID', '7ys8vLZcCGArc8GFN5p8bQ126AE4x2h6QQZ3CBCjoQaD'),
     token:         opt('RD_TOKEN_PROGRAM_ID',        'CPLCsPQJrfWQgacJEq1QcbwoMcJocbEhjGVmJLPhs38Z'),
     treasury:      opt('RD_TREASURY_PROGRAM_ID',     'HpvmQtmxyPeeYKGvKHqEdcnsYUzAQrdynoCX452s2xLz'),
     presale:       opt('RD_PRESALE_PROGRAM_ID',      'HACK1L8hdDN1wuhV5mEbNYGeMXjhFzvz3HNvDTCdFP2a'),

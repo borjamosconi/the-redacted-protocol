@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { RDX_PUBLIC_KEYS } from '@/lib/rdx-public-config'
 

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 
-const TARGET_DATE = new Date('2026-05-22T00:00:00Z').getTime()
+const TARGET_DATE = new Date('2026-08-09T18:00:00Z').getTime()
 
 export function LaunchCountdown() {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
@@ -32,36 +32,41 @@ export function LaunchCountdown() {
   if (!mounted) return null
 
   return (
-    <div className="flex gap-2 sm:gap-4 justify-center">
+    <div className="flex gap-1.5 sm:gap-6 justify-center select-none w-full max-w-full px-2">
       {[
-        { label: 'Days', value: timeLeft.days },
-        { label: 'Hours', value: timeLeft.hours },
-        { label: 'Min', value: timeLeft.minutes },
-        { label: 'Sec', value: timeLeft.seconds },
+        { label: 'DÍAS', value: timeLeft.days, code: 'DD' },
+        { label: 'HORAS', value: timeLeft.hours, code: 'HH' },
+        { label: 'MINUTOS', value: timeLeft.minutes, code: 'MM' },
+        { label: 'SEGUNDOS', value: timeLeft.seconds, code: 'SS' },
       ].map((unit, i) => (
         <motion.div 
           key={unit.label}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.1 }}
-          className="rd-card p-3 sm:p-5 min-w-[70px] sm:min-w-[110px] border-red-500/20 bg-gradient-to-b from-red-500/10 to-transparent backdrop-blur-md relative overflow-hidden group"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: i * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="rd-card p-2 sm:p-7 min-w-[68px] sm:min-w-[130px] flex-1 sm:flex-initial border border-red-500/20 bg-black/80 backdrop-blur-md relative overflow-hidden group hover:border-red-500/60 transition-all duration-300 text-center"
         >
-          {/* Scanline effect */}
-          <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(255,0,0,0.05)_50%)] bg-[size:100%_4px] pointer-events-none" />
+          {/* Micro HUD corner brackets for each unit */}
+          <div className="absolute top-1 left-1 w-1 sm:w-1.5 h-1 sm:h-1.5 border-t border-l border-red-500/40" />
+          <div className="absolute top-1 right-1 w-1 sm:w-1.5 h-1 sm:h-1.5 border-t border-r border-red-500/40" />
+          <div className="absolute bottom-1 left-1 w-1 sm:w-1.5 h-1 sm:h-1.5 border-b border-l border-red-500/40" />
+          <div className="absolute bottom-1 right-1 w-1 sm:w-1.5 h-1 sm:h-1.5 border-b border-r border-red-500/40" />
           
-          <div className="relative z-10 text-2xl sm:text-4xl font-black text-white font-mono group-hover:text-red-500 transition-colors">
+          <div className="absolute top-1 right-1.5 font-mono text-[5px] sm:text-[6px] text-white/10 hidden sm:block">{unit.code}</div>
+
+          <div className="relative z-10 text-xl sm:text-5xl font-black text-red-500 font-mono tracking-wider transition-colors duration-300 group-hover:text-white leading-none sm:leading-normal">
             {String(unit.value).padStart(2, '0')}
           </div>
-          <div className="relative z-10 text-[8px] sm:text-[10px] text-red-500/60 uppercase tracking-widest font-bold mt-1">
+          <div className="relative z-10 text-[6.5px] sm:text-[9px] text-white/40 uppercase tracking-[0.15em] font-black mt-1 sm:mt-2 font-mono">
             {unit.label}
           </div>
 
-          {/* Glitch decoration */}
-          <div className="absolute bottom-0 left-0 w-full h-[1px] bg-red-500/30 overflow-hidden">
+          {/* Glitch decoration bottom line */}
+          <div className="absolute bottom-0 left-0 w-full h-[1.5px] bg-red-500/10 overflow-hidden">
              <motion.div 
                animate={{ x: ['-100%', '100%'] }} 
-               transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-               className="w-1/2 h-full bg-red-500 shadow-[0_0_10px_#ff1a1a]" 
+               transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+               className="w-1/3 h-full bg-red-500" 
              />
           </div>
         </motion.div>

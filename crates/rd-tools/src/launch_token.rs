@@ -131,13 +131,13 @@ pub async fn launch_document_token(
             let safe_name = name.replace(|c: char| "_*[]()~`>#+-=|{}.!".contains(c), "\\$0");
             let emoji = "🟢"; // Default for declassified
             let msg = format!(
-                "{} *AGENT AUTO\\-LAUNCH*\n\n\
-                📄 *{}*\n\
-                🏷️ \\${} \\| CLASSIFIED\n\
-                🔬 Confidence: {}%\n\n\
-                ⛓️ `{}`\n\n\
-                🚀 [Trade \\${}]({})",
-                emoji, safe_name, sym, confidence, mint, sym, terminal_url
+                "{} *NUEVA TOKENIZACIÓN DETECTADA*\n\n\
+                📄 *ARCHIVO:* {}\n\
+                🏷️ *TICKER:* \\${} \\| CLASSIFIED\n\
+                🔬 *CONFIANZA IA:* {}%\n\n\
+                ⛓️ `MINT: {}`\n\n\
+                🔓 [🔬 VER ARCHIVO RECONSTRUIDO]({})",
+                emoji, safe_name, sym, confidence, mint, terminal_url
             );
 
             let tg_url = format!("https://api.telegram.org/bot{}/sendMessage", token);

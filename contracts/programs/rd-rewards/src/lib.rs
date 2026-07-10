@@ -12,7 +12,7 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("8tYtgsxwH7WUKd2DUscj3ZApAunbCxWhzHCXgqxiquNY");
+declare_id!("8tEuNTqsyKfR8YPhPfKyrW7BCpRFtKchw4j6TwCqdzFV");
 
 /// Stable reward-type discriminants used in the RewardRecord PDA seed.
 /// NEVER renumber — these bytes are baked into existing PDAs.

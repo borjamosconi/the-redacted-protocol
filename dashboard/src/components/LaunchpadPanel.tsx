@@ -14,6 +14,7 @@
  */
 
 import { useState, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import {
   PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair,
@@ -501,6 +502,33 @@ export function LaunchpadPanel() {
         <p className="text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
           On-chain SPL token · 0.02 SOL fee · 1B supply · Bonding curve starts immediately
         </p>
+      </div>
+
+      {/* Pump.fun Launch Announcement */}
+      <div className="mb-8 p-6 border border-yellow-500/30 bg-yellow-500/5 relative overflow-hidden group/pump animate-pulse">
+        <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-yellow-500/50" />
+        <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-yellow-500/50" />
+        <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-yellow-500/50" />
+        <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-yellow-500/50" />
+        
+        <div className="flex items-start gap-4">
+          <div className="text-2xl mt-1 select-none">📢</div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em]">PRÓXIMO LANZAMIENTO PUMP.FUN</span>
+              <span className="px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 text-[8px] font-mono tracking-widest uppercase rounded">COMUNIDAD</span>
+            </div>
+            <p className="text-[10.5px] text-white/80 font-mono leading-relaxed uppercase tracking-wider">
+              ¡Lanzaremos nuestro token oficial próximamente en <span className="text-yellow-500 font-bold">Pump.fun</span>!
+            </p>
+            <p className="text-[9.5px] text-white/50 font-mono leading-relaxed uppercase tracking-widest">
+              Las comisiones generadas por el token se destinarán íntegramente a financiar el despliegue de los contratos inteligentes (smart contracts) de tokenización de documentos en Solana Mainnet.
+            </p>
+            <p className="text-[9.5px] text-yellow-500/80 font-mono leading-relaxed uppercase tracking-widest font-bold">
+              ⚡ BENEFICIO: Ser holder del token de Pump.fun te otorgará lanzamientos y tokenizaciones de documentos totalmente gratis y sin pagar comisiones (fees) en nuestra plataforma.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Quick Picks */}

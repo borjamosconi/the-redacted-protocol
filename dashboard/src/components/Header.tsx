@@ -1,23 +1,23 @@
 'use client'
 
 import { useWallet } from '@solana/wallet-adapter-react'
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { useState, useEffect } from 'react'
 import { useWalletReady } from './Providers'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import dynamic from 'next/dynamic'
+
+const WalletMultiButton = dynamic(
+  async () => (await import('@solana/wallet-adapter-react-ui')).WalletMultiButton,
+  { ssr: false }
+)
 
 const NAV_LINKS = [
-  { href: `/terminal/${process.env.NEXT_PUBLIC_RDX_TOKEN_MINT || 'HZmo7pqLsZ6Z5EeoaRKvTpPdGrpk3mMV9cdALFcFCjjU'}`, label: 'EXEC_TERMINAL', code: '01', desc: 'Secure document trade' },
-  { href: '/dashboard', label: 'LAUNCH_TOKEN', code: '02', desc: 'Deploy new intel' },
-  { href: '/#gamification', label: 'AIRDROP_REWARDS', code: '03', desc: 'Verify XP status' },
-  { href: '/#news', label: 'GET_ARCHIVE', code: '04', desc: 'Access leaked history' },
-]
-
-const SOCIAL_LINKS = [
-  { label: 'TG_PORTAL', href: 'https://t.me/theredactedprotocol_bot', icon: '📡' },
-  { label: 'X_RECON', href: 'https://x.com/theprotocol_sol', icon: '✖' },
+  { href: '/', label: 'HOME', code: '01', desc: 'Secure landing deck' },
+  { href: '/about', label: 'ABOUT', code: '02', desc: 'System declassification report' },
+  { href: '/terminal', label: 'TERMINAL', code: '03', desc: 'Document verification & swap' },
+  { href: '/dashboard', label: 'LAUNCHPAD', code: '04', desc: 'Deploy new document intelligence' },
 ]
 
 export function Header() {
@@ -59,224 +59,154 @@ export function Header() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-[150] transition-all duration-700 ${
+      className={`fixed top-0 left-0 right-0 z-[150] transition-all duration-500 ${
         scrolled
-          ? 'bg-black/80 backdrop-blur-2xl border-b border-red-500/20'
-          : 'bg-transparent border-b border-white/5'
+          ? 'bg-black/85 border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.8)] backdrop-blur-md'
+          : 'bg-black/30 border-b border-white/5 backdrop-blur-sm'
       }`}
     >
-      {/* Global Progress Bar (Top of everything) */}
-      <div className="fixed top-0 left-0 right-0 h-[2px] bg-white/5 z-[200]">
-         <motion.div 
-            initial={{ width: '0%' }}
-            animate={{ width: '91%' }}
-            transition={{ duration: 2, ease: "easeOut" }}
-            className="h-full bg-red-600 shadow-[0_0_10px_#ff0000]"
-         />
-      </div>
-
       {/* Top technical status grid */}
-      <div className="hidden lg:grid grid-cols-12 h-8 border-b border-white/5 font-mono text-[9px] bg-black/40 backdrop-blur-sm">
-        <div className="col-span-2 flex items-center px-6 border-r border-white/5 text-red-500 font-black">
-          <span className="w-2 h-2 rounded-full bg-red-600 mr-3 animate-pulse shadow-[0_0_8px_#ff0000]" />
-          SYSTEM_DECRYPTION: ACTIVE
+      <div className="hidden lg:grid grid-cols-12 h-8 border-b border-white/5 font-mono text-[9px] bg-black/40">
+        <div className="col-span-3 flex items-center px-8 border-r border-white/5 text-red-500 font-bold tracking-widest">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-600 mr-2.5 animate-pulse shadow-[0_0_8px_#ff0000]" />
+          PROTOCOL_FEED: ONLINE
         </div>
-        <div className="col-span-6 flex items-center px-6 border-r border-white/5 text-white/30 uppercase tracking-[0.3em] overflow-hidden">
-          <div className="flex items-center gap-12 whitespace-nowrap">
+        <div className="col-span-6 flex items-center px-8 border-r border-white/5 text-white/30 uppercase tracking-[0.25em] overflow-hidden">
+          <div className="flex items-center gap-8 whitespace-nowrap">
             {[
-              { label: 'FRAGMENTS_PROCESSED', val: '42,912', color: 'text-red-500' },
-              { label: 'TRUTH_CONFIDENCE', val: '98.4%', color: 'text-green-500' },
-              { label: 'ACTIVE_NODES', val: '1,204', color: 'text-blue-500' },
-              { label: 'RDX_LIQUIDITY', val: 'SECURED', color: 'text-red-500' },
-              { label: 'THREAT_LEVEL', val: 'DEGRADED', color: 'text-yellow-500' },
+              { label: 'CONFIDENCE', val: '98.4%', color: 'text-green-500' },
+              { label: 'NODES', val: '1,204', color: 'text-blue-500' },
+              { label: 'SECURE_LIQ', val: 'ACTIVE', color: 'text-red-500' },
+              { label: 'THREAT', val: '0.00%', color: 'text-green-500' },
             ].map((stat, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-[7px] text-white/20">{stat.label}:</span>
-                <span className={`font-black ${stat.color}`}>{stat.val}</span>
+              <div key={i} className="flex items-center gap-1.5">
+                <span className="text-white/20">{stat.label}:</span>
+                <span className={`font-black font-mono ${stat.color}`}>{stat.val}</span>
               </div>
             ))}
           </div>
         </div>
-        <div className="col-span-2 flex items-center px-6 border-r border-white/5 bg-red-600/5">
-           <span className="text-[7px] text-white/40 mr-4">RANK_INDEX:</span>
-           <div className="flex-1 h-[2px] bg-white/5 relative">
-              <motion.div initial={{ width: '0%' }} animate={{ width: '74%' }} className="h-full bg-red-600 shadow-[0_0_10px_#ff0000]" />
-           </div>
-           <span className="text-red-500 font-black ml-4 text-[10px]">A-1</span>
-        </div>
-        <div className="col-span-2 flex items-center justify-end px-6 text-white/40 font-black tracking-widest uppercase">
-          {currentTime} // UTC-4
+        <div className="col-span-3 flex items-center justify-end px-8 text-white/40 font-black tracking-widest uppercase">
+          {currentTime} // UTC-0
         </div>
       </div>
 
-      <div className="max-w-[1920px] mx-auto">
-        <div className="flex items-center justify-between h-20 sm:h-24 px-6 sm:px-12">
+      <div className="max-w-[1920px] mx-auto px-6 sm:px-10">
+        <div className="flex items-center justify-between h-16 sm:h-20">
           
-          {/* Branding Section — REDESIGNED LOGO WITH NEW IMAGE */}
-          <Link href="/" onClick={() => (window as any).playSound?.('click')} className="flex items-center gap-4 sm:gap-6 group">
-             <div className="relative w-10 h-10 sm:w-14 sm:h-14 overflow-hidden border border-red-600/50 group-hover:border-red-500 transition-all duration-500">
-                <img src="/logo.png" alt="REDACTED" className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-red-600/20 to-transparent pointer-events-none" />
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-red-600/50 animate-terminal-scan pointer-events-none" />
-                {/* Technical corners */}
-                <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-red-600" />
-                <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-red-600" />
-             </div>
-             <div className="flex flex-col leading-none">
-                <div className="flex items-baseline gap-1">
-                   <span className="text-lg sm:text-2xl font-black text-white tracking-[-0.05em] uppercase group-hover:text-red-500 transition-colors">REDACTED</span>
-                   <span className="text-[10px] sm:text-xs font-mono text-red-600 font-black animate-pulse">PROT.</span>
-                </div>
-                <span className="text-[8px] sm:text-[9px] font-mono text-white/30 uppercase tracking-[0.4em] mt-1">SECURE_LEVEL_ALPHA</span>
-             </div>
+          {/* Logo Branding */}
+          <Link href="/" onClick={() => playSound('click')} className="flex items-center gap-3.5 group">
+            <div className="relative w-8 h-8 sm:w-10 sm:h-10 overflow-hidden border border-white/10 group-hover:border-red-600 transition-colors duration-300 rounded-sm">
+              <img src="/logo.png" alt="REDACTED" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-t from-red-600/10 to-transparent pointer-events-none" />
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="text-sm sm:text-base font-black text-white tracking-widest uppercase">
+                REDACTED <span className="text-red-500 font-mono text-[9px] align-super">PROTO.</span>
+              </span>
+              <span className="text-[7.5px] font-mono text-white/30 uppercase tracking-[0.3em] mt-1">SECURE_NETWORK</span>
+            </div>
           </Link>
 
-          {/* Desktop Navigation — REFINED */}
-          <nav className="hidden xl:flex items-center gap-2">
-             {NAV_LINKS.map(link => {
-                const isActive = pathname === link.href
-                return (
-                  <Link key={link.href} href={link.href} className="relative group px-6 py-2 overflow-hidden">
-                     <div className="relative flex flex-col items-center">
-                        <span className={`text-[10px] font-black tracking-[0.2em] uppercase transition-all duration-300 ${
-                          isActive ? 'text-white' : 'text-white/30 group-hover:text-red-500 group-hover:tracking-[0.4em]'
-                        }`}>
-                           {link.label}
-                        </span>
-                        {isActive && <div className="mt-1 w-1 h-1 bg-red-600 shadow-[0_0_8px_#ff0000]" />}
-                     </div>
-                  </Link>
-                )
-             })}
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-8">
+            {NAV_LINKS.map(link => {
+              const isActive = pathname === link.href
+              return (
+                <Link 
+                  key={link.href} 
+                  href={link.href} 
+                  onClick={() => playSound('click')}
+                  className="relative py-2 text-[10px] font-bold tracking-[0.25em] uppercase transition-colors duration-300"
+                >
+                  <span className={isActive ? 'text-white' : 'text-white/40 hover:text-white'}>
+                    {link.label}
+                  </span>
+                  {isActive && (
+                    <motion.div 
+                      layoutId="activeNavLine"
+                      className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-red-600 shadow-[0_0_8px_#ff0000]"
+                    />
+                  )}
+                </Link>
+              )
+            })}
           </nav>
 
-          {/* Wallet / Action Area — OPTIMIZED FOR HEIGHT */}
-          <div className="flex items-center h-full">
-             
-             {/* Wallet Terminal — REFINED DESKTOP */}
-             <div className="relative h-20 sm:h-24 border-x border-white/5 hidden sm:flex items-center px-6 lg:px-10 bg-white/[0.01] group overflow-hidden">
-                <div className="flex items-center gap-6">
-                   <div className="hidden lg:flex flex-col text-right">
-                      <span className="text-[8px] font-mono text-white/20 uppercase tracking-[0.4em] mb-1">OPERATOR_AUTH</span>
-                      <span className="text-[9px] font-black text-red-600 uppercase tracking-widest animate-pulse">PENDING...</span>
-                   </div>
-                   <div className="relative">
-                      <WalletMultiButton className="rdx-premium-wallet-btn !h-10 !px-8 !text-[10px]" />
-                   </div>
-                </div>
+          {/* Socials & Wallet Actions */}
+          <div className="hidden md:flex items-center gap-6">
+            
+            {/* Social channels (Minimal design) */}
+            <div className="flex items-center gap-3 font-mono text-[9px]">
+              <a href="https://t.me/theredactedprotocol" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1.5 border border-white/5 hover:border-red-600/30 bg-white/[0.01] hover:bg-red-950/20 text-white/40 hover:text-white uppercase transition-all duration-300 rounded-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-white/20" /> TELEGRAM
+              </a>
+              <a href="https://x.com/TheRedacted_Sol" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1.5 border border-white/5 hover:border-red-600/30 bg-white/[0.01] hover:bg-red-950/20 text-white/40 hover:text-white uppercase transition-all duration-300 rounded-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-white/20" /> TWITTER
+              </a>
+            </div>
 
-                {/* Biometric Scanning Line */}
-                <motion.div 
-                   animate={{ top: ['0%', '100%', '0%'] }}
-                   transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                   className="absolute left-0 w-full h-[1px] bg-red-600/20 group-hover:bg-red-600/60 pointer-events-none"
-                />
-             </div>
-
-             {/* Mobile Toggle */}
-             <div className="xl:hidden flex items-center h-full z-[310] relative">
-               <button 
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className={`w-16 h-16 flex items-center justify-center transition-all duration-500 group ${
-                    mobileMenuOpen ? 'bg-red-600' : 'bg-white/[0.03] hover:bg-red-600'
-                  }`}
-               >
-                  <div className="w-6 h-6 relative flex flex-col items-center justify-center">
-                     <motion.span 
-                        animate={mobileMenuOpen ? { rotate: 45, y: 0, backgroundColor: '#ffffff' } : { rotate: 0, y: -6, backgroundColor: '#ffffff' }}
-                        className="absolute w-full h-[2px] transition-colors"
-                     />
-                     <motion.span 
-                        animate={mobileMenuOpen ? { opacity: 0 } : { opacity: 1, backgroundColor: '#ffffff' }}
-                        className="absolute w-full h-[2px] transition-colors"
-                     />
-                     <motion.span 
-                        animate={mobileMenuOpen ? { rotate: -45, y: 0, backgroundColor: '#ffffff' } : { rotate: 0, y: 6, backgroundColor: '#ffffff' }}
-                        className="absolute w-full h-[2px] transition-colors"
-                     />
-                  </div>
-               </button>
-             </div>
+            {/* Wallet Button */}
+            <div className="relative">
+              <WalletMultiButton className="!bg-red-600 hover:!bg-white !text-white hover:!text-black !h-9 !px-6 !text-[9px] !font-mono !font-bold !tracking-widest !rounded-none !transition-all !border !border-red-600/30" />
+            </div>
           </div>
+
+          {/* Mobile Menu Toggle Button */}
+          <div className="md:hidden flex items-center">
+            <button 
+              onClick={() => { playSound('click'); setMobileMenuOpen(!mobileMenuOpen) }}
+              className="w-10 h-10 flex flex-col items-center justify-center gap-1.5 border border-white/10 hover:border-white/20 rounded-sm bg-white/[0.01]"
+            >
+              <span className={`w-5 h-[2px] bg-white transition-transform duration-300 ${mobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+              <span className={`w-5 h-[2px] bg-white transition-opacity duration-300 ${mobileMenuOpen ? 'opacity-0' : ''}`} />
+              <span className={`w-5 h-[2px] bg-white transition-transform duration-300 ${mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+            </button>
+          </div>
+
         </div>
       </div>
 
-      {/* MOBILE MENU — BIOS OVERLAY */}
+      {/* Mobile Drawer Overlay */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black z-[300] flex flex-col pt-24"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-x-0 top-16 sm:top-20 bg-black/95 border-b border-white/10 backdrop-blur-2xl z-[140] flex flex-col p-6 gap-6 md:hidden"
           >
-            {/* Background Effects */}
-            <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.05] pointer-events-none" />
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,26,26,0.03)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-b from-red-600/5 via-transparent to-black pointer-events-none" />
-            
-            <div className="flex-1 flex flex-col p-6 sm:p-10 overflow-y-auto no-scrollbar relative z-10">
-              {/* Mobile Wallet Section */}
-              <div className="mb-8 p-6 border border-red-500/30 bg-red-600/5 relative group">
-                 <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between mb-2">
-                       <span className="text-[9px] font-mono text-red-500 font-black tracking-[0.4em]">AUTHENTICATION_REQUIRED</span>
-                       <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-                    </div>
-                    <div className="flex justify-center">
-                       <WalletMultiButton className="rdx-premium-wallet-btn !w-full !justify-center" />
-                    </div>
-                 </div>
-                 <motion.div 
-                    animate={{ left: ['-100%', '100%'] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                    className="absolute bottom-0 h-[2px] w-full bg-red-600/30"
-                 />
+            {/* Drawer Navigation Links */}
+            <div className="flex flex-col gap-2">
+              {NAV_LINKS.map((link, i) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-4 border border-white/5 bg-white/[0.01] hover:bg-red-950/20 hover:border-red-600/30 flex items-center justify-between transition-all duration-300 rounded-sm group"
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-black text-white/80 group-hover:text-white uppercase tracking-wider">{link.label}</span>
+                    <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest">{link.desc}</span>
+                  </div>
+                  <span className="text-white/20 group-hover:text-red-500 font-mono text-[9px]">0{i+1} //</span>
+                </Link>
+              ))}
+            </div>
+
+            {/* Mobile Socials and Wallet Connect */}
+            <div className="flex flex-col gap-4 border-t border-white/5 pt-6">
+              <div className="flex items-center justify-between text-[9px] text-white/40 uppercase tracking-wider">
+                <span>COMMUNICATION RELAYS</span>
+                <div className="flex gap-4">
+                  <a href="https://t.me/theredactedprotocol" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">TELEGRAM</a>
+                  <a href="https://x.com/TheRedacted_Sol" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">TWITTER</a>
+                </div>
               </div>
 
-              {/* Nav Links */}
-              <div className="flex flex-col gap-3">
-                 {NAV_LINKS.map((link, i) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="group border border-white/10 bg-white/[0.02] p-6 flex flex-col gap-1 hover:bg-red-600 hover:border-red-600 transition-all duration-300"
-                    >
-                       <div className="flex justify-between items-center mb-1">
-                          <span className="text-[9px] font-mono text-red-600 group-hover:text-white/60 tracking-[0.5em] font-black">CHANNEL_00{i+1}</span>
-                          <span className="text-[8px] font-mono text-white/20 group-hover:text-white/40">READY_</span>
-                       </div>
-                       <span className="text-xl font-black text-white tracking-tighter uppercase">{link.label}</span>
-                       <span className="text-[9px] font-mono text-white/30 group-hover:text-white/80 uppercase tracking-widest">{link.desc}</span>
-                    </Link>
-                 ))}
-              </div>
-
-              {/* Bottom Actions */}
-              <div className="mt-auto pt-10 flex flex-col gap-6">
-                 <div className="flex items-center justify-between border-t border-white/10 pt-6">
-                    <span className="text-[9px] font-mono text-white/20 uppercase tracking-[0.5em]">EXTERNAL_RELAYS</span>
-                    <div className="flex gap-6">
-                       {SOCIAL_LINKS.map(s => (
-                          <a key={s.label} href={s.href} target="_blank" className="text-xl text-white/40 hover:text-red-500 transition-colors">{s.icon}</a>
-                       ))}
-                    </div>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <button 
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="py-5 border border-white/10 bg-white/[0.01] text-[9px] font-black text-white uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all"
-                    >
-                      RETURN
-                    </button>
-                    <button 
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="py-5 border border-red-600/50 bg-red-600/10 text-[9px] font-black text-red-600 uppercase tracking-[0.4em] hover:bg-red-600 hover:text-white transition-all"
-                    >
-                      TERMINATE
-                    </button>
-                 </div>
+              <div className="flex justify-center w-full">
+                <WalletMultiButton className="!bg-red-600 hover:!bg-white !text-white hover:!text-black !h-10 !w-full !justify-center !text-[9px] !font-mono !font-bold !tracking-widest !rounded-none !transition-all !border !border-red-600/30" />
               </div>
             </div>
           </motion.div>
@@ -284,29 +214,6 @@ export function Header() {
       </AnimatePresence>
 
       <style jsx global>{`
-        .rdx-premium-wallet-btn {
-          background: #ffffff !important;
-          border: none !important;
-          border-radius: 0px !important;
-          font-family: var(--font-mono) !important;
-          font-size: 11px !important;
-          font-weight: 900 !important;
-          letter-spacing: 0.35em !important;
-          text-transform: uppercase !important;
-          height: 52px !important;
-          padding: 0 2.5rem !important;
-          color: #000000 !important;
-          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-          display: flex !important;
-          align-items: center !important;
-          box-shadow: 8px 8px 0px rgba(255, 0, 0, 0.2) !important;
-        }
-        .rdx-premium-wallet-btn:hover {
-          background: #ff1a1a !important;
-          color: #ffffff !important;
-          transform: translate(2px, 2px) !important;
-          box-shadow: 0px 0px 0px rgba(255, 0, 0, 0) !important;
-        }
         .wallet-adapter-button-trigger i {
           display: none !important;
         }
@@ -315,14 +222,16 @@ export function Header() {
           border: 1px solid #ff1a1a33 !important;
           border-radius: 0px !important;
           box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important;
+          backdrop-filter: blur(20px);
         }
         .wallet-adapter-dropdown-list-item {
           font-family: var(--font-mono) !important;
-          font-size: 10px !important;
+          font-size: 9px !important;
           font-weight: 700 !important;
           letter-spacing: 0.2em !important;
           text-transform: uppercase !important;
           color: #ffffff99 !important;
+          padding: 12px 24px !important;
         }
         .wallet-adapter-dropdown-list-item:hover {
           background: #ff1a1a11 !important;

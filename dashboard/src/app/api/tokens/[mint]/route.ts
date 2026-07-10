@@ -68,6 +68,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ mint
               creator:           t.creator ?? '',
               twitterUrl:        t.twitterUrl ?? '',
               websiteUrl:        t.websiteUrl ?? '',
+              streamUrl:         t.streamUrl ?? '',
               launchTxSignature: t.launchTxSignature ?? '',
               createdAt:         new Date(t.createdAt ?? Date.now()).getTime(),
             }

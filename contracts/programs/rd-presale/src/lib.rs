@@ -41,7 +41,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, Mint, Transfer as TokenTransfer, transfer as token_transfer};
 
-declare_id!("287SSjn6K3KZNjDKMv19RfDfybtdG8wuqwkHLg4ZmdRT");
+declare_id!("G9S1MoLtomKPSmPk9PZVEAi1vbB3vCzzpMhPZGTVHNYc");
 
 // ───────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -238,7 +238,7 @@ pub mod rd_presale {
 
         emit!(TokensClaimed {
             buyer: ctx.accounts.buyer.key(),
-            rdx_amount: buyer.rdx_allocated,
+            rdx_amount: to_claim,
         });
 
         // Transfer RDX tokens to buyer
@@ -253,7 +253,7 @@ pub mod rd_presale {
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token_transfer(cpi_ctx, buyer.rdx_allocated)?;
+        token_transfer(cpi_ctx, to_claim)?;
 
         Ok(())
     }

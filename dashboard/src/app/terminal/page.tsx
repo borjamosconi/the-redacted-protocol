@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 
@@ -71,13 +72,18 @@ export default function TerminalPage() {
 
         {/* ── Header ────────────────────────────────────────────────────────── */}
         <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_#ff1a1a]" />
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-red-500/70">RDX Launchpad</span>
+          <div className="flex items-center gap-4 mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_#ff1a1a]" />
+              <span className="text-[9px] font-black uppercase tracking-[0.4em] text-red-500/70">Lanzadera RDX</span>
+            </div>
+            <span className="px-2.5 py-0.5 border border-red-500/30 bg-red-950/20 text-red-400 text-[8px] font-mono tracking-widest uppercase rounded-sm select-none">
+              SOLANA TESTNET ACTIVE
+            </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1">Token Terminal</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1">Terminal de Reconstrucción</h1>
           <p className="text-[11px] text-gray-600 font-mono">
-            All tokens launched on the RDX Bonding Curve — 1% treasury fee · 0.5% creator rewards
+            Archivos recuperados mediante la Curva de Bonding RDX — 1% comisión de tesorería · 0.5% recompensas de creador
           </p>
         </div>
 
@@ -87,7 +93,7 @@ export default function TerminalPage() {
             <div className="flex items-center gap-2 mb-3">
               <span className="text-[9px] font-black text-yellow-500 uppercase tracking-widest flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping" />
-                King of the Hill
+                Líder de la Red
               </span>
             </div>
             <Link href={`/terminal/${tokens[0].mint}`} className="block">
@@ -102,16 +108,16 @@ export default function TerminalPage() {
                   <div>
                     <div className="flex items-center gap-3 mb-1.5">
                       <h2 className="text-2xl font-black text-white">{tokens[0].name}</h2>
-                      <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-500 text-[10px] font-black rounded-sm border border-yellow-500/30 tracking-wider uppercase">Trending #1</span>
+                      <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-500 text-[10px] font-black rounded-sm border border-yellow-500/30 tracking-wider uppercase">Tendencia #1</span>
                     </div>
                     <div className="text-sm text-yellow-500/60 font-mono font-bold mb-3">${tokens[0].symbol}</div>
                     <div className="flex items-center gap-6">
                       <div>
-                        <div className="text-[8px] text-gray-500 uppercase tracking-widest mb-0.5">Market Cap</div>
+                        <div className="text-[8px] text-gray-500 uppercase tracking-widest mb-0.5">Cap. de Mercado</div>
                         <div className="text-lg font-black text-white font-mono">{(tokens[0].currentPrice * 1e9).toFixed(2)} SOL</div>
                       </div>
                       <div>
-                        <div className="text-[8px] text-gray-500 uppercase tracking-widest mb-0.5">Progress</div>
+                        <div className="text-[8px] text-gray-500 uppercase tracking-widest mb-0.5">Progreso</div>
                         <div className="text-lg font-black text-yellow-500 font-mono">{tokens[0].progress.toFixed(2)}%</div>
                       </div>
                     </div>
@@ -128,7 +134,7 @@ export default function TerminalPage() {
           <div className="flex-1 relative">
             <input
               type="text"
-              placeholder="Search tokens..."
+              placeholder="Buscar archivos..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full bg-black/60 border border-red-900/20 focus:border-red-500/40 outline-none px-4 py-3 pl-10 text-white font-mono text-sm rounded-sm transition-colors"
@@ -139,9 +145,9 @@ export default function TerminalPage() {
           {/* Sort */}
           <div className="flex gap-1.5">
             {([
-              { v: 'new',       l: '🆕 New'     },
-              { v: 'hot',       l: '🔥 Hot'      },
-              { v: 'marketcap', l: '◈ Market Cap' },
+              { v: 'new',       l: '🆕 Recientes'     },
+              { v: 'hot',       l: '🔥 Tendencia'      },
+              { v: 'marketcap', l: '◈ Cap. Mercado' },
             ] as { v: SortMode; l: string }[]).map(s => (
               <button
                 key={s.v}
@@ -162,16 +168,16 @@ export default function TerminalPage() {
             href="/dashboard?tab=launchpad"
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] uppercase tracking-[0.3em] transition-all shadow-[0_0_20px_rgba(255,26,26,0.2)] rounded-sm whitespace-nowrap"
           >
-            ⊕ Launch Token
+            ⊕ Tokenizar Documento
           </Link>
         </div>
 
         {/* ── Stats bar ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: 'Total Tokens',   value: tokens.length.toString() },
-            { label: 'Total SOL Raised', value: `${fmtSol(tokens.reduce((s, t) => s + t.solRaised, 0))} SOL` },
-            { label: 'Total Buyers',   value: tokens.reduce((s, t) => s + t.buyerCount, 0).toLocaleString() },
+            { label: 'Total Archivos',   value: tokens.length.toString() },
+            { label: 'SOL Recaudado', value: `${fmtSol(tokens.reduce((s, t) => s + t.solRaised, 0))} SOL` },
+            { label: 'Agentes Activos',   value: tokens.reduce((s, t) => s + t.buyerCount, 0).toLocaleString() },
           ].map(stat => (
             <div key={stat.label} className="rd-card text-center py-3">
               <div className="text-[9px] text-gray-600 uppercase tracking-widest mb-1">{stat.label}</div>
@@ -245,7 +251,7 @@ function TokenCard({ token, index, fmtSol, fmtAge }: {
             {/* Content right */}
             <div className="flex-1 min-w-0 flex flex-col">
               <div className="flex justify-between items-start mb-1">
-                <span className="text-[10px] text-gray-700 font-mono">created by {token.creator.slice(0,6)}</span>
+                <span className="text-[10px] text-gray-700 font-mono">creado por {token.creator.slice(0,6)}</span>
                 <span className="text-[10px] text-gray-700 font-mono">{fmtAge(token.createdAt)}</span>
               </div>
               
@@ -261,10 +267,10 @@ function TokenCard({ token, index, fmtSol, fmtAge }: {
               <div className="mt-auto space-y-2">
                 <div>
                   <div className="flex justify-between text-[9px] font-mono text-gray-600 mb-1">
-                    <span>Market Cap: <span className="text-green-500 font-bold">{(token.currentPrice * 1e9).toFixed(2)} SOL</span></span>
+                    <span>Cap. Mercado: <span className="text-green-500 font-bold">{(token.currentPrice * 1e9).toFixed(2)} SOL</span></span>
                   </div>
                   <div className="flex justify-between text-[9px] font-mono text-gray-600 mb-1">
-                    <span>Progress: {token.progress.toFixed(1)}%</span>
+                    <span>Progreso: {token.progress.toFixed(1)}%</span>
                   </div>
                   <div className="h-1.5 bg-black/40 rounded-full overflow-hidden border border-red-900/10">
                     <motion.div

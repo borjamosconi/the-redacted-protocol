@@ -217,14 +217,14 @@ export async function POST(req: NextRequest) {
     try {
       const safeName = String(name).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&')
       const msg =
-        `${emoji} *AGENT AUTO\\-LAUNCH*\n\n` +
-        `📄 *${safeName}*\n` +
-        `🏷️ \\$${ticker} \\| ${category}\n` +
-        `🔬 Confidence: ${confidence}%\n` +
-        (source_url ? `🔗 [Source](${source_url})\n` : '') +
-        `\n⛓️ \`${mint}\`\n` +
-        `\n🚀 [Trade \\$${ticker}](${terminalUrl})\n\n` +
-        `_The file is breathing\\._`
+        `${emoji} *NUEVA TOKENIZACIÓN DETECTADA*\n\n` +
+        `📄 *ARCHIVO:* ${safeName}\n` +
+        `🏷️ *TICKER:* \\$${ticker} \\| ${category}\n` +
+        `🔬 *CONFIANZA IA:* ${confidence}%\n` +
+        (source_url ? `🔗 [Ver Fuente Original](${source_url})\n` : '') +
+        `\n⛓️ \`MINT: ${mint}\`\n` +
+        `\n🔓 [🔬 VER ARCHIVO RECONSTRUIDO](${terminalUrl})\n\n` +
+        `_La inteligencia de Solana se expande\\._`
 
       const tgRes = await fetch(
         `https://api.telegram.org/bot${botToken}/sendMessage`,

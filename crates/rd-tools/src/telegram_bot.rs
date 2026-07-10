@@ -410,24 +410,20 @@ impl TelegramBot {
 
     /// Welcome message with inline keyboard.
     pub async fn send_welcome(&self, chat_id: i64) -> Result<(), String> {
-        let text = "\u{1F534} *ACCESS GRANTED*
+        let text = "*Bienvenido a Redacted Protocol*
 
-FILE \\#0000 — INITIALIZATION COMPLETE
-STATUS: `ACTIVE`
-CONFIDENCE: `100\\.0%`
+Este bot te ayuda a tokenizar documentos en Solana con IA y a seguir tu actividad dentro del protocolo\\.
 
-I detect what has been hidden\\.
-I reconstruct what was redacted\\.
-I preserve what they tried to erase\\.
+*Que puedes hacer aqui:*
+\\- Analizar noticias pegando un enlace en el chat\\.
+\\- Consultar tu airdrop con el boton *My Airdrop*\\.
+\\- Abrir el dashboard para ver XP, misiones y wallet\\.
+\\- Entrar al terminal para subir documentos\\.
 
-\u{1F381} *\\$RDX AIRDROP* — `500 RDX`
-To register, use: `/airdrop <solana_address>`
-Check status anytime with the button below.
-
-Paste any news URL and I'll scan it automatically\\.
-Or use the buttons below\\.
-
-_The file is breathing\\._";
+*Enlaces:*
+\\- Dashboard: [redacted\\.bond/dashboard](https://redacted\\.bond/dashboard)
+\\- Terminal de documentos: [redacted\\.bond/terminal](https://redacted\\.bond/terminal)
+\\- Web principal: [redacted\\.bond](https://redacted\\.bond)";
 
         self.send_formatted(chat_id, text, Some(&Self::main_keyboard())).await
     }
@@ -435,42 +431,48 @@ _The file is breathing\\._";
     /// Send news analysis result with formatted output.
     pub async fn send_analysis_result(&self, chat_id: i64, url: &str, result: &rd_types::news::NewsAnalysisResult) -> Result<(), String> {
         let threat_icon = result.threat_level.icon();
-        let threat_label = format!("{:?}", result.threat_level);
+        let threat_label = match result.threat_level {
+            rd_types::news::ThreatLevel::Critical => "Crítico (Censura Inminente / Alta Gravedad)",
+            rd_types::news::ThreatLevel::Flagged => "Marcado (Censura Detectada / Manipulación)",
+            rd_types::news::ThreatLevel::Suspicious => "Sospechoso (Anomalías de contenido)",
+            _ => "Seguro (Sin anomalías detectadas)",
+        };
+        let escaped_threat_label = Self::escape_md(threat_label);
         let escaped_title = Self::escape_md(&result.title);
-        let escaped_url_text = Self::escape_md(url);
         let escaped_url_link = Self::escape_md_url(url);
 
         let mut text = format!(
-            "{threat_icon} *NEWS ANALYSIS COMPLETE*
-
-*URL:* [{}]({})
-*Title:* {}
-*Threat:* `{}`
-*Flags:* `{}`
-*Content:* `{}` chars",
-            escaped_url_text, escaped_url_link, escaped_title, threat_label, result.flags.len(), result.content_length
+            "{} *ANÁLISIS DE NOTICIA COMPLETADO*\n\n\
+             \u{1F4F0} *Título:* {}\n\
+             \u{1F517} *Enlace original:* [Abrir noticia]({})\n\n\
+             \u{26A1} *Nivel de Alerta:* {}\n\
+             \u{1F4CA} *Tamaño analizado:* `{}` caracteres",
+            threat_icon, escaped_title, escaped_url_link, escaped_threat_label, result.content_length
         );
 
         if !result.flags.is_empty() {
-            text.push_str("\n\n*INDICATORS:*");
+            text.push_str("\n\n\u{1F50D} *INDICADORES DETECTADOS POR IA:*");
             for flag in result.flags.iter().take(8) {
                 let escaped_desc = Self::escape_md(&flag.description);
-                text.push_str(&format!("\n\u{2022} \\[{}] {} `\\({:.0}%\\)`", flag.flag_type, escaped_desc, flag.confidence * 100.0));
+                let flag_type_str = format!("{}", flag.flag_type);
+                let escaped_type = Self::escape_md(&flag_type_str);
+                text.push_str(&format!("\n\u{2022} \\[{}\\] {} \\(Confianza: {:.0}%\\)", escaped_type, escaped_desc, flag.confidence * 100.0));
             }
             if result.flags.len() > 8 {
-                text.push_str(&format!("\n_\\.\\.\\. and {} more_", result.flags.len() - 8));
+                text.push_str(&format!("\n_\\.\\.\\. y {} indicadores más\\._", result.flags.len() - 8));
             }
         } else {
-            text.push_str("\n\n\\_No significant indicators found\\._");
+            text.push_str("\n\n\u{2705} _No se encontraron indicadores significativos de censura o manipulación\\._");
         }
 
-        text.push_str("\n\n_The file is breathing\\._");
+        text.push_str("\n\n💡 *¿Qué significa esto?*\n\
+                       Nuestra IA analiza patrones de censura, bloqueo de palabras clave y propaganda gubernamental en la noticia\\. Si se detecta una alerta alta, la noticia se guarda automáticamente de forma inmutable en Solana y Arweave\\.");
 
         // Action buttons
         let keyboard = InlineKeyboard::new()
             .row(vec![
-                InlineButton { text: "\u{1F50D} Scan Another".into(), callback_data: "cmd:scan_prompt".into(), url: None },
-                InlineButton { text: "\u{1F4CA} Airdrop Status".into(), callback_data: "cmd:airdrop".into(), url: None },
+                InlineButton { text: "\u{1F50D} Escanear Otra".into(), callback_data: "cmd:scan_prompt".into(), url: None },
+                InlineButton { text: "\u{1F4CA} Estado del Airdrop".into(), callback_data: "cmd:airdrop".into(), url: None },
             ]);
 
         self.send_formatted(chat_id, &text, Some(&keyboard)).await
@@ -484,70 +486,67 @@ _The file is breathing\\._";
         symbol: &str,
         mint: &str,
     ) -> Result<(), String> {
-        let text = format!(
-            "\u{1F6A8} *NEW DECLASSIFICATION DETECTED* \u{1F6A8}
- 
-\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}
- 
-DOCUMENT: `{}`
-TICKER: `${}`
-MINT: `{}`
- 
-\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}\u{2581}
- 
-\u{1F513} *UNCOVER THE TRUTH AT:* 
-[redacted\\.bond/terminal/{}](https://redacted.bond/terminal/{})
- 
-_The file is breathing\\._",
+        let terminal_url = format!("https://redacted.bond/terminal/{}", mint);
+        let escaped_terminal_url = Self::escape_md_url(&terminal_url);
+        let clear_text = format!(
+            "\u{1F6A8} *NUEVA TOKENIZACIÓN CREADA* \u{1F6A8}\n\n\
+             Se ha lanzado un nuevo activo digital basado en un documento sensible analizado por nuestra IA\\.\n\n\
+             \u{1F4D6} *Datos del token:*\n\
+             \u{2022} Documento: `{}`\n\
+             \u{2022} Ticker: `${}`\n\
+             \u{2022} Dirección Mint: `{}`\n\n\
+             \u{1F4C8} *Enlaces descriptivos:*\n\
+             \u{2022} *[Acceder al Terminal de Trading y Archivo Reconstruido]({})*",
             Self::escape_md(name),
             Self::escape_md(symbol),
             Self::escape_md(mint),
-            Self::escape_md(mint),
-            mint
+            escaped_terminal_url
         );
-        self.send_formatted(chat_id, &text, Some(&Self::main_keyboard())).await
+        self.send_formatted(chat_id, &clear_text, Some(&Self::main_keyboard())).await
     }
 
     /// Send airdrop status.
     pub async fn send_airdrop_status(&self, chat_id: i64, eligible: bool, amount_rdx: f64, wallet: Option<&str>) -> Result<(), String> {
-        let text = format!(
-            "\u{1F534} *AIRDROP STATUS*
-
-Eligible: `{}`
-Allocation: `{} RDX`
-Status: `{}`
-{}
-
-Register/Update wallet: `/airdrop <address>`
-Dashboard: [redacted\\.bond](https://redacted.bond)
-
-_The file is breathing\\._",
-            if eligible { "\u{2705} YES" } else { "\u{274C} NO" },
+        let wallet_line = wallet
+            .map(|w| {
+                let short = w.chars().take(8).collect::<String>();
+                format!("\u{2022} *Wallet registrada:* `{}`", Self::escape_md(&short))
+            })
+            .unwrap_or_else(|| "\u{2022} *Wallet registrada:* `Ninguna (Registra tu wallet con /airdrop <address>)`".to_string());
+        
+        let clear_text = format!(
+            "\u{1F4CA} *ESTADO DE TU AIRDROP DE $RDX*\n\n\
+             \u{2022} *Elegible:* `{}`\n\
+             \u{2022} *Asignación estimada:* `{} RDX`\n\
+             \u{2022} *Estado de entrega:* `{}`\n\
+             {}\n\n\
+             \u{1F4DD} *Enlaces descriptivos:*\n\
+             \u{2022} *[Registrar o Actualizar tu Wallet en el Dashboard](https://redacted.bond/dashboard)*\n\
+             \u{2022} *[Ir al Portal de Redacted Protocol](https://redacted.bond)*",
+            if eligible { "SÍ \u{2705}" } else { "NO \u{274C}" },
             amount_rdx,
-            if eligible { "PENDING LAUNCH" } else { "NOT REGISTERED" },
-            if let Some(w) = wallet { format!("Wallet: `{}`", Self::escape_md(&w[..8])) } else { String::new() }
+            if eligible { "PENDIENTE DE LANZAMIENTO" } else { "NO REGISTRADO" },
+            wallet_line
         );
-        self.send_formatted(chat_id, &text, Some(&Self::main_keyboard())).await
+        self.send_formatted(chat_id, &clear_text, Some(&Self::main_keyboard())).await
     }
 
     /// Send system status.
     pub async fn send_system_status(&self, chat_id: i64, user_count: usize) -> Result<(), String> {
-        let text = format!(
-            "\u{1F534} *SYSTEM STATUS*
-
-Agent: `ONLINE`
-Models: `AVAILABLE`
-Protocol: `ACTIVE`
-Users registered: `{}`
-Feeds monitored: `7`
-
-$RDX Airdrop: `LIVE`
-Dashboard: [redacted\\.bond](https://redacted.bond)
-
-_The file is breathing\\._",
+        let clear_text = format!(
+            "\u{1F4E1} *ESTADO GENERAL DEL PROTOCOLO*\n\n\
+             \u{2022} *Agente Inteligente:* `ONLINE (Activo)`\n\
+             \u{2022} *Modelos de IA:* `DISPONIBLES (100% de operatividad)`\n\
+             \u{2022} *Protocolo de Seguridad:* `ACTIVO`\n\
+             \u{2022} *Usuarios Registrados:* `{}`\n\
+             \u{2022} *Fuentes de Noticias Monitoreadas:* `7`\n\
+             \u{2022} *Airdrop de RDX:* `ACTIVO`\n\n\
+             \u{1F310} *Enlaces oficiales:*\n\
+             \u{2022} *[Ir al Dashboard Web](https://redacted.bond/dashboard)*\n\
+             \u{2022} *[Abrir Web Principal](https://redacted.bond)*",
             user_count
         );
-        self.send_formatted(chat_id, &text, Some(&Self::main_keyboard())).await
+        self.send_formatted(chat_id, &clear_text, Some(&Self::main_keyboard())).await
     }
 
     /// Broadcast to multiple chats.
@@ -578,134 +577,66 @@ impl UserRegistry {
 /// Each post includes an image style reference for image generation.
 pub const SCHEDULED_POSTS: &[(&str, &str)] = &[
     (
-        "\u{1F534} FILE \\#0047
-STATUS: `DECLASSIFIED`
-CONFIDENCE: `94\\.7%`
+        "*Tokeniza documentos en Solana*
 
-The \u{2588}\u{2588}\u{2588}\u{2588} was moved to \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588} on \u{2588}\u{2588}/\u{2588}\u{2588}/2024
-under operation \u{2588}\u{2588}\u{2588} ECLIPSE\\.
+Sube un PDF, una imagen o un informe\\. La IA analiza el contenido y ayuda a crear un activo digital\\.
 
-\u{1F381} *\\$RDX AIRDROP* — `500 RDX`
-[redacted\\-protocol\\.vercel\\.app](https://redacted-protocol.vercel.app)
+*Pasos:*
+\\- Sube el archivo en el terminal\\.
+\\- Revisa el analisis de IA\\.
+\\- Crea el token SPL asociado\\.
 
-ACCESS GRANTED\\.
-_The file is breathing\\._
+*Enlaces:*
+\\- Terminal para subir documentos: [redacted\\.bond/terminal](https://redacted\\.bond/terminal)
+\\- Web principal: [redacted\\.bond](https://redacted\\.bond)
 
-\\#RedactedProtocol \\#RDX",
-        "censored_figure",
-    ),
-    (
-        "\u{1F534} ACCESS DENIED
-
-FILE \\#0048 — `ENCRYPTED`
-COORDINATES: `[\u{2588}\u{2588}\\.████, \u{2588}\u{2588}\\.████]`
-TIMESTAMP: `\u{2588}\u{2588}:██:██ UTC`
-
-The \u{2588}\u{2588}\u{2588}\u{2588} contains references to
-a \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588} operation involving
-at least \u{2588}\u{2588} known entities\\.
-
-Reconstruction: `IN PROGRESS`
-_The file is breathing\\._
-
-\\#RedactedProtocol",
-        "access_denied",
-    ),
-    (
-        "\u{1F534} *DECLASSIFIED* — FILE \\#0049
-
-Subject: \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}
-Clearance: \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}
-Date: \u{2588}\u{2588}/\u{2588}\u{2588}/████
-
-\"The \u{2588}\u{2588}\u{2588}\u{2588} must not leave the
-\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588} under any circumstances\\.
-All \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588} are to be sealed and
-transported via \u{2588}\u{2588}\u{2588}\u{2588}\u{2588} route\\.\"
-
-ACCESS GRANTED\\.
-\\#RedactedProtocol \\#RDX",
-        "classified_doc",
-    ),
-    (
-        "\u{1F534} *SIGNAL INTERCEPTED*
-
-SOURCE: \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588} STATION
-FREQ: `\u{2588}\u{2588}\u{2588}\\.██ MHz`
-TIME: `\u{2588}\u{2588}:\u{2588}\u{2588}:\u{2588}\u{2588} UTC`
-
-\"\\.\\.\\.the package has been
-delivered to \u{2588}\u{2588}\u{2588}\u{2588}\\. The
-\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588} is complete\\. Awaiting
-further instructions\\.\\.\\.\"
-
-_The file is breathing\\._
-
-\\#RedactedProtocol",
-        "glitch_interference",
-    ),
-    (
-        "\u{1F534} *WARNING: PROTOCOL BREACH*
-
-TIMESTAMP: `2026\\-05\\-22`
-LOCATION: `REDACTED BONDING CURVE`
-
-Reconstruction of FILE \\#RDX\\-001 has begun\\. 
-The truth will be tokenized in \u{2588}\u{2588} days\\.
-
-Status: `UNSTABLE`
-_The file is breathing\\._
-
-\\#RedactedProtocol \\#RDX",
-        "access_denied",
-    ),
-    (
-        "\u{1F534} *DECLASSIFICATION SEQUENCE INITIATED*
-
-Target: \\$RDX
-Activation: `2026\\-05\\-22 00:00 UTC`
-
-\"They cannot hide the \u{2588}\u{2588}\u{2588}\u{2588} forever\\. 
-The bonding curve is the only path to the \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\\.\"
-
-_The file is breathing\\._
-
-\\#RedactedProtocol",
-        "classified_doc",
-    ),
-    (
-        "\u{1F534} FILE \\#0050 — ARCHIVE 0
-
-This document was redacted
-on \u{2588}\u{2588}/\u{2588}\u{2588}/████ by order of
-the \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588} COMMITTEE\\.
-
-Reconstruction confidence: `91\\.3%`
-Cross\\-model agreement: `87\\.1%`
-
-ACCESS GRANTED\\.
-Truth cannot be erased\\.
-
-\\#RedactedProtocol \\#RDX",
+\\#Solana \\#AI \\#RDX",
         "floating_documents",
     ),
     (
-        "\u{1F534} *URGENT* — FILE \\#0051
+        "*Airdrop de RDX*
 
-CLASSIFICATION: \u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}
-HANDLE VIA: \u{2588}\u{2588}\u{2588} PROTOCOL ONLY
+Registra tu wallet, completa misiones y suma XP dentro de Redacted Protocol\\.
 
-All personnel are reminded that
-discussion of the \u{2588}\u{2588}\u{2588}\u{2588} ECLIPSE
-incident remains strictly
-\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\u{2588}\\.
+*Como participar:*
+\\- Abre el dashboard\\.
+\\- Conecta tu wallet de Solana\\.
+\\- Revisa tu estado de airdrop y tus misiones\\.
 
-Violators will be \u{2588}\u{2588}\u{2588}\u{2588}\\.
+*Enlaces:*
+\\- Registro y estado del airdrop: [redacted\\.bond/dashboard](https://redacted\\.bond/dashboard)
+\\- Terminal para ganar XP con documentos: [redacted\\.bond/terminal](https://redacted\\.bond/terminal)
 
-ACCESS DENIED\\.
-_The file is breathing\\._
-
-\\#RedactedProtocol",
+\\#Airdrop \\#Solana \\#RDX",
         "circuit_board",
+    ),
+    (
+        "*Analisis de noticias*
+
+Pega aqui el enlace de una noticia y el bot revisara si contiene senales relevantes para el mercado o el ecosistema\\.
+
+*El resultado incluye:*
+\\- Titulo de la noticia\\.
+\\- Nivel de alerta\\.
+\\- Indicadores detectados\\.
+\\- Enlace marcado como noticia analizada\\.
+
+*Enlaces:*
+\\- Dashboard para ver actividad y XP: [redacted\\.bond/dashboard](https://redacted\\.bond/dashboard)",
+        "glitch_interference",
+    ),
+    (
+        "*Misiones y XP*
+
+Cada accion dentro del protocolo puede sumar experiencia\\.
+
+*Acciones principales:*
+\\- Check\\-in diario: `+25 XP`
+\\- Escanear documentos: `+50 XP`
+\\- Invitar usuarios: `+200 XP`
+
+*Enlaces:*
+\\- Ver XP, ranking y misiones: [redacted\\.bond/dashboard](https://redacted\\.bond/dashboard)",
+        "censored_figure",
     ),
 ];

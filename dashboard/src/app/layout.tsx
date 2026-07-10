@@ -73,6 +73,46 @@ export default function RootLayout({
             {children}
             <Footer />
             <TerminalEasterEgg />
+
+            {/* Global Floating Cyberpunk Social Bar */}
+            <div className="fixed right-4 bottom-28 z-[120] flex flex-col gap-3">
+              <a 
+                href="https://t.me/theredactedprotocol" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                title="Telegram Chat Group"
+                className="w-10 h-10 flex items-center justify-center border border-red-500/30 bg-black/80 hover:bg-red-600 hover:border-red-600 text-white shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-110 text-base relative group"
+              >
+                💬
+                <span className="absolute right-12 bg-black border border-red-500/30 text-[8px] font-mono tracking-widest px-2 py-1 uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none text-red-500">
+                  Telegram Group
+                </span>
+              </a>
+              <a 
+                href="https://t.me/theredactedprotocol_bot" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                title="Telegram Autonomous Bot"
+                className="w-10 h-10 flex items-center justify-center border border-red-500/30 bg-black/80 hover:bg-red-600 hover:border-red-600 text-white shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-110 text-base relative group"
+              >
+                🤖
+                <span className="absolute right-12 bg-black border border-red-500/30 text-[8px] font-mono tracking-widest px-2 py-1 uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none text-red-500">
+                  Telegram Bot
+                </span>
+              </a>
+              <a 
+                href="https://x.com/TheRedacted_Sol" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                title="Twitter / X Feed"
+                className="w-10 h-10 flex items-center justify-center border border-red-500/30 bg-black/80 hover:bg-red-600 hover:border-red-600 text-white shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-110 text-sm relative group"
+              >
+                ✖
+                <span className="absolute right-12 bg-black border border-red-500/30 text-[8px] font-mono tracking-widest px-2 py-1 uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none text-red-500">
+                  Twitter
+                </span>
+              </a>
+            </div>
           </div>
         </Providers>
         </ErrorBoundary>

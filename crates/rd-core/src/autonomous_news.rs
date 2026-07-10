@@ -50,6 +50,8 @@ pub struct AnchoredArticle {
     pub reconstruction_hash: String,
     /// Whether fully anchored on both systems
     pub is_fully_anchored: bool,
+    /// Clear explanation in Spanish of the article and its censorship
+    pub spanish_explanation: String,
 }
 
 /// Autonomous news engine — fully self-operating
@@ -181,14 +183,26 @@ impl AutonomousNewsEngine {
                         }
                     };
 
-                    // ── Step 2: Reconstruct with LLM ──
+                    // ── Step 2: Reconstruct with LLM (fallback to raw content if LLM unavailable) ──
                     let reconstruction = match self.reconstruct(&title, &content, orchestrator).await {
                         Ok(r) => r,
                         Err(e) => {
-                            warn!("Reconstruction failed for {}: {}", url, e);
-                            self.broadcast_alert(bot, user_ids, &url, &result).await;
-                            processed += 1;
-                            continue;
+                            warn!("Reconstruction failed for {}: {} — using raw content fallback", url, e);
+                            // Fallback: use the raw content so token launch still proceeds
+                            let threat_str = match result.threat_level {
+                                rd_types::news::ThreatLevel::Critical => "Critical",
+                                rd_types::news::ThreatLevel::Flagged  => "Flagged",
+                                rd_types::news::ThreatLevel::Suspicious => "Suspicious",
+                                _ => "Flagged",
+                            };
+                            ReconstructedArticle {
+                                reconstructed_content: content.chars().take(500).collect::<String>(),
+                                confidence: 60,
+                                reasoning: format!("LLM unavailable — raw content preserved. Flags: {}", result.flags.len()),
+                                threat_level: threat_str.to_string(),
+                                redaction_count: Self::count_redactions(&content),
+                                spanish_explanation: format!("La reconstrucción no está disponible temporalmente. Se preservó el contenido original. Flags detectados: {}", result.flags.len()),
+                            }
                         }
                     };
 
@@ -310,6 +324,7 @@ impl AutonomousNewsEngine {
                         token_mint,
                         token_symbol,
                         terminal_url,
+                        spanish_explanation: reconstruction.spanish_explanation.clone(),
                     };
 
                     self.broadcast_anchored_article(bot, user_ids, &anchored, twitter).await;
@@ -339,12 +354,19 @@ impl AutonomousNewsEngine {
             "You are a journalist and historian analyzing a news article that has been CENSORED or REDACTED by a government or authority.\n\n\
             TITLE: {}\n\n\
             ARTICLE CONTENT:\n{}\n\n\
-            YOUR TASK:\n1. Identify ALL redacted/censored sections (marked with ▓, █, [REDACTED], [CLASSIFIED], xxxx, etc.)\n2. Using context, journalistic style, historical facts, and logical inference — RECONSTRUCT what the original text most likely said\n3. Rate your confidence (0-100) based on how much was redacted and how inferrable it is\n\n\
+            YOUR TASK:\n\
+            1. Identify ALL redacted/censored sections (marked with ▓, █, [REDACTED], [CLASSIFIED], xxxx, etc.)\n\
+            2. Using context, journalistic style, historical facts, and logical inference — RECONSTRUCT what the original text most likely said.\n\
+            3. Rate your confidence (0-100) based on how much was redacted and how inferrable it is.\n\
+            4. Provide a clear, well-written, and informative summary and explanation in SPANISH explaining what this news article is about, what censorship or information was detected, and its real-world impact. Write it so that a general audience who doesn't know about this project can easily understand it.\n\n\
             Respond ONLY with valid JSON (no markdown, no commentary):\n\
-            {{\"reconstruction\": \"<your best reconstruction of the original text>\", \
-            \"confidence\": <0-100>, \
-            \"threat_level\": \"<Safe|Suspicious|Flagged|Critical based on the severity of censorship>\", \
-            \"reasoning\": \"<brief explanation of your reconstruction choices>\"}}",
+            {{\n  \
+              \"reconstruction\": \"<your best reconstruction of the original text>\",\n  \
+              \"confidence\": <0-100>,\n  \
+              \"threat_level\": \"<Safe|Suspicious|Flagged|Critical based on the severity of censorship>\",\n  \
+              \"reasoning\": \"<brief explanation of your reconstruction choices>\",\n  \
+              \"spanish_explanation\": \"<your clear, informative summary and explanation in Spanish>\"\n\
+            }}",
             title, content
         );
 
@@ -357,7 +379,7 @@ impl AutonomousNewsEngine {
             .collect::<Vec<_>>()
             .join("\n");
 
-        let (reconstructed, confidence, reasoning) = Self::parse_llm_json(&response_text)?;
+        let (reconstructed, confidence, reasoning, spanish_explanation) = Self::parse_llm_json(&response_text)?;
 
         let threat = Self::classify_threat(&reconstructed, &reasoning);
 
@@ -369,11 +391,12 @@ impl AutonomousNewsEngine {
             reasoning,
             threat_level: threat,
             redaction_count,
+            spanish_explanation,
         })
     }
 
     /// Parse JSON from LLM response
-    fn parse_llm_json(text: &str) -> Result<(String, u8, String), String> {
+    fn parse_llm_json(text: &str) -> Result<(String, u8, String, String), String> {
         let text = text.trim();
         
         // Find the first '{'
@@ -399,7 +422,12 @@ impl AutonomousNewsEngine {
                 .unwrap_or("")
                 .to_string();
 
-            return Ok((reconstruction, confidence, reasoning));
+            let spanish_explanation = json_val.get("spanish_explanation")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            return Ok((reconstruction, confidence, reasoning, spanish_explanation));
         }
 
         Err("Failed to parse JSON object from LLM response".to_string())
@@ -557,24 +585,27 @@ impl AutonomousNewsEngine {
         url: &str,
         result: &rd_types::news::NewsAnalysisResult,
     ) {
-        let flags = result.flags.iter()
-            .map(|f| format!("  • {} ({:.0}%)", f.description, f.confidence * 100.0))
-            .collect::<Vec<_>>()
-            .join("\n");
+        let escaped_url_link = rd_tools::telegram_bot::TelegramBot::escape_md_url(url);
+        let escaped_threat = rd_tools::telegram_bot::TelegramBot::escape_md(&format!("{:?}", result.threat_level));
+
+        let mut flags_text = String::new();
+        for f in result.flags.iter().take(5) {
+            let escaped_desc = rd_tools::telegram_bot::TelegramBot::escape_md(&f.description);
+            flags_text.push_str(&format!("\n\u{2022} {} \\(Confianza: {:.0}%\\)", escaped_desc, f.confidence * 100.0));
+        }
 
         let msg = format!(
-            "🚨 CENSORSHIP ALERT — autonomous detection\n\n\
-            Source: {}\n\
-            Threat: {:?}\n\
-            Flags ({}):\n{}\n\n\
-            ⚠️ LLM reconstruction unavailable — fragment saved locally\n\
-            Will retry on next cycle.\n\n\
-            _The file is breathing._",
-            url, result.threat_level, result.flags.len(), flags
+            "\u{1F6A8} *ALERTA DE CENSURA DETECTADA*\n\n\
+             Se ha identificado una posible manipulación o censura en la siguiente noticia\\.\n\n\
+             \u{1F4F0} *Noticia:* [Abrir enlace original]({})\n\
+             \u{26A1} *Gravedad:* {}\n\
+             \u{1F50D} *Indicadores:* {}\n\n\
+             \u{26A0} *Nota:* La reconstrucción detallada mediante IA está temporalmente en proceso\\. Se intentará de nuevo en el siguiente ciclo\\.",
+             escaped_url_link, escaped_threat, flags_text
         );
 
         for &uid in user_ids {
-            bot.send_safe(uid, &msg).await.ok();
+            bot.send_formatted(uid, &msg, None).await.ok();
             tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         }
     }
@@ -587,70 +618,82 @@ impl AutonomousNewsEngine {
         article: &AnchoredArticle,
         twitter: Option<&TwitterClient>,
     ) {
-        let anchor_status = if article.is_fully_anchored {
-            "✅ FULLY ANCHORED (Arweave + Solana)"
-        } else if article.arweave_tx_id.is_some() {
-            "🔶 PARTIALLY ANCHORED (Arweave only)"
+        let escaped_title = rd_tools::telegram_bot::TelegramBot::escape_md(&article.title);
+        let escaped_threat = rd_tools::telegram_bot::TelegramBot::escape_md(&article.threat_level);
+        
+        let explanation_teaser = if article.spanish_explanation.len() > 350 {
+            format!("{}...", &article.spanish_explanation[..350])
         } else {
-            "⚠️ LOCAL ONLY (not on-chain)"
+            article.spanish_explanation.clone()
         };
-
-        let img_note = article.image_url.as_ref()
-            .map(|u| format!("\n🖼️ Neural Image: {}", u))
-            .unwrap_or_default();
-
-        let arweave_note = article.arweave_tx_id.as_ref()
-            .map(|id| format!("\n🌐 Source (Download): https://arweave.net/{}\n👁️ Source (View): https://viewblock.io/arweave/tx/{}", id, id))
-            .unwrap_or_default();
-
-        let solana_note = if let (Some(ref tx), Some(ref addr)) = (&article.solana_tx_id, &article.fragment_address) {
-            format!("\n⛓️ Solana: tx={} | fragment={}", &tx[..min(tx.len(), 16)], addr)
-        } else {
-            String::new()
-        };
-
-        let token_note = if let (Some(ref sym), Some(ref url)) = (&article.token_symbol, &article.terminal_url) {
-            format!("\n\n🚀 TOKEN LAUNCHED: ${} — Trade: {}", sym, url)
-        } else {
-            String::new()
-        };
-
+        let escaped_explanation = rd_tools::telegram_bot::TelegramBot::escape_md(&explanation_teaser);
+        let escaped_url_link = rd_tools::telegram_bot::TelegramBot::escape_md_url(&article.source_url);
+        
         let threat_emoji = match article.threat_level.as_str() {
             "Critical" => "🔴",
             "Flagged" => "🟠",
             _ => "🟡",
         };
 
+        // Arweave Link
+        let arweave_link = article.arweave_tx_id.as_ref()
+            .map(|id| format!(
+                "\n\u{1F4E5} *[Descargar copia en Arweave](https://arweave.net/{})* \\(almacenamiento permanente\\)\n\u{1F441} *[Verificar registro en Arweave](https://viewblock.io/arweave/tx/{})*",
+                id, id
+            ))
+            .unwrap_or_default();
+
+        // Solana Link
+        let solana_link = if let Some(ref tx) = article.solana_tx_id {
+            format!(
+                "\n\u{1F517} *[Verificar transacción en Solana](https://solscan.io/tx/{})* \\(registro inmutable\\)",
+                tx
+            )
+        } else {
+            String::new()
+        };
+
+        // Token Link
+        let token_link = if let (Some(ref sym), Some(ref url)) = (&article.token_symbol, &article.terminal_url) {
+            let escaped_sym = rd_tools::telegram_bot::TelegramBot::escape_md(sym);
+            let escaped_url = rd_tools::telegram_bot::TelegramBot::escape_md_url(url);
+            format!(
+                "\n\n\u{1F4C8} *TOKENIZACIÓN:* Se ha lanzado un token en Solana asociado a esta noticia\\.\n\u{1F4B0} *[Comerciar token ${} en Redacted Protocol]({})*",
+                escaped_sym, escaped_url
+            )
+        } else {
+            String::new()
+        };
+
+        let anchor_status = if article.is_fully_anchored {
+            "✅ *REGISTRO COMPLETO:* Guardado permanentemente en Arweave y Solana\\."
+        } else if article.arweave_tx_id.is_some() {
+            "🔶 *REGISTRO PARCIAL:* Guardado en Arweave únicamente\\."
+        } else {
+            "⚠️ *REGISTRO LOCAL:* Pendiente de registrar en la blockchain\\."
+        };
+
         let msg = format!(
-            "{} DECLASSIFIED — AUTONOMOUS SCAN\n\n\
-            {} — Confidence: {}%\n\n\
-            📰 {}\n\n\
-            === ORIGINAL (CENSORED) ===\n{}\n\n\
-            === RECONSTRUCTED ===\n{}{}{}{}{}\n\n\
-            🔑 Content Hash: {}\n\n\
+            "\u{1F4E2} *NOTICIA DETECTADA Y ANALIZADA POR IA*\n\n\
+            \u{1F4F0} *Título:* {}\n\
+            {} *Nivel de Alerta:* {} \\(Confianza de la IA: {}%\\)\n\n\
+            \u{1F4A1} *¿De qué trata esta noticia?*\n\
             {}\n\n\
-            ⚠️ Inference-powered reconstruction — verify independently\n\
-            _The file is breathing._",
+            \u{1F511} *Enlaces de verificación:* \
+            \n\u{1F4C4} *[Ver noticia original]({})*{}{}{}\n\n\
+            {}\n\n\
+            \u{1F4A1} *¿Qué es Redacted Protocol?*\n\
+            Es una red descentralizada que detecta noticias de gran impacto o censuradas, las analiza y reconstruye con IA, y las guarda de forma permanente en la blockchain de Solana y Arweave para que nunca puedan ser borradas de internet\\.",
+            escaped_title,
             threat_emoji,
-            article.threat_level,
+            escaped_threat,
             article.confidence,
-            article.title,
-            if article.original_content.len() > 300 {
-                format!("{}...", &article.original_content[..300])
-            } else {
-                article.original_content.clone()
-            },
-            if article.reconstructed_content.len() > 400 {
-                format!("{}...", &article.reconstructed_content[..400])
-            } else {
-                article.reconstructed_content.clone()
-            },
-            img_note,
-            arweave_note,
-            solana_note,
-            token_note,
-            &article.content_hash[..min(article.content_hash.len(), 32)],
-            anchor_status,
+            escaped_explanation,
+            escaped_url_link,
+            arweave_link,
+            solana_link,
+            token_link,
+            anchor_status
         );
 
         for &uid in user_ids {
@@ -659,10 +702,10 @@ impl AutonomousNewsEngine {
                 if bot.send_photo(uid, img_url, &msg).await.is_ok() {
                     true
                 } else {
-                    bot.send_safe(uid, &msg).await.is_ok()
+                    bot.send_formatted(uid, &msg, None).await.is_ok()
                 }
             } else {
-                bot.send_safe(uid, &msg).await.is_ok()
+                bot.send_formatted(uid, &msg, None).await.is_ok()
             };
             if sent {
                 info!("Broadcast to user {}", uid);
@@ -676,8 +719,8 @@ impl AutonomousNewsEngine {
                 "{} DECLASSIFIED: {}\n\n{}\n\nConfidence: {}%\n\n_The file is breathing._ #Solana #Neural #Redacted",
                 threat_emoji,
                 article.title,
-                if article.reconstructed_content.len() > 180 {
-                    format!("{}...", &article.reconstructed_content[..180])
+                if article.reconstructed_content.chars().count() > 180 {
+                    format!("{}...", article.reconstructed_content.chars().take(180).collect::<String>())
                 } else {
                     article.reconstructed_content.clone()
                 },
@@ -696,6 +739,7 @@ struct ReconstructedArticle {
     reasoning: String,
     threat_level: String,
     redaction_count: usize,
+    spanish_explanation: String,
 }
 
 fn min(a: usize, b: usize) -> usize {

@@ -6,7 +6,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, transfer, Transfer};
 
-declare_id!("9PkRFJj7haogKtxaA7VERpQ8JqAD1ZtWtXD1MKNxSgd5");
+declare_id!("5BATnzUHWLEvdp4cvo5qRakXJDDZX4di84jDv7VR1qsu");
 
 #[program]
 pub mod rd_staking {
@@ -30,6 +30,25 @@ pub mod rd_staking {
     pub fn stake(ctx: Context<StakeTokens>, amount: u64) -> Result<()> {
         require!(amount >= 10_000_000_000, StakingError::BelowMinimum); // 10 RDX min
 
+        let now = Clock::get()?.unix_timestamp;
+        let stake = &mut ctx.accounts.stake_account;
+
+        // Auto-claim pending rewards first if there is an existing stake
+        let pending = calculate_reward(stake, &ctx.accounts.staking_pool, now)?;
+        if pending > 0 {
+            let pool_bump = ctx.accounts.staking_pool.bump;
+            let seeds = &[b"staking_pool".as_ref(), &[pool_bump]];
+            let signer = &[&seeds[..]];
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.reward_vault.to_account_info(),
+                to: ctx.accounts.user_reward_account.to_account_info(),
+                authority: ctx.accounts.staking_pool.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            transfer(cpi_ctx, pending)?;
+        }
+
         // Transfer tokens from user to vault
         let cpi_accounts = Transfer {
             from: ctx.accounts.user_token_account.to_account_info(),
@@ -41,15 +60,14 @@ pub mod rd_staking {
         transfer(cpi_ctx, amount)?;
 
         // Create or update user stake record
-        let stake = &mut ctx.accounts.stake_account;
         if stake.amount == 0 {
             stake.owner = ctx.accounts.signer.key();
             stake.pool = ctx.accounts.staking_pool.key();
-            stake.staked_at = Clock::get()?.unix_timestamp;
+            stake.staked_at = now;
             stake.bump = ctx.bumps.stake_account;
         }
         stake.amount = stake.amount.checked_add(amount).unwrap();
-        stake.last_claim = Clock::get()?.unix_timestamp;
+        stake.last_claim = now;
 
         // Update pool
         let pool = &mut ctx.accounts.staking_pool;
@@ -153,11 +171,12 @@ pub mod rd_staking {
 
 fn calculate_reward(stake: &StakeAccount, pool: &StakingPool, now: i64) -> Result<u64> {
     if stake.amount == 0 || pool.total_staked == 0 { return Ok(0); }
-    let elapsed = (now - stake.last_claim) as u64;
-    let user_share = (stake.amount as u128 * 10000 / pool.total_staked as u128) as u64;
-    let reward = pool.reward_per_second.checked_mul(elapsed).unwrap()
-        .checked_mul(user_share).unwrap() / 10000;
-    Ok(reward)
+    let elapsed = (now.saturating_sub(stake.last_claim)) as u128;
+    let reward = (pool.reward_per_second as u128)
+        .checked_mul(elapsed).unwrap()
+        .checked_mul(stake.amount as u128).unwrap()
+        / (pool.total_staked as u128);
+    Ok(reward as u64)
 }
 
 
@@ -197,6 +216,10 @@ pub struct StakeTokens<'info> {
     pub user_token_account: Account<'info, TokenAccount>,
     #[account(mut)]
     pub staking_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub reward_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub user_reward_account: Account<'info, TokenAccount>,
     pub staking_token_mint: AccountInfo<'info>,
     #[account(mut)]
     pub signer: Signer<'info>,

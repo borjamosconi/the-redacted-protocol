@@ -3,6 +3,7 @@ pub mod registry;
 pub mod builtins;
 pub mod solana;
 pub mod telegram;
+pub mod telegram_format;
 pub mod telegram_bot;
 pub mod airdrop;
 pub mod token_config;
@@ -21,3 +22,4 @@ pub use launch_token::{launch_document_token, TokenLaunchResult, LaunchTokenTool
 
 #[cfg(test)]
 mod tests;
+

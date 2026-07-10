@@ -46,7 +46,7 @@ router.post('/:mint/trade', async (req: Request, res: Response) => {
 
     let tradeEvent: any = null
     for (const ev of parser.parseLogs(logs)) {
-      if (ev.name === 'TradeEvent' && (ev.data as any).mint.toBase58() === mint) {
+      if ((ev.name === 'TradeEvent' || ev.name === 'Trade') && (ev.data as any).mint.toBase58() === mint) {
         tradeEvent = ev.data
         break
       }

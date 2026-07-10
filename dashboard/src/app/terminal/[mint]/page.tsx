@@ -1,10 +1,16 @@
 'use client'
 
 import { useState, useEffect, useRef, use } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
+import dynamic from 'next/dynamic'
+
+const WalletMultiButton = dynamic(
+  async () => (await import('@solana/wallet-adapter-react-ui')).WalletMultiButton,
+  { ssr: false }
+)
 import {
   PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL,
   TransactionMessage, VersionedTransaction, TransactionInstruction,
@@ -106,6 +112,157 @@ function ReconstructionTerminal() {
         <span className="text-red-500">$</span>
         <span className="animate-pulse">_</span>
       </div>
+    </div>
+  )
+}
+
+function LiveBroadcast({ token, onUpdate }: { token: TokenDetail; onUpdate: () => void }) {
+  const [streamUrl, setStreamUrl] = useState(token.streamUrl || '')
+  const [editing, setEditing] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const getEmbedUrl = (url: string) => {
+    try {
+      if (!url) return null
+      
+      // YouTube
+      const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)
+      if (ytMatch) {
+        return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1`
+      }
+
+      // Twitch
+      const twitchMatch = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/)
+      if (twitchMatch) {
+        const parent = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
+        return `https://player.twitch.tv/?channel=${twitchMatch[1]}&parent=${parent}&muted=true`
+      }
+
+      // Kick
+      const kickMatch = url.match(/kick\.com\/([a-zA-Z0-9_]+)/)
+      if (kickMatch) {
+        return `https://player.kick.com/${kickMatch[1]}?autoplay=true&muted=true`
+      }
+
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/tokens/${token.mint}/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ streamUrl }),
+      })
+      if (res.ok) {
+        setEditing(false)
+        onUpdate()
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const embedUrl = getEmbedUrl(token.streamUrl || '')
+
+  return (
+    <div className="rd-card p-6 bg-white/[0.02] border-red-900/20 relative overflow-hidden group">
+      <div className="absolute top-0 right-0 p-2 text-[8px] font-bold text-red-900/40 uppercase tracking-widest border-l border-b border-red-900/10 bg-black/40">
+        {token.streamUrl ? '🔴 LIVE SIGNAL' : '⚪ OFFLINE'}
+      </div>
+      <h4 className="text-[10px] font-black text-red-500/60 uppercase tracking-[0.3em] mb-4">
+        RETRANSMISIÓN LIVE / BROADCAST DECK
+      </h4>
+
+      {editing ? (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[8px] text-gray-500 uppercase tracking-widest mb-1">
+              Stream Link (Kick, Twitch, YouTube, or X)
+            </label>
+            <input 
+              type="text" 
+              value={streamUrl} 
+              onChange={e => setStreamUrl(e.target.value)}
+              placeholder="e.g. https://kick.com/username or https://twitch.tv/channel"
+              className="rd-input text-xs"
+              required
+            />
+          </div>
+          <div className="flex gap-2">
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-[9px] uppercase tracking-widest transition-all"
+            >
+              {loading ? 'SAVING...' : 'START BROADCAST'}
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setEditing(false)}
+              className="px-4 py-2 border border-white/10 hover:border-white text-white/60 hover:text-white font-black text-[9px] uppercase tracking-widest transition-all"
+            >
+              CANCEL
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="space-y-4">
+          {embedUrl ? (
+            <div className="relative w-full aspect-video border border-red-600/30 overflow-hidden bg-black">
+              <iframe
+                src={embedUrl}
+                className="w-full h-full"
+                allowFullScreen
+                scrolling="no"
+                allow="autoplay; encrypted-media"
+              />
+            </div>
+          ) : token.streamUrl ? (
+            <div className="p-8 border border-white/5 bg-white/[0.01] flex flex-col items-center justify-center text-center">
+              <span className="text-2xl mb-2">📡</span>
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-4">
+                Active feed detected on external platform
+              </p>
+              <a 
+                href={token.streamUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-6 py-2.5 bg-red-600 hover:bg-white text-white hover:text-black text-[9px] font-black tracking-widest uppercase transition-all"
+              >
+                OPEN EXTERNAL STREAM
+              </a>
+            </div>
+          ) : (
+            <div className="h-40 border border-white/5 bg-[radial-gradient(#1a1111_1px,transparent_1px)] bg-[size:16px_16px] flex flex-col items-center justify-center text-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-red-950/5 pointer-events-none" />
+              <div className="w-1.5 h-1.5 bg-white/20 rounded-full mb-3 animate-ping" />
+              <p className="text-[9px] text-gray-600 uppercase tracking-widest font-mono">
+                NO ACTIVE BROADCAST SIGNAL FOUND
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center mt-4">
+            <span className="text-[8px] text-white/30 uppercase font-mono truncate max-w-[200px]">
+              {token.streamUrl ? `SOURCE: ${token.streamUrl.replace(/https?:\/\/(www\.)?/, '')}` : 'STATUS: WAITING_FOR_OPERATOR'}
+            </span>
+            <button 
+              onClick={() => setEditing(true)}
+              className="text-[8px] text-red-500 hover:text-white uppercase tracking-widest font-black transition-colors"
+            >
+              {token.streamUrl ? '[ CHANGE SIGNAL ]' : '[ BROADCAST STREAM ]'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -431,10 +588,15 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
       <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-24 sm:pt-28 pb-20 relative">
 
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-[10px] font-mono text-gray-600 mb-5">
-          <Link href="/terminal" className="hover:text-white transition-colors">Terminal</Link>
-          <span>/</span>
-          <span className="text-gray-400">${token.symbol}</span>
+        <div className="flex items-center justify-between gap-2 mb-5">
+          <div className="flex items-center gap-2 text-[10px] font-mono text-gray-600">
+            <Link href="/terminal" className="hover:text-white transition-colors">Terminal</Link>
+            <span>/</span>
+            <span className="text-gray-400">${token.symbol}</span>
+          </div>
+          <span className="px-2.5 py-0.5 border border-red-500/30 bg-red-950/20 text-red-400 text-[8px] font-mono tracking-widest uppercase rounded-sm select-none">
+            SOLANA TESTNET ACTIVE
+          </span>
         </div>
 
         {/* ── Main layout: chart + sidebar ─────────────────────────────────── */}
@@ -531,9 +693,11 @@ export default function TokenDetailPage({ params }: { params: Promise<{ mint: st
 
             {/* Interactive Elements - Simplified for Mobile */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div className="hidden md:block"><ReconstructionTerminal /></div>
+               <LiveBroadcast token={token} onUpdate={() => fetchToken(buyAmount)} />
                <DocumentPreview progress={token.progress} name={token.name} />
             </div>
+            
+            <div className="hidden md:block"><ReconstructionTerminal /></div>
 
             {/* Tabs: Trades / Info / Holders */}
             <div className="rd-card overflow-hidden">

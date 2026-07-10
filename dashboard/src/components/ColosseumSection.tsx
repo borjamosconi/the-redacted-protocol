@@ -192,14 +192,14 @@ export function ColosseumSection() {
 
           <div className="grid md:grid-cols-3 gap-4">
             <a
-              href="https://x.com/theprotocol_sol"
+              href="https://x.com/TheRedacted_Sol"
               target="_blank"
               rel="noopener noreferrer"
               className="rd-card p-6 text-center hover:border-rd-red/40 transition-all group"
             >
               <div className="text-4xl mb-3 group-hover:drop-shadow-[0_0_10px_rgba(255,26,26,0.5)] transition-all">&#x1D54F;</div>
               <div className="text-sm font-bold text-rd-text mb-1 group-hover:text-rd-red transition-colors">
-                @theprotocol_sol
+                @TheRedacted_Sol
               </div>
               <div className="text-[10px] text-rd-muted/50">
                 Updates & announcements on X
@@ -222,7 +222,7 @@ export function ColosseumSection() {
             </a>
 
             <a
-              href="https://t.me/theredacted_bot"
+              href="https://t.me/theredactedprotocol_bot"
               target="_blank"
               rel="noopener noreferrer"
               className="rd-card p-6 text-center hover:border-rd-red/40 transition-all group"
@@ -232,14 +232,14 @@ export function ColosseumSection() {
                 Telegram Bot
               </div>
               <div className="text-[10px] text-rd-muted/50">
-                @theredacted_bot — Try it now
+                @theredactedprotocol_bot — Try it now
               </div>
             </a>
           </div>
 
           <div className="mt-8 pt-6 border-t border-rd-border/30 text-center">
             <p className="text-[10px] text-rd-muted/30 tracking-[0.3em]">
-              SUBMITTED TO COLOSSEUM SOLANA 2026 BY @theprotocol_sol
+              SUBMITTED TO COLOSSEUM SOLANA 2026 BY @TheRedacted_Sol
             </p>
           </div>
         </motion.div>

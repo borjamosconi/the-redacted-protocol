@@ -1,24 +1,11 @@
+import { SITE_URL, labeledLink, sectionTitle, tgShareLink, xShareLink } from './telegram-format'
+
 /**
- * Centralized message bank for Telegram & X (Twitter) broadcasts.
+ * Centralized message bank for Telegram & X broadcasts.
  *
- * Each message set has:
- *   - telegram: HTML-formatted rich text with inline share links
- *   - tweet:    Plain-text optimized for X (≤280 chars)
- *   - slot:     time-of-day hint ('morning' | 'afternoon' | 'evening')
+ * Telegram messages use HTML and keep every link labeled so the reader knows
+ * exactly what each URL is for before opening it.
  */
-
-const SITE_URL = 'https://redacted.bond'
-
-// ── Share deeplink builders ─────────────────────────────────────────────────
-function tgShareLink(text: string): string {
-  return `https://t.me/share/url?url=${encodeURIComponent(SITE_URL)}&text=${encodeURIComponent(text)}`
-}
-
-function xShareLink(text: string): string {
-  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
-}
-
-// ── Message Bank ────────────────────────────────────────────────────────────
 
 export interface BroadcastSet {
   slot: 'morning' | 'afternoon' | 'evening'
@@ -27,116 +14,82 @@ export interface BroadcastSet {
 }
 
 export const BROADCAST_MESSAGES: BroadcastSet[] = [
-  // ── MORNING ───────────────────────────────────────────────────────────────
   {
     slot: 'morning',
     telegram:
-      `<b>☀️ Buenos días, agentes!</b>\n\n` +
-      `¿Sabías que puedes convertir <b>cualquier documento</b> en un token en Solana?\n\n` +
-      `📄 Sube tu archivo\n` +
-      `🤖 La IA lo analiza automáticamente\n` +
-      `🪙 Se crea un token SPL con bonding curve\n` +
-      `📈 ¡Y la comunidad puede tradear!\n\n` +
-      `Es así de fácil. Desde PDFs hasta imágenes, todo puede ser tokenizado.\n\n` +
-      `<b>¿Tienes un documento interesante?</b> Tokenízalo hoy y compártelo con el mundo 🌍\n\n` +
-      `🔗 <a href="${SITE_URL}">redacted.bond</a>\n\n` +
-      `<b>📲 Comparte con tu gente:</b>\n` +
-      `<a href="${tgShareLink('☀️ Acabo de descubrir Redacted Protocol — puedes tokenizar cualquier documento en Solana con IA. Pruébalo: ' + SITE_URL)}">📤 Compartir en Telegram</a>  ·  ` +
-      `<a href="${xShareLink('☀️ Redacted Protocol te permite tokenizar cualquier documento en Solana con IA.\n\nPDFs, imágenes, lo que sea → token SPL con bonding curve.\n\nPruébalo: ' + SITE_URL + '\n\n#Solana #RDX #RedactedProtocol')}">𝕏 Postear en X</a>`,
+      `${sectionTitle('Redacted Protocol: tokeniza documentos en Solana')}\n\n` +
+      `Puedes subir un PDF, una imagen, una captura o un informe. La IA analiza el contenido y crea un activo digital basado en esa informacion.\n\n` +
+      `${sectionTitle('Como funciona:')}\n` +
+      `1. Subes el archivo o pegas un enlace.\n` +
+      `2. La IA extrae los datos importantes.\n` +
+      `3. Se crea un token SPL con curva de precio.\n\n` +
+      `${sectionTitle('Enlaces:')}\n` +
+      `${labeledLink('Terminal para subir o analizar documentos', `${SITE_URL}/terminal`)}\n` +
+      `${labeledLink('Web principal del proyecto', SITE_URL)}\n` +
+      `${labeledLink('Compartir este mensaje en Telegram', tgShareLink('Redacted Protocol permite tokenizar documentos en Solana con IA. Pruebalo aqui: ' + SITE_URL))}\n` +
+      `${labeledLink('Publicar en X', xShareLink('Redacted Protocol permite tokenizar documentos en Solana con IA.\n\nSube un archivo, deja que la IA lo analice y crea un token SPL.\n\nPruebalo: ' + SITE_URL + '/terminal\n\n#Solana #RDX #AI'))}`,
     tweet:
-      `☀️ ¿Tienes un documento interesante?\n\n` +
-      `En Redacted Protocol puedes tokenizarlo en Solana con IA.\n\n` +
-      `📄 Sube → 🤖 IA analiza → 🪙 Token SPL creado\n\n` +
-      `Así de simple.\n\n` +
-      `Pruébalo: ${SITE_URL}\n\n` +
-      `#Solana #RDX #RedactedProtocol`,
+      `Tienes un documento con informacion valiosa?\n\n` +
+      `En Redacted Protocol puedes tokenizarlo en Solana usando IA.\n\n` +
+      `Sube archivo -> IA analiza -> token SPL creado\n\n` +
+      `${SITE_URL}/terminal\n\n` +
+      `#Solana #RDX #AI`,
   },
-
-  // ── AFTERNOON ─────────────────────────────────────────────────────────────
   {
     slot: 'afternoon',
     telegram:
-      `<b>🚀 ¡La comunidad sigue creciendo!</b>\n\n` +
-      `Cada día más agentes están tokenizando sus documentos en Redacted Protocol.\n\n` +
-      `<b>¿Qué puedes tokenizar?</b>\n` +
-      `📰 Artículos y noticias\n` +
-      `📑 Informes y reportes\n` +
-      `🖼️ Imágenes y arte\n` +
-      `📜 Documentos históricos\n` +
-      `🔬 Papers e investigaciones\n\n` +
-      `Cada archivo que tokenizas gana <b>XP</b> y sube tu posición en el <b>leaderboard</b> 🏆\n\n` +
-      `<b>Gana puntos así:</b>\n` +
-      `▸ Check-in diario: <code>+25 XP</code>\n` +
-      `▸ Escanear documento: <code>+50 XP</code>\n` +
-      `▸ Invitar a un amigo: <code>+200 XP</code>\n` +
-      `▸ Racha de 7 días: <code>+500 XP</code>\n\n` +
-      `🔗 <a href="${SITE_URL}/dashboard">redacted.bond/dashboard</a>\n\n` +
-      `<b>📲 Comparte con tu gente:</b>\n` +
-      `<a href="${tgShareLink('🚀 Estoy tokenizando documentos en Solana con Redacted Protocol — ganas XP y subes en el leaderboard. Únete: ' + SITE_URL)}">📤 Compartir en Telegram</a>  ·  ` +
-      `<a href="${xShareLink('🚀 Tokenizando documentos en Solana con @RedactedProtocol.\n\nGanas XP, subes en el leaderboard, y tu archivo se convierte en un token tradeable.\n\nÚnete: ' + SITE_URL + '\n\n#Solana #RDX')}">𝕏 Postear en X</a>`,
+      `${sectionTitle('Gana XP participando en Redacted Protocol')}\n\n` +
+      `Cada accion dentro del protocolo suma experiencia. Esa actividad ayuda a mejorar tu posicion en el ranking y tu participacion en la comunidad.\n\n` +
+      `${sectionTitle('Acciones que suman XP:')}\n` +
+      `- Registro diario: <code>+25 XP</code>\n` +
+      `- Escanear un documento: <code>+50 XP</code>\n` +
+      `- Invitar a nuevos usuarios: <code>+200 XP</code>\n\n` +
+      `${sectionTitle('Enlaces:')}\n` +
+      `${labeledLink('Dashboard para ver XP, misiones y ranking', `${SITE_URL}/dashboard`)}\n` +
+      `${labeledLink('Terminal para subir documentos', `${SITE_URL}/terminal`)}\n` +
+      `${labeledLink('Compartir invitacion en Telegram', tgShareLink('Estoy usando Redacted Protocol para tokenizar informacion en Solana y ganar XP. Unete aqui: ' + SITE_URL))}\n` +
+      `${labeledLink('Publicar invitacion en X', xShareLink('Estoy usando Redacted Protocol para tokenizar informacion en Solana y ganar XP.\n\nUnete: ' + SITE_URL + '\n\n#Solana #RDX'))}`,
     tweet:
-      `🚀 La comunidad de Redacted Protocol sigue creciendo.\n\n` +
-      `Tokeniza documentos en Solana:\n` +
-      `📰 Artículos\n📑 Informes\n🖼️ Arte\n🔬 Papers\n\n` +
-      `Cada archivo = XP + posición en el leaderboard 🏆\n\n` +
-      `${SITE_URL}\n\n` +
-      `#Solana #RDX #RedactedProtocol`,
+      `La comunidad de Redacted Protocol sigue creciendo.\n\n` +
+      `Tokeniza articulos, informes o documentos en Solana. Gana XP por cada aportacion y sube en el ranking.\n\n` +
+      `${SITE_URL}/dashboard\n\n` +
+      `#Solana #RDX #Web3`,
   },
-
-  // ── EVENING ───────────────────────────────────────────────────────────────
   {
     slot: 'evening',
     telegram:
-      `<b>🌙 Resumen del día</b>\n\n` +
-      `Otro gran día para la red de agentes.\n\n` +
-      `<b>¿Todavía no has tokenizado tu primer documento?</b>\n` +
-      `No te preocupes, es super fácil:\n\n` +
-      `1️⃣ Conecta tu wallet en <a href="${SITE_URL}">redacted.bond</a>\n` +
-      `2️⃣ Sube cualquier documento o imagen\n` +
-      `3️⃣ La IA lo clasifica y genera el token\n` +
-      `4️⃣ ¡Listo! Tu archivo ya es un token en Solana\n\n` +
-      `Y lo mejor: recibes <b>700 $RDX gratis</b> en el airdrop solo por registrarte 🎁\n\n` +
-      `<b>Herramientas disponibles:</b>\n` +
-      `🔍 Motor OCR — extrae texto de imágenes\n` +
-      `🎨 Generador de imágenes con IA\n` +
-      `📰 Scanner de noticias\n` +
-      `📈 Terminal de trading con bonding curve\n\n` +
-      `🔗 <a href="${SITE_URL}">redacted.bond</a>\n\n` +
-      `<b>📲 Comparte con tu gente:</b>\n` +
-      `<a href="${tgShareLink('🌙 En Redacted Protocol recibes 700 $RDX gratis por registrarte y puedes tokenizar cualquier documento en Solana. Pruébalo: ' + SITE_URL)}">📤 Compartir en Telegram</a>  ·  ` +
-      `<a href="${xShareLink('🌙 700 $RDX gratis solo por registrarte.\n\nRedacted Protocol te permite tokenizar cualquier documento en Solana con IA.\n\nOCR · Image Gen · Trading Terminal\n\nPruébalo: ' + SITE_URL + '\n\n#Solana #Airdrop #RDX')}">𝕏 Postear en X</a>`,
+      `${sectionTitle('Airdrop y herramientas principales de Redacted Protocol')}\n\n` +
+      `Si aun no has empezado, puedes registrar tu wallet, revisar tus misiones y probar el analisis de documentos desde el dashboard.\n\n` +
+      `${sectionTitle('Pasos recomendados:')}\n` +
+      `1. Conecta tu wallet de Solana.\n` +
+      `2. Revisa tu estado de airdrop y XP.\n` +
+      `3. Sube un documento o pega un enlace para analizarlo con IA.\n\n` +
+      `${sectionTitle('Enlaces:')}\n` +
+      `${labeledLink('Registro y estado del airdrop', `${SITE_URL}/dashboard`)}\n` +
+      `${labeledLink('Terminal de documentos y trading', `${SITE_URL}/terminal`)}\n` +
+      `${labeledLink('Web principal', SITE_URL)}\n` +
+      `${labeledLink('Compartir airdrop en Telegram', tgShareLink('Redacted Protocol permite registrar tu wallet, ganar XP y tokenizar documentos en Solana. Entra aqui: ' + SITE_URL))}\n` +
+      `${labeledLink('Publicar airdrop en X', xShareLink('Redacted Protocol permite registrar tu wallet, ganar XP y tokenizar documentos en Solana con IA.\n\nEntra aqui: ' + SITE_URL + '\n\n#Solana #Airdrop #RDX'))}`,
     tweet:
-      `🌙 ¿Ya tokenizaste tu primer documento?\n\n` +
-      `En Redacted Protocol es gratis empezar:\n` +
-      `✅ 700 $RDX de airdrop\n` +
-      `✅ IA clasifica tu archivo\n` +
-      `✅ Token SPL automático\n` +
-      `✅ Trading con bonding curve\n\n` +
-      `Pruébalo: ${SITE_URL}\n\n` +
+      `Ya revisaste tu airdrop de $RDX?\n\n` +
+      `Conecta tu wallet, gana XP y tokeniza documentos en Solana con IA.\n\n` +
+      `${SITE_URL}/dashboard\n\n` +
       `#Solana #RDX #Airdrop`,
   },
 ]
 
-// ── Extra tweets (X-only rotation) ──────────────────────────────────────────
-
 export const EXTRA_TWEETS: string[] = [
-  `📄 ¿Tienes un PDF, un artículo, o una imagen interesante?\n\nConviértelo en un token en Solana con Redacted Protocol.\n\nLa IA lo analiza, crea el token, y la comunidad puede tradearlo.\n\n${SITE_URL}\n\n#Solana #RDX #RedactedProtocol`,
-
-  `🤖 Tokenizar documentos con IA nunca fue tan fácil.\n\n1. Sube tu archivo\n2. La IA lo clasifica\n3. Se crea un token SPL\n4. Trading en vivo\n\nAsí funciona Redacted Protocol.\n\n${SITE_URL}\n\n#Solana #Web3 #AI`,
-
-  `🎁 700 $RDX gratis por registrarte.\n40% del supply total para la comunidad.\n\nTokeniza documentos, gana XP, sube en el leaderboard.\n\nRedacted Protocol en Solana.\n\n${SITE_URL}\n\n#Solana #Airdrop #RDX`,
-
-  `📈 Cada documento tokenizado tiene su propia bonding curve.\n\nEso significa que puedes tradear archivos como si fueran memecoins.\n\nPero con contenido real detrás.\n\nBienvenido a Redacted Protocol.\n\n${SITE_URL}\n\n#Solana #DeFi #RedactedProtocol`,
-
-  `🏆 Los agentes más activos están subiendo en el leaderboard.\n\nCheck-in diario: +25 XP\nEscanear docs: +50 XP\nInvitar amigos: +200 XP\nRacha de 7 días: +500 XP\n\n¿Dónde estás tú?\n\n${SITE_URL}/dashboard\n\n#Solana #RDX`,
+  `Convierte documentos en activos digitales en Solana. La IA analiza PDFs, imagenes y enlaces para crear tokens SPL automaticos.\n\n${SITE_URL}/terminal\n\n#Solana #RDX #AI`,
+  `Tokenizacion de documentos en 3 pasos:\n\n1. Sube tu archivo\n2. La IA analiza el contenido\n3. Se crea el token\n\n${SITE_URL}/terminal\n\n#Solana #Web3 #Crypto`,
+  `No pierdas tu asignacion de $RDX. Registra tu wallet, completa misiones y suma XP dentro de Redacted Protocol.\n\n${SITE_URL}/dashboard\n\n#Solana #Airdrop #RDX`,
+  `Cada documento tokenizado puede tener su propia curva de precio. Redacted Protocol convierte informacion en activos de datos.\n\n${SITE_URL}/terminal\n\n#Solana #DeFi #AI`,
+  `Los usuarios mas activos lideran la red.\n\nCheck-in diario: +25 XP\nEscanear docs: +50 XP\nInvitar usuarios: +200 XP\n\n${SITE_URL}/dashboard\n\n#Solana #RDX`,
 ]
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
 export function getMessageByHour(utcHour: number): BroadcastSet {
-  if (utcHour >= 6 && utcHour < 14) return BROADCAST_MESSAGES[0]   // morning
-  if (utcHour >= 14 && utcHour < 20) return BROADCAST_MESSAGES[1]  // afternoon
-  return BROADCAST_MESSAGES[2]                                      // evening
+  if (utcHour >= 6 && utcHour < 14) return BROADCAST_MESSAGES[0]
+  if (utcHour >= 14 && utcHour < 20) return BROADCAST_MESSAGES[1]
+  return BROADCAST_MESSAGES[2]
 }
 
 export function getRandomTweet(): string {
@@ -147,7 +100,6 @@ export function getRandomTweet(): string {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-/** Pick tweet from the BroadcastSet matching the current time slot */
 export function getTweetByHour(utcHour: number): string {
   return getMessageByHour(utcHour).tweet
 }

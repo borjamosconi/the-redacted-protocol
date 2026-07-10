@@ -3,6 +3,7 @@ const path = require('path')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: { unoptimized: true },
+  transpilePackages: ['framer-motion'],
   outputFileTracingRoot: path.join(__dirname),
   // Anchor IDL types are loose; ship the build and tighten types in a later pass.
   typescript: { ignoreBuildErrors: true },
